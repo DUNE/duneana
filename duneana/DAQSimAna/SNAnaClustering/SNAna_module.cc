@@ -11,6 +11,7 @@
 // LArSoft libraries
 
 //LArSoft includes
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 
@@ -269,6 +270,7 @@ private:
 
 
   art::ServiceHandle<geo::Geometry> geo;
+  geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
   art::ServiceHandle<cheat::PhotonBackTrackerService> pbt_serv;
@@ -607,6 +609,7 @@ void SNAna::analyze(art::Event const & evt)
 
   //GET INFORMATION ABOUT THE DETECTOR'S GEOMETRY.
   auto const* geo = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
 
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
@@ -662,25 +665,16 @@ void SNAna::analyze(art::Event const & evt)
     }
 
     for(size_t i=0; i<True_VertX.size(); ++i) {
-      bool caught = false;
       geo::Point_t const Vertex{True_VertX[i], True_VertY[i], True_VertZ[i]};
-      geo::WireID WireID;
       geo::PlaneID Plane(geo->FindTPCAtPosition(Vertex),geo::kZ);
       try
       {
-        WireID = geo->NearestWireID(Vertex, Plane);
+        auto WireID = wireReadout.Plane(Plane).NearestWireID(Vertex);
+        True_VertexChan.push_back(wireReadout.PlaneWireToChannel(WireID));
       }
       catch(...)
       {
-        caught = true;
-      }
-      if(caught==true)
-      {
         True_VertexChan.push_back(-1);
-      }
-      else
-      {
-        True_VertexChan.push_back(geo->PlaneWireToChannel(WireID));
       }
 
       //CM/MICROSECOND.
@@ -837,7 +831,7 @@ void SNAna::analyze(art::Event const & evt)
       std::set<int> badChannels;
       for(size_t i=0; i<rawDigitsVecHandle->size(); ++i) {
         int rawWireChannel=(*rawDigitsVecHandle)[i].Channel();
-        std::vector<geo::WireID> adjacentwire = geo->ChannelToWire(rawWireChannel);
+        std::vector<geo::WireID> adjacentwire = wireReadout.ChannelToWire(rawWireChannel);
 
         if (adjacentwire.size() < 1 || adjacentwire[0].Plane == geo::kU ||
             adjacentwire[0].Plane == geo::kV){
@@ -896,7 +890,7 @@ void SNAna::analyze(art::Event const & evt)
           if(fSaveNeighbourADCs)
             SaveNeighbourADC(channel,rawDigitsVecHandle, badChannels, ThisHit);
 
-          auto& wgeo = geo->WireIDToWireGeo(ThisHit.WireID());
+          auto& wgeo = wireReadout.Wire(ThisHit.WireID());
           auto const wire_start = wgeo.GetStart();
           auto const wire_end = wgeo.GetEnd();
           Hit_X_start.push_back(wire_start.X());
@@ -1057,7 +1051,7 @@ void SNAna::analyze(art::Event const & evt)
 
         map_of_ophit[gen].push_back(ophitlist.at(i));
 
-        auto const xyz_world = geo->OpDetGeoFromOpChannel(ophitlist[i]->OpChannel()).GetCenter();
+        auto const xyz_world = wireReadout.OpDetGeoFromOpChannel(ophitlist[i]->OpChannel()).GetCenter();
         PDS_OpHit_OpChannel   .push_back(ophitlist[i]->OpChannel());
         PDS_OpHit_X           .push_back(xyz_world.X());
         PDS_OpHit_Y           .push_back(xyz_world.Y());
@@ -1183,7 +1177,7 @@ void SNAna::SaveIDEs(art::Event const & evt)
 
   for(auto&& simch: simchs){
     // We only care about collection channels
-    if(geo->SignalType(simch.Channel())!=geo::kCollection) continue;
+    if(wireReadout.SignalType(simch.Channel())!=geo::kCollection) continue;
 
     // The IDEs record energy depositions at every tick, but
     // mostly we have several depositions at contiguous times. So
@@ -1270,7 +1264,7 @@ void SNAna::SaveNeighbourADC(int channel,
   // outside the loop here so that we only have to allocate it once
   raw::RawDigit::ADCvector_t ADCs((*rawDigitsVecHandle)[0].Samples());
 
-  std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
+  std::vector<geo::WireID> wids = wireReadout.ChannelToWire(channel);
   for(size_t i=0; i<rawDigitsVecHandle->size(); ++i)
   {
     int rawWireChannel=(*rawDigitsVecHandle)[i].Channel();

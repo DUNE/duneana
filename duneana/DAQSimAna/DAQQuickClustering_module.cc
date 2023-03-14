@@ -1,4 +1,5 @@
 #include "DAQQuickClustering_module.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 
 void ClusterHitsInTime::DoIt(std::vector<recoHit> cHitVector)
@@ -415,6 +416,7 @@ void DAQQuickClustering::analyze(art::Event const & evt)
 
   //GET INFORMATION ABOUT THE DETECTOR'S GEOMETRY.
   auto const* geo = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
 
 // GET THE RECO HITS.
   auto reco_hits = evt.getValidHandle<std::vector<recob::Hit> >(fHitLabel);
@@ -457,23 +459,18 @@ void DAQQuickClustering::analyze(art::Event const & evt)
   Px = Px_/Pnorm;
   Py = Py_/Pnorm;
   Pz = Pz_/Pnorm;
-  bool caught = false;
   geo::Point_t const Vertex{VertX, VertY, VertZ};
   geo::WireID WireID;
   geo::PlaneID Plane(geo->FindTPCAtPosition(Vertex),geo::kZ);
   try
   {
-    WireID = geo->NearestWireID(Vertex, Plane);
+    WireID = wireReadout.Plane(Plane).NearestWireID(Vertex);
+    VertexChan = wireReadout.PlaneWireToChannel(WireID);
   }
   catch(...)
   {
-    caught = true;
-  }
-
-  if(caught)
     VertexChan = -1; 
-  else
-    VertexChan = geo->PlaneWireToChannel(WireID);
+  }
   
   //CM/MICROSECOND.
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);

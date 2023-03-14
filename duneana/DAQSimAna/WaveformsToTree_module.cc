@@ -17,7 +17,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/RawData/RawDigit.h"
 
 #include <memory>
@@ -77,9 +77,9 @@ void WaveformsToTree::analyze(art::Event const& e)
     auto& digits_in =*digits_handle;
 
     int nChan=0;
-    art::ServiceHandle<geo::Geometry> geo;
+    auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
     for(auto&& digit: digits_in){
-        bool isCollection=geo->SignalType(digit.Channel())==geo::kCollection;
+        bool isCollection=wireReadout.SignalType(digit.Channel())==geo::kCollection;
         if(!isCollection) continue;
         if(nChan++ > m_maxChannels) break;
 

@@ -11,6 +11,7 @@ services:
    MemoryTracker:         {} # default is one
    RandomNumberGenerator: {} #ART native random number generator
    FileCatalogMetadata:   @local::art_file_catalog_mc
+   AuxDetGeometry:        @local::dune10kt_1x2x6_auxdet_geo
    Geometry:              @local::dune10kt_1x2x6_geo
    NuRandomService:       @local::per_event_NuRandomService  # seedservice.fcl
 }
@@ -33,7 +34,7 @@ physics:
 
       rns:            { module_type: "RandomNumberSaver" }
    }
-   
+
    analyzers:
    {
       waveformdump: {
@@ -42,12 +43,12 @@ physics:
          InputTag: "simwire"
       }
    }
-   
+
    ana: [ waveformdump ]
    sim: [ rns, simwire ]
    trigger_paths: [ sim ]
-   end_paths: [ ana ] 
-   
+   end_paths: [ ana ]
+
 }
 
 source:

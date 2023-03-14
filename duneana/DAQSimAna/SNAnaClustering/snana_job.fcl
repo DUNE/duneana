@@ -11,6 +11,7 @@ services:
   MemoryTracker:         {}
   RandomNumberGenerator: {} #ART native random number generator
   FileCatalogMetadata:   @local::art_file_catalog_mc
+  AuxDetGeometry:        @local::dune10kt_1x2x6_auxdet_geo
   Geometry:              @local::dune10kt_1x2x6_geo
 }
 
@@ -24,7 +25,7 @@ physics:
 
   #ana: [ snanafasth ]
   ana: [ snanagaushit ]
-  end_paths: [ ana ] 
+  end_paths: [ ana ]
 
 }
 
@@ -41,4 +42,3 @@ source:
 #physics.analyzers.snanafasth.HitLabel: "fasthit30"
 physics.analyzers.snanagaushit.HitLabel: "gaushit"
 #physics.analyzers.snanagaushit.OpHitModuleLabel: "ophitSNR45cm0100Hz4snrNonRefl"
-

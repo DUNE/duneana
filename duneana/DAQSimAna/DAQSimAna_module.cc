@@ -18,7 +18,7 @@
 // Framework includes
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "lardataobj/RawData/RawDigit.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RawData/raw.h"
 #include "lardataobj/Simulation/sim.h"
@@ -161,7 +161,7 @@ private:
   TH1I* hAdjHits_Oth;
 
   // --- Declare our services
-  art::ServiceHandle<geo::Geometry> geo;
+  geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
   
@@ -322,7 +322,7 @@ void DAQSimAna::SaveIDEs(art::Event const & evt)
 
     for(auto&& simch: simchs){
         // We only care about collection channels
-        if(geo->SignalType(simch.Channel())!=geo::kCollection) continue;
+        if(wireReadout.SignalType(simch.Channel())!=geo::kCollection) continue;
 
         // The IDEs record energy depositions at every tick, but
         // mostly we have several depositions at contiguous times. So

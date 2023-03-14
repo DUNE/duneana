@@ -16,6 +16,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/OpHit.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
@@ -112,6 +113,7 @@ namespace CalibrationTreeBuilder {
       art::ServiceHandle<cheat::BackTrackerService> BTS;
       art::ServiceHandle<cheat::PhotonBackTrackerService> PBS;
       art::ServiceHandle<geo::Geometry> GS;
+      geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
 
       art::InputTag private_HitLabel;
       art::InputTag private_OpHitLabel;

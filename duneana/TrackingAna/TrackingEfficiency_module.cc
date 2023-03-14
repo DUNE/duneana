@@ -28,6 +28,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
@@ -147,6 +148,7 @@ private:
   bool MCMatched, AllChargedTrack;
   // Handles
   art::ServiceHandle<geo::Geometry> geom;  
+  geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
   double XDriftVelocity;
@@ -469,8 +471,7 @@ void TrackingEfficiency::TrackingEfficiency::MCTruthInformation (detinfo::Detect
     geo::TPCID tpcid = geom->FindTPCAtPosition(position);
     if (tpcid.isValid) { 
       // -- Check if hit is within drift window...
-      geo::TPCGeo      const& tpc  = geom->TPC(tpcid);
-      double XPlanePosition      = tpc.Plane(0).GetCenter().X();
+      double XPlanePosition      = wireReadout.Plane({tpcid, 0}).GetCenter().X();
       double DriftTimeCorrection = fabs( position.X() - XPlanePosition ) / XDriftVelocity;
       double TimeAtPlane         = particle->T() + DriftTimeCorrection;
       if ( TimeAtPlane < trigger_offset(clockData)
