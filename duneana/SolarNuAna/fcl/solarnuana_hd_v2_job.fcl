@@ -10,7 +10,7 @@ process_name: SolarNuAna
 services:
 {
   @table::dunefd_services
-  TFileService:          { fileName: "SolarNuAna_hd_v2_wbkg_hist.root" }
+  TFileService:          { fileName: "SolarNuAna_hd_v2_hist.root" }
   TimeTracker:           {}
   MemoryTracker:         {} # default is one
   RandomNumberGenerator: {} #ART native random number generator

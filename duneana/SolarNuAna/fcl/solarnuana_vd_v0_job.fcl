@@ -10,7 +10,7 @@ process_name: SolarNuAna
 services:
 {
   @table::dunefd_services
-  TFileService:          { fileName: "SolarNuAna_vd_v0_CPAK40_hist.root" }
+  TFileService:          { fileName: "SolarNuAna_vd_v0_hist.root" }
   TimeTracker:           {}
   MemoryTracker:         {} # default is one
   RandomNumberGenerator: {} # ART native random number generator
@@ -26,7 +26,7 @@ physics:
 { 
   analyzers:
   {
-    solarnuana:     @local::solar_nu_ana_vd_k40cpa
+    solarnuana:     @local::solar_nu_ana_vd
   }
   ana: [ solarnuana ]
   end_paths: [ ana ] 

@@ -25,46 +25,19 @@ solar_nu_ana_hd_v4:
   AdjClusterTime:      50            # Time window to search for adj. clusters in [ick] units.
   AdjClusterRad:       100           # Radius to search for adj. clusters in [cm] units.
   
-  AdjOpFlashTime:      10000         # Time window to look for adjacent clusters in [tick] units.
+  AdjOpFlashTime:      1000          # Time window to look for adjacent clusters in [tick] units.
   AdjOpFlashRad:       250           # Radius to search for adj. OpFlashes reconstructed in [cm] units.
   AdjOpFlashMaxPECut:  1.01          # Cut on the maximum PE OpHit contribution to the total OpFlash PE (lower limit).
   
-  TestNewClReco: false               # Use new cluster reco algorithm.
-  Debug: false
+  TestNewClReco:       false         # Use new cluster reco algorithm.
+  Debug:               false
 }
 
 solar_nu_ana_hd_v2: @local::solar_nu_ana_hd_v4
 solar_nu_ana_hd_v2.ParticleLabelVector: ["marley","apa","neut","po","cpa","ar42","kr85","ar39","rn222"]
 
-solar_nu_ana_hd_v4_wbkg: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_wbkg.ParticleLabelVector: ["marley","apaGen","cNeutronGen","cpaGen","ar42Gen","kr85Gen","ar39Gen","rn222Gen","po210Gen"]
-
-solar_nu_ana_hd_v4_clean: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_clean.ParticleLabelVector: ["marley"]
-
-solar_nu_ana_hd_v4_ar39: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_ar39.ParticleLabelVector: ["marley","ar39Gen"]
-
-solar_nu_ana_hd_v4_ar42: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_ar42.ParticleLabelVector: ["marley","ar42Gen"]
-
-solar_nu_ana_hd_v4_apa: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_apa.ParticleLabelVector: ["marley","apaGen"]
-
-solar_nu_ana_hd_v4_neut: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_neut.ParticleLabelVector: ["marley","cNeutronGen"]
-
-solar_nu_ana_hd_v4_cpa: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_cpa.ParticleLabelVector: ["marley","cpaGen"]
-
-solar_nu_ana_hd_v4_kr85: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_kr85.ParticleLabelVector: ["marley","kr85Gen"]
-
-solar_nu_ana_hd_v4_rn222: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_rn222.ParticleLabelVector: ["marley","rn222Gen"]
-
-solar_nu_ana_hd_v4_po210: @local::solar_nu_ana_hd_v4
-solar_nu_ana_hd_v4_po210.ParticleLabelVector: ["marley","po210Gen"]
+solar_nu_ana_hd_v4: @local::solar_nu_ana_hd_v4
+solar_nu_ana_hd_v4.ParticleLabelVector: ["marley","apaGen","cNeutronGen","cpaGen","ar42Gen","kr85Gen","ar39Gen","rn222Gen","po210Gen"]
 
 solar_nu_ana_vd: @local::solar_nu_ana_hd_v4
 solar_nu_ana_vd.HitLabel:            "gaushit"
@@ -73,41 +46,5 @@ solar_nu_ana_vd.OpHitLabel:          "ophit10ppm"
 solar_nu_ana_vd.OpDetWaveformLabel:  "opdigi10ppm"
 solar_nu_ana_vd.ParticleLabelVector: ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainGenInLAr","K42From42ArGenInCPA","K40inGenInCPA","U238ChainGenInCPA","Rn222ChainGenInPDS","NeutronGenInRock","GammasGenInRock"]
 solar_nu_ana_vd.DetectorSizeY:       1500 
-
-solar_nu_ana_vd_clean: @local::solar_nu_ana_vd
-solar_nu_ana_vd_clean.ParticleLabelVector: ["marley"]
-
-solar_nu_ana_vd_ar39: @local::solar_nu_ana_vd
-solar_nu_ana_vd_ar39.ParticleLabelVector: ["marley","Ar39GenInLAr"]
-
-solar_nu_ana_vd_kr85: @local::solar_nu_ana_vd
-solar_nu_ana_vd_kr85.ParticleLabelVector: ["marley","Kr85GenInLAr"]
-
-solar_nu_ana_vd_ar42: @local::solar_nu_ana_vd
-solar_nu_ana_vd_ar42.ParticleLabelVector: ["marley","Ar42GenInLAr"]
-
-solar_nu_ana_vd_k42: @local::solar_nu_ana_vd
-solar_nu_ana_vd_k42.ParticleLabelVector: ["marley","K42From42ArGenInLAr"]
-
-solar_nu_ana_vd_rn222: @local::solar_nu_ana_vd
-solar_nu_ana_vd_rn222.ParticleLabelVector: ["marley","Rn222ChainGenInLAr"]
-
-solar_nu_ana_vd_k42cpa: @local::solar_nu_ana_vd
-solar_nu_ana_vd_k42cpa.ParticleLabelVector: ["marley","K42From42ArGenInCPA"]
-
-solar_nu_ana_vd_k40cpa: @local::solar_nu_ana_vd
-solar_nu_ana_vd_k40cpa.ParticleLabelVector: ["marley","K40inGenInCPA"]
-
-solar_nu_ana_vd_u238cpa: @local::solar_nu_ana_vd
-solar_nu_ana_vd_u238cpa.ParticleLabelVector: ["marley","U238ChainGenInCPA"]
-
-solar_nu_ana_vd_rn222pds: @local::solar_nu_ana_vd
-solar_nu_ana_vd_rn222pds.ParticleLabelVector: ["marley","Rn222ChainGenInPDS"]
-
-solar_nu_ana_vd_neut: @local::solar_nu_ana_vd
-solar_nu_ana_vd_neut.ParticleLabelVector: ["marley","NeutronGenInRock"]
-
-solar_nu_ana_vd_gamma: @local::solar_nu_ana_vd
-solar_nu_ana_vd_gamma.ParticleLabelVector: ["marley","GammasGenInRock"]
 
 END_PROLOG
