@@ -39,6 +39,9 @@ solar_nu_ana_hd_v2.ParticleLabelVector: ["marley","apa","neut","po","cpa","ar42"
 solar_nu_ana_hd_v4: @local::solar_nu_ana_hd_v4
 solar_nu_ana_hd_v4.ParticleLabelVector: ["marley","apaGen","cNeutronGen","cpaGen","ar42Gen","kr85Gen","ar39Gen","rn222Gen","po210Gen"]
 
+solar_nu_ana_hd_ref: @local::solar_nu_ana_hd_v4
+solar_nu_ana_hd_ref.ParticleLabelVector: ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainRn222GenInLAr","Rn222ChainPo218GenInLAr","Rn222ChainPb214GenInLAr","Rn222ChainBi214GenInLAr","Rn222ChainPb210GenInLAr","K40GenInCPA","U238ChainGenInCPA","K42From42ArGenInCPA","Rn222ChainPo218GenInCPA","Rn222ChainPb214GenInCPA","Rn222ChainBi214GenInCPA","Rn222ChainPb210GenInCPA","Rn222ChainFromBi210GenInCPA","Co60GenInAPA","U238ChainGenInAPA","Rn222ChainGenInPDS","NeutronGenInRock"]
+
 solar_nu_ana_vd: @local::solar_nu_ana_hd_v4
 solar_nu_ana_vd.HitLabel:            "gaushit"
 solar_nu_ana_vd.OpFlashLabel:        "opflash10ppm"
