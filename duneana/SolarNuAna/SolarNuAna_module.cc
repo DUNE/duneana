@@ -81,7 +81,7 @@ private:
   std::string sPositionReco;
   std::vector<std::string> fLabels;
   int fMaxDetSizeY, fClusterMatchMinNHit, fGoalInd0MatchTime, fGoalInd1MatchTime;
-  float fClusterMatchTime,fAdjClusterTime,fAdjClusterRad,fAdjOpFlashRad,fAdjOpFlashTime,fAdjOpFlashMaxPECut;
+  float fClusterMatchTime,fAdjClusterTime,fAdjClusterRad,fAdjOpFlashRad,fAdjOpFlashTime,fAdjOpFlashMaxPECut,fAdjOpFlashMinPECut;
   bool fTestNewClReco, fDebug;
   
   // --- Our TTrees, and its associated variables.
@@ -140,6 +140,7 @@ void SolarNuAna::reconfigure(fhicl::ParameterSet const & p){
   fAdjOpFlashTime      = p.get<float>       ("AdjOpFlashTime");
   fAdjOpFlashRad       = p.get<float>       ("AdjOpFlashRad");
   fAdjOpFlashMaxPECut  = p.get<float>       ("AdjOpFlashMaxPECut");
+  fAdjOpFlashMinPECut  = p.get<float>       ("AdjOpFlashMinPECut");
   fTestNewClReco       = p.get<bool>        ("TestNewClReco",false);
   fDebug               = p.get<bool>        ("Debug",false);
 } // Reconfigure
@@ -419,7 +420,7 @@ void SolarNuAna::analyze(art::Event const & evt)
     if (fDebug) std::cout << "PE of this OpFlash " << totPE << " OpFlash time " << OpHitT << std::endl;
 
     // Calculate the flash purity, only for the Marley events
-    if (MaxHitPE/totPE < fAdjOpFlashMaxPECut){
+    if (MaxHitPE/totPE < fAdjOpFlashMaxPECut && totPE > fAdjOpFlashMinPECut){
       OpFlashMarlPur.push_back(OpFlashPur);
       OpFlashPE.push_back(TheFlash.TotalPE());
       OpFlashMaxPE.push_back(MaxHitPE);
@@ -443,6 +444,7 @@ void SolarNuAna::analyze(art::Event const & evt)
     // --- Loop over the reconstructed hits to separate them among tpc planes according to view
     
     recob::Hit const& ThisHit = reco_hits->at(hit);
+    if (ThisHit.PeakTime() < 0) PrintInColor("Negative Hit Time = " + str(ThisHit.PeakTime()), GetColor("red"));
     if (fDebug) std::cout << "Hit " << hit << " has view " << ThisHit.View() << " and signal type " << ThisHit.SignalType() << std::endl;
 
     if      (ThisHit.SignalType() == 0 && ThisHit.View() == 0){ColHits0.push_back( ThisHit );} // SignalType = 0
@@ -488,6 +490,7 @@ void SolarNuAna::analyze(art::Event const & evt)
       std::vector<float> GenPur = {}; for (size_t genpur = 0; genpur < fLabels.size(); genpur++){GenPur.push_back(0);}
       
       for (recob::Hit hit : Clusters[i]){
+        if (hit.PeakTime() < 0) PrintInColor("Negative Cluster Time = " + str(hit.PeakTime()), GetColor("red"));
         ncharge += hit.Integral();
         const geo::WireGeo* wire = geo->GeometryCore::WirePtr(hit.WireID()); // Wire directions should be the same for all hits of the same view (can be used to check)
         double hitCharge;
@@ -550,7 +553,8 @@ void SolarNuAna::analyze(art::Event const & evt)
       FracE /= ncharge; FracGa /= ncharge; FracNe /= ncharge; FracRest /= ncharge;
       clustTPC /= ncharge; clustX /= ncharge; clustY /= ncharge;clustZ /= ncharge;clustT /= ncharge;
       if (fDebug) std::cout << "\ndzdy " << dzdy << " for cluster " << " (" << clustY << ", " << clustZ << ") with track ID " << MainTrID <<  " in plane " << idx << std::endl; 
-      
+      if (clustT < 0) PrintInColor("Negative Cluster Time = " + str(clustT), GetColor("red"));
+
       ClTotChrg[idx].push_back(ncharge);
       ClMaxChrg[idx].push_back(maxHit);
       ClNHits[idx].push_back(nhit);
@@ -713,7 +717,7 @@ void SolarNuAna::analyze(art::Event const & evt)
 
       // Loop over optical flashes to find adjacent flashes with distance < fAdjOpFlashRad and time < fAdjOpFlashTime
       for (int j = 0; j < int(OpFlashPE.size()); j++){
-        if(sqrt(pow(MVecRecY[i]-OpFlashY[j],2)+pow(MVecRecZ[i]-OpFlashZ[j],2)) < fAdjOpFlashRad  && MVecTime[i]/2 - OpFlashT[j] < fAdjOpFlashTime && MVecTime[i]/2 - OpFlashT[j] > 0){
+        if(sqrt(pow(MVecRecY[i]-OpFlashY[j],2)+pow(MVecRecZ[i]-OpFlashZ[j],2)) < fAdjOpFlashRad  && MVecTime[i] - OpFlashT[j] < fAdjOpFlashTime && MVecTime[i] - OpFlashT[j] > 0){
           MAdjFlashTime.push_back(OpFlashT[j]);
           MAdjFlashPE.push_back(OpFlashPE[j]);
           MAdjFlashNHit.push_back(OpFlashNHit[j]);
@@ -769,6 +773,7 @@ void SolarNuAna::analyze(art::Event const & evt)
       hXTruth->         Fill(MVecRecY[i]-TNuY,TNuX); 
       hYTruth->         Fill(MVecRecY[i]-TNuY,TNuY); 
       hZTruth->         Fill(MVecRecY[i]-TNuY,TNuZ); 
+      if (MVecTime[i]<0) std::cout << "Negative Main Cluster Time = " << MVecTime[i] << std::endl;
     }
   }
   std::cout << std::endl;

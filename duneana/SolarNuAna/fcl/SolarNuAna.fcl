@@ -3,7 +3,7 @@ BEGIN_PROLOG
 solar_nu_ana_hd_v4:
 {
   module_type:		     "SolarNuAna"
-  #================================================================================================
+  #====================================================================================
   
   RawDigitLabel:       "daq"		      # string for the process that made the raw digits
   HitLabel:		         "hitfd" 	      # string for the process that made the reco hits
@@ -22,13 +22,13 @@ solar_nu_ana_hd_v4:
   GoalInd0MatchTime:   10            # Goal Time to match clusters in ind. plane 0 in [tick] units. Needs to be calibrated for each geometry!
   GoalInd1MatchTime:   5             # Goal Time to match clusters in ind. plane 1 in [tick] units. Needs to be calibrated for each geometry!
 
-  AdjClusterTime:      50            # Time window to search for adj. clusters in [ick] units.
+  AdjClusterTime:      50            # Time window to search for adj. clusters in [tick] units.
   AdjClusterRad:       100           # Radius to search for adj. clusters in [cm] units.
   
-  AdjOpFlashTime:      1000          # Time window to look for adjacent clusters in [tick] units.
-  AdjOpFlashRad:       250           # Radius to search for adj. OpFlashes reconstructed in [cm] units.
+  AdjOpFlashTime:      4500          # Time window to look for adjacent flashes in [tick] units should be one full drift length.
+  AdjOpFlashRad:       200           # Radius to search for adj. OpFlashes reconstructed in [cm] units.
   AdjOpFlashMaxPECut:  1.01          # Cut on the maximum PE OpHit contribution to the total OpFlash PE (lower limit).
-  
+  AdjOpFlashMinPECut:  20            # Cut on the minimum PE OpHit.
   TestNewClReco:       false         # Use new cluster reco algorithm.
   Debug:               false
 }
@@ -49,5 +49,6 @@ solar_nu_ana_vd.OpHitLabel:          "ophit10ppm"
 solar_nu_ana_vd.OpDetWaveformLabel:  "opdigi10ppm"
 solar_nu_ana_vd.ParticleLabelVector: ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainGenInLAr","K42From42ArGenInCPA","K40inGenInCPA","U238ChainGenInCPA","Rn222ChainGenInPDS","NeutronGenInRock","GammasGenInRock"]
 solar_nu_ana_vd.DetectorSizeY:       1500 
+solar_nu_ana_vd.AdjOpFlashTime:      8500 
 
 END_PROLOG
