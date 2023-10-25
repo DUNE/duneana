@@ -33,6 +33,7 @@ dune35t_analysistree:
  ContainmentTaggerAssocLabel: [ "", "", "", "" ] # Not used in 35 ton
  FlashMatchAssocLabel:        [ "", "", "", "" ] # Not used in 35 ton
  POTModuleLabel:              ""
+ PFParticleModuleLabel:       ""
 
  UseBuffers:               false
  IgnoreMissingShowers:     false
@@ -55,6 +56,7 @@ dune35t_analysistree:
  SaveCaloCosmics:          true
  SaveSpacePointSolverInfo: false
  SaveCnnInfo:              false
+ SavePFParticleInfo:       false
  G4minE:                   -1
 }
 
@@ -91,12 +93,14 @@ dune10kt_analysistree.FlashMatchAssocLabel: [ "", "", "", "" ]
 dune10kt_analysistree.VertexModuleLabel: [ "linecluster", "pmtrack", "pandora" ]
 dune10kt_analysistree.ShowerModuleLabel:          ["emshower"]
 dune10kt_analysistree.POTModuleLabel:             "generator"
+dune10kt_analysistree.PFParticleModuleLabel:       "pandora"
 dune10kt_analysistree.SaveCryInfo:                false
 dune10kt_analysistree.SaveGenieInfo:              true
 dune10kt_analysistree.SaveExternCounterInfo:      false
 dune10kt_analysistree.SaveFlashInfo:              false
 dune10kt_analysistree.SaveShowerInfo:             true
 dune10kt_analysistree.SavePandoraNuVertexInfo:    true
+dune10kt_analysistree.SavePFParticleInfo:         true
 
 fddphase_analysistree: @local::dune35t_analysistree
 fddphase_analysistree.TrackModuleLabel: [ "pmtrack" ]

@@ -5,7 +5,7 @@ dune35t_analysistree:
  module_type:                 "AnalysisTree"
  DigitModuleLabel:            "daq"
  HitsModuleLabel:             "linecluster"
- LArGeantModuleLabel:         "largeant"
+ LArGeantModuleLabel:         "elecDrift"
  CalDataModuleLabel:          "caldata"
  GenieGenModuleLabel:         "generator"
  CryGenModuleLabel:           "generator"
@@ -13,6 +13,7 @@ dune35t_analysistree:
  G4ModuleLabel:               "largeant"
  TrackModuleLabel:            [ "pmtrack", "pmtrackdc", "pandoraTrack", "pandoraTrackdc" ]
  VertexModuleLabel:           [ "linecluster", "lineclusterdc", "pmtrack", "pmtrackdc", "pandora", "pandoradc" ]
+ PFParticleModuleLabel:       "pandora"
  PandoraNuVertexModuleLabel:  ""
  ClusterModuleLabel:          "linecluster"
  OpFlashModuleLabel:          "opflash"
@@ -33,6 +34,7 @@ dune35t_analysistree:
  ContainmentTaggerAssocLabel: [ "", "", "", "" ] # Not used in 35 ton
  FlashMatchAssocLabel:        [ "", "", "", "" ] # Not used in 35 ton
  POTModuleLabel:              ""
+ LArGeantProductInstance:     ""
 
  UseBuffers:               false
  IgnoreMissingShowers:     false
@@ -47,6 +49,7 @@ dune35t_analysistree:
  SaveRawDigitInfo:         false #set this to false by default since not everyone want rawdigits.
  SaveTrackInfo:            true
  SaveVertexInfo:           true 
+ SavePFParticleInfo:       true
  SavePandoraNuVertexInfo:  false # Don't have in the 35 ton
  SaveClusterInfo:          true
  SaveFlashInfo:            true
@@ -59,20 +62,28 @@ dune35t_analysistree:
 }
 
 protodune_analysistree:   @local::dune35t_analysistree
+protodune_analysistree.HitsModuleLabel:     "hitpdune"
+protodune_analysistree.LArGeantModuleLabel: "tpcrawdecoder"
+protodune_analysistree.LArGeantProductInstance: "simpleSC"
+protodune_analysistree.PandoraNuVertexModuleLabel: "pandora"
 protodune_analysistree.CryGenModuleLabel: "cosmicgenerator"
 protodune_analysistree.ProtoGenModuleLabel: "generator"
+protodune_analysistree.TrackModuleLabel: [ "pandoraTrack" ]
+protodune_analysistree.ShowerModuleLabel:["pandoraShower"]
+protodune_analysistree.CalorimetryModuleLabel: [ "pandoracalo" ]
+protodune_analysistree.ParticleIDModuleLabel:       [ "pandorapid" ]
+protodune_analysistree.FlashT0FinderLabel: [ "" ]
+protodune_analysistree.MCT0FinderLabel:   [ "" ]
+protodune_analysistree.CosmicTaggerAssocLabel:  [ "" ]
+protodune_analysistree.ContainmentTaggerAssocLabel: [ "" ]
+protodune_analysistree.FlashMatchAssocLabel: [ "" ]
+protodune_analysistree.VertexModuleLabel: [ "linecluster", "pandora" ]
+protodune_analysistree.SaveGenieInfo:              true
 protodune_analysistree.SaveProtoInfo: true
-protodune_analysistree.TrackModuleLabel: [ "pmtrack", "pandoraTrack" ]
-protodune_analysistree.CalorimetryModuleLabel: [ "pmtrackcalo", "pandoracalo" ]
-protodune_analysistree.ParticleIDModuleLabel:       [ "pmtrackpid", "pandorapid" ]
-protodune_analysistree.FlashT0FinderLabel: [ "", "" ]
-protodune_analysistree.MCT0FinderLabel:   [ "", "" ]
-protodune_analysistree.CosmicTaggerAssocLabel:  [ "", "" ]
-protodune_analysistree.ContainmentTaggerAssocLabel: [ "", "" ]
-protodune_analysistree.FlashMatchAssocLabel: [ "", "" ]
-protodune_analysistree.SaveShowerInfo:  false
 protodune_analysistree.SaveCryInfo: false
-protodune_analysistree.VertexModuleLabel: [ "linecluster", "pmtrack", "pandora" ]
+protodune_analysistree.SaveShowerInfo:             true
+protodune_analysistree.SavePandoraNuVertexInfo:    true
+protodune_analysistree.SaveExternCounterInfo:      false
 
 protodune_analysistree_data: @local::protodune_analysistree
 protodune_analysistree_data.SaveGeantInfo: false
@@ -80,16 +91,16 @@ protodune_analysistree_data.SaveProtoInfo: false
 
 dune10kt_analysistree: @local::dune35t_analysistree
 dune10kt_analysistree.PandoraNuVertexModuleLabel: "pandora"
-dune10kt_analysistree.TrackModuleLabel: [ "pmtrack", "pmtracktc", "pandoraTrack", "pmtrajfit" ]
-dune10kt_analysistree.CalorimetryModuleLabel: [ "pmtrackcalo", "pmtracktccalo", "pandoracalo", "pmtrajfitcalo" ]
-dune10kt_analysistree.ParticleIDModuleLabel:       [ "pmtrackpid", "pmtracktcpid", "pandorapid", "pmtrajfitpid" ]
-dune10kt_analysistree.FlashT0FinderLabel: [ "", "", "", "" ]
-dune10kt_analysistree.MCT0FinderLabel:   [ "", "", "", "" ]
-dune10kt_analysistree.CosmicTaggerAssocLabel:  [ "", "", "", "" ]
-dune10kt_analysistree.ContainmentTaggerAssocLabel: [ "", "", "", "" ]
-dune10kt_analysistree.FlashMatchAssocLabel: [ "", "", "", "" ]
-dune10kt_analysistree.VertexModuleLabel: [ "linecluster", "pmtrack", "pandora" ]
-dune10kt_analysistree.ShowerModuleLabel:          ["emshower"]
+dune10kt_analysistree.TrackModuleLabel: [ "pandoraTrack" ]
+dune10kt_analysistree.CalorimetryModuleLabel: [ "pandoracalo" ]
+dune10kt_analysistree.ParticleIDModuleLabel:       [ "pandorapid" ]
+dune10kt_analysistree.FlashT0FinderLabel: [ "" ]
+dune10kt_analysistree.MCT0FinderLabel:   [ "" ]
+dune10kt_analysistree.CosmicTaggerAssocLabel:  [ "" ]
+dune10kt_analysistree.ContainmentTaggerAssocLabel: [ "" ]
+dune10kt_analysistree.FlashMatchAssocLabel: [ "" ]
+dune10kt_analysistree.VertexModuleLabel: [ "linecluster", "pandora" ]
+dune10kt_analysistree.ShowerModuleLabel:          ["pandoraShower"]
 dune10kt_analysistree.POTModuleLabel:             "generator"
 dune10kt_analysistree.SaveCryInfo:                false
 dune10kt_analysistree.SaveGenieInfo:              true

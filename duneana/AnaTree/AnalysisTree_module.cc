@@ -103,7 +103,7 @@
 
 constexpr int kNplanes       = 3;     //number of wire planes
 constexpr int kMaxHits       = 100000; //maximum number of hits;
-constexpr int kMaxTrackHits  = 2000;  //maximum number of hits on a track
+constexpr int kMaxTrackHits  = 2500;  //maximum number of hits on a track
 constexpr int kMaxTrackers   = 15;    //number of trackers passed into fTrackModuleLabel
 constexpr int kMaxVertices   = 500;    //max number of 3D vertices
 constexpr int kMaxVertexAlgos = 10;    //max number of vertex algorithms
@@ -114,8 +114,8 @@ constexpr int kMaxShowerHits   = 10000;  //maximum number of hits on a shower
 constexpr int kMaxTruth        = 10;     //maximum number of neutrino truth interactions
 constexpr int kMaxClusters     = 2000;   //maximum number of clusters;
 
-constexpr int kMaxNDaughtersPerPFP = 10; //maximum number of daughters per PFParticle
-constexpr int kMaxNClustersPerPFP  = 10; //maximum number of clusters per PFParticle
+constexpr int kMaxNDaughtersPerPFP = 100; //maximum number of daughters per PFParticle
+constexpr int kMaxNClustersPerPFP  = 200; //maximum number of clusters per PFParticle
 constexpr int kMaxNPFPNeutrinos    = 5;  //maximum number of reconstructed neutrino PFParticles
 
 /// total_extent\<T\>::value has the total number of elements of an array
