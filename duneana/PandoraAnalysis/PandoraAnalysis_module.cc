@@ -338,7 +338,7 @@ void test::pandoraAnalysis::analyze(art::Event const& e)
     if(!pfpClusters.empty()){
       int iClu(0);
       for(const art::Ptr<recob::Cluster> &clu:pfpClusters){
-	fPFPCluPlane[iPfp][iClu]=clu->Plane().asPlaneID().Plane;
+        fPFPCluPlane[iPfp][iClu]=clu->Plane().Plane;
 	fPFPCluView[iPfp][iClu]=clu->View();
         fPFPCluNHits[iPfp][iClu]=clu->NHits();
 	fPFPCluIntegral[iPfp][iClu]=clu->Integral();

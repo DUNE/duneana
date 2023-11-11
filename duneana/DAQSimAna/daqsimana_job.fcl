@@ -15,6 +15,7 @@ services:
   MemoryTracker:         {} # default is one
   RandomNumberGenerator: {} #ART native random number generator
   FileCatalogMetadata:   @local::art_file_catalog_mc
+  AuxDetGeometry:        @local::dune10kt_1x2x6_auxdet_geo
   Geometry:              @local::dune10kt_1x2x6_geo
 }
 
@@ -31,7 +32,7 @@ physics:
 
   ana: [ daqanahitfd, daqanafasth ]
   #ana: [ daqanafasth ]
-  end_paths: [ ana ] 
+  end_paths: [ ana ]
 
 }
 
@@ -43,4 +44,3 @@ source:
 
 
 physics.analyzers.daqanafasth.HitLabel: "fasthit"	# string for the process that made the fast hits
-

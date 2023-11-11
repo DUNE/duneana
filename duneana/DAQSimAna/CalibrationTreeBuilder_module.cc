@@ -403,7 +403,6 @@ namespace CalibrationTreeBuilder {
   //list to be able to rebuild the "full" hit.
   bool CalibrationTreeBuilder::AddHit(detinfo::DetectorClocksData const& clockData,
                                       const art::Ptr<recob::Hit> hit, unsigned int& counter){
-    art::ServiceHandle<geo::Geometry> geom;
     std::vector<const sim::IDE*> ides_ps = BTS->HitToSimIDEs_Ps(clockData, hit);
     std::vector<std::pair<int, CalibTreeRecord::PartialHit>> track_partials;
     Double_t total_charge = 0.0;
@@ -418,7 +417,7 @@ namespace CalibrationTreeBuilder {
       tmp.width  = hit->SigmaPeakTime();
       tmp.split  = 0.0;
       tmp.wire   = hit->Channel();
-      tmp.is_collection_wire = (geom->SignalType(tmp.wire)==geo::kCollection)?(true):(false);
+      tmp.is_collection_wire = (wireReadout.SignalType(tmp.wire)==geo::kCollection)?(true):(false);
       tmp.energy = (tmp.is_collection_wire)?(ide_p->energy):(0.0);
       tmp.index  = counter;
       track_partials.push_back(std::make_pair(track_id, tmp));
@@ -460,7 +459,7 @@ namespace CalibrationTreeBuilder {
           tmp.width  = hit->Width();
           tmp.split  = 0.0;
           tmp.opchan = hit->OpChannel();
-          tmp.opdet  = GS->OpDetFromOpChannel(hit->OpChannel());
+          tmp.opdet  = wireReadout.OpDetFromOpChannel(hit->OpChannel());
           tmp.index  = counter;
           track_partials.push_back(std::make_pair(track_id, tmp));
         }
@@ -569,8 +568,7 @@ namespace CalibrationTreeBuilder {
     double fPeakTime = opHit_P->PeakTime();
     double fWidth = opHit_P->Width();
     UInt_t fChan = opHit_P->OpChannel();
-    art::ServiceHandle<geo::Geometry> geom;
-    int fDet  = geom->OpDetFromOpChannel(fChan);
+    int fDet  = wireReadout.OpDetFromOpChannel(fChan);
     //I should use the timing service for these time conversions.
     sim::OpDetBacktrackerRecord::timePDclock_t start_time = ((fPeakTime- fWidth)*1000.0)-fDelay;
     sim::OpDetBacktrackerRecord::timePDclock_t end_time = ((fPeakTime+ fWidth)*1000.0)-fDelay;

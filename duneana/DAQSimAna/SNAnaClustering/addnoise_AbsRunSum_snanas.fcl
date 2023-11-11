@@ -26,6 +26,7 @@ process_name: PrimSim
 
 services: @local::dunefd_simulation_services
 services.TFileService: { fileName: "SNAna_plus_trigprim_multithreshold.root" }
+services.AuxDetGeometry:  @local::dune10kt_1x2x6_v4_auxdet_geo
 services.Geometry:  @local::dune10kt_1x2x6_v4_geo
 services.TimeTracker:       {}
 services.MemoryTracker:         { } # default is one
@@ -57,7 +58,7 @@ physics: {
          RawDigitInputLabel: "daq"
       }
 
-      ophit:              @local::dune35t_ophit 
+      ophit:              @local::dune35t_ophit
 
       # You can add any number of trigger primitive finders here. Make
       # sure each one has a distinct name, and has a corresponding
@@ -69,10 +70,10 @@ physics: {
       runsum500:  @local::absrunningsumtppass1
       runsum550: @local::absrunningsumtppass1
       runsum600: @local::absrunningsumtppass1
-      
+
       rns:            { module_type: "RandomNumberSaver" }
    }
-   
+
    analyzers: {
       # Create an SNAna for each trigger primitive finders. Make
       # sure to add each one to the "ana" list below
@@ -86,24 +87,24 @@ physics: {
    }
 
    simulate: [rns, simwire, ophit,
-   	      runsum350,
-	      runsum400,
-	      runsum450,
-	      runsum500,
-	      runsum550,
-	      runsum600]
+              runsum350,
+              runsum400,
+              runsum450,
+              runsum500,
+              runsum550,
+              runsum600]
 
    ana     : [snanarunsum350,
-	      snanarunsum400,
-	      snanarunsum450,
-	      snanarunsum500,
-	      snanarunsum550,
-	      snanarunsum600]
+              snanarunsum400,
+              snanarunsum450,
+              snanarunsum500,
+              snanarunsum550,
+              snanarunsum600]
 
 
-   
-   trigger_paths: [ simulate ] 
-   end_paths: [ ana ] 
+
+   trigger_paths: [ simulate ]
+   end_paths: [ ana ]
 
 }
 
