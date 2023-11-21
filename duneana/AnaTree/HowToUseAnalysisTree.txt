@@ -1,0 +1,269 @@
+
+ * @file    AnalysisTree_module.cc
+ * @brief   Module to create a TTree for analysis
+ * @authors tjyang@fnal.gov, sowjanyag@phys.ksu.edu
+ *
+ * Taken from uboone code. Imported by Karl Warburton, k.warburton@sheffield.ac.uk
+ * with the help of Tingjun Yang
+ *
+ * Current implementation
+ * =======================
+ * 
+ * There is one tree only, with one set of branches for each tracking algorithm.
+ * The data structure which hosts the addresses of the tree branches is
+ * dynamically allocated on demand, and it can be optionally destroyed at the
+ * end of each event.
+ * The data structure (AnalysisTreeDataStruct) directly contains the truth and
+ * simulation information as C arrays. The data from tracking algorithms is the
+ * largest, and it is contained in a C++ vector of structures (TrackDataStruct),
+ * one per algorithm. These structures can also be allocated on demand.
+ * Each of these structures is connected to a set of branches, one branch per
+ * data member. Data members are vectors of numbers or vectors of fixed-size
+ * C arrays. The vector index represents the tracks reconstructed by the
+ * algorithm, and each has a fixed size pool for hits (do ROOT trees support
+ * branches with more than one dimension with variable size?).
+ * The data structures can assign default values to their data, connect to a
+ * ROOT tree (creating the branches they need) and resize.
+ * The AnalysisTreeDataStruct is constructed with as many tracking algorithms as
+ * there are named in the module configuration (even if they are not backed by
+ * any available tracking data).
+ * By default construction, TrackDataStruct is initialized in a state which does
+ * not allow any track (maximum tracks number is zero), and in such state trying
+ * to connect to a tree has no effect. This is done so that the
+ * AnalysisTreeDataStruct can be initialized first (and with unusable track data
+ * structures), and then the TrackDataStruct instances are initialized one by
+ * one when the number of tracks needed is known.
+ * A similar mechanism is implemented for the truth information.
+ * 
+ * The "UseBuffers: false" mode assumes that on each event a new
+ * AnalysisTreeDataStruct is created with unusable tracker data, connected to
+ * the ROOT tree (the addresses of the available branches are assigned), then
+ * each of the tracking algorithm data is resized to host the correct number
+ * of reconstructed tracks and connected to the tree. Then the normal process of
+ * filling the event data and then the tree take place. Finally, the whole
+ * data structure is freed and the tree is left in a invalid state (branch
+ * addresses are invalid). It could be possible to make the tree in a valid
+ * state by resetting the addresses, but there is no advantage in that.
+ * 
+ * The "UseBuffers: true" mode assumes that on the first event a new
+ * AnalysisTreeDataStruct is created and used just as in the other mode
+ * described above. At the end of the first event, the data structure is left
+ * around (and the tree is in a valid state). On the next event, all the
+ * addresses are checked, then for each tracker the data is resized to
+ * accommodate the right number of tracks for tis event. If the memory is
+ * increased, the address will be changed. All the branches are reconnected to
+ * the data structure, and the procedure goes on as normal.
+ * 
+ * Note that reducing the maximum number of tracks in a TrackDataStruct does not
+ * necessarily make memory available, because of how std::vector::resize()
+ * works; that feature can be implemented, but it currently has not been.
+ * 
+ * The BoxedArray<> class is a wrapper around a normal C array; it is needed
+ * to be able to include such structure in a std::vector. This container
+ * requires its objects to be default-constructible and copy-constructible,
+ * and a C array is neither. BoxedArray<> is: the default construction leaves it
+ * uninitialized (for speed reasons) while the copy construction is performed
+ * as in a Plain Old Data structure (memcpy; really!).
+ * 
+ * 
+ * Steps to reduce memory usage
+ * -----------------------------
+ * 
+ * [x] create the data structure connected to the tree only when needed
+ * [x] reduce the size of the elemental items (Double_t => Float_t could damage precision)
+ * [x] create a different structure for each tracker, allocate only what needed
+ * [x] use variable size array buffers for each tracker datum instead of [kMaxTrack]
+ * [x] turn the truth/GEANT information into vectors
+ * [ ] move hit_trkid into the track information, remove kMaxTrackers
+ * [ ] turn the hit information into vectors (~1 MB worth), remove kMaxHits
+ * [ ] fill the tree branch by branch
+ * 
+ * 
+ * Quick guide to addition of branches
+ * ====================================
+ * 
+ * A number of steps need to be taken to add an entry to the tree:
+ * -# declare a variable for the datum
+ * -# create a branch in the tree
+ * -# assign the address of that branch to the datum
+ * -# on each event: update all the data
+ * -# on each event: fill the tree with the updated data
+ * 
+ * Depending on the data type, the following "reference guide" describes the
+ * concrete implementation of each of the concepts explained here.
+ * 
+ * 
+ * Declare a variable
+ * -------------------
+ * 
+ * If the variable is a track variable, add a data member with the proper
+ * "Data structure" in AnalysisTreeDataStruct::TrackDataStruct; if it is a
+ * shower variable, add it to AnalysisTreeDataStruct::ShowerDataStruct; if
+ * it is a PFParticle variable, add it to 
+ * AnalysisTreeDataStruct::PFParticleDataStruct. Otherwise, add it directly 
+ * to AnalysisTreeDataStruct.
+ * 
+ * | category of variable | where to add the variable                   |
+ * | -------------------- | ------------------------------------------- |
+ * | track                | AnalysisTreeDataStruct::TrackDataStruct     |
+ * | shower               | AnalysisTreeDataStruct::ShowerDataStruct    |
+ * | PFParticle           | AnalysisTreeDataStruct::PFParticleDataStruct|
+ * | other                | AnalysisTreeDataStruct                      |
+ * 
+ * 
+ * Create a branch/assign the branch address
+ * ------------------------------------------
+ * 
+ * Assigning a branch an address is done by adding in the location described
+ * in this table the "Create branch" command shown below.
+ * The BranchCreator creates the branch if it does not exist, and then reassigns
+ * the address.
+ * 
+ * | category of variable | where to add the variable                                   |
+ * | -------------------- | ----------------------------------------------------------- |
+ * | track                | AnalysisTreeDataStruct::TrackDataStruct::SetAddresses()     |
+ * | shower               | AnalysisTreeDataStruct::ShowerDataStruct::SetAddresses()    |
+ * | PFParticle           | AnalysisTreeDataStruct::PFParticleDataStruct::SetAddresses()|
+ * | other                | AnalysisTreeDataStruct::SetAddresses()                      |
+ * 
+ * 
+ * Prepare to update the content
+ * ------------------------------
+ * 
+ * If the variable is a vector (like most of them are), add a proper resize()
+ * call for it. This is needed for the track and shower variables.
+ * The variables of simple `std::vector<>` types can be resized anywhere.
+ * 
+ * | category  | where to add the call                                 | call to be added                 |
+ * | --------- | ----------------------------------------------------- | -------------------------------- |
+ * | track     | AnalysisTreeDataStruct::TrackDataStruct::Resize()     | `VarName.resize(MaxTracks);`     |
+ * | shower    | AnalysisTreeDataStruct::ShowerDataStruct::Resize()    | `VarName.resize(MaxShowers);`    |
+ * | PFParticle| AnalysisTreeDataStruct::PFParticleDataStruct::Resize()| `VarName.resize(MaxPFParticles);`|
+ * | other     | AnalysisTreeDataStruct::ClearLocalData()              | specific to the type             |
+ * 
+ * 
+ * Then, assign the variable with an "invalid" value (e.g., -9999.); using a
+ * FillWith() call (see below).
+ * 
+ * | category  | where to add the call                                |
+ * | --------- | ---------------------------------------------------- |
+ * | track     | AnalysisTreeDataStruct::TrackDataStruct::Clear()     |
+ * | shower    | AnalysisTreeDataStruct::ShowerDataStruct::Clear()    |
+ * | PFParticle| AnalysisTreeDataStruct::PFParticleDataStruct::Clear()|
+ * | other     | AnalysisTreeDataStruct::ClearLocalData()             |
+ * 
+ * Finally, do what you need to fill the data, in the AnalysisTree::analyze()
+ * method.
+ * 
+ * 
+ * Fill the tree with the data event
+ * ----------------------------------
+ * 
+ * This is already done. No need to be explicit about that.
+ * 
+ * 
+ * 
+ * Reference guide to addition of branches
+ * ========================================
+ * 
+ * In template expressions, the type `T` is a type that can properly represent
+ * the single value being stored in the branch (e.g., UInt_t, Double_t, etc.).
+ * 
+ * The `CreateBranch` in the "create branch" row is an instance of
+ * BranchCreator constructed with a pointer to the ROOT tree; in its arguments,
+ * "/T" must be replaced with the correct ROOT branch code.
+ * 
+ * 
+ * Simple data types
+ * ------------------
+ * 
+ * | Example        | number of generated particles                           |
+ * | Data structure | `T`                                                     |
+ * | Indices        | none                                                    |
+ * | Fill call      | `VarName = Value;`                                      |
+ * | Create branch  | `CreateBranch(BranchName, &VarName, BranchName + "/T")` |
+ * 
+ * 
+ * One-dimension vectors
+ * ----------------------
+ * 
+ * | Example        | energy of the generated particles            |
+ * | Data structure | `std::vector<T>`                             |
+ * | Indices        | first: index of the item in the list         |
+ * | Create branch  | `CreateBranch(BranchName, &VarName, BranchName + "/T")` |
+ * 
+ * 
+ * Track/shower information
+ * -------------------------
+ * 
+ * Multiple track and shower collections (from different algorithms or algorithm
+ * settings) live in different branches.
+ * 
+ * ### track/shower collection information
+ * 
+ * | Example        | Track ID                                                                  |
+ * | Data structure | `TrackData_t<T>` / `ShowerData<T>`                                        |
+ * | Index          | first: index of the track                                                 |
+ * | Fill call      | `FillWith(VarName, Value);`                                               |
+ * | Create branch  | `CreateBranch(BranchName, &VarName, BranchName + NTracksIndexStr + "/T")` |
+ * |                | `CreateBranch(BranchName, &VarName, BranchName + NShowerIndexStr + "/T")` |
+ * 
+ * 
+ * ### plane-wide information for a track/shower
+ * 
+ * | Example        | Number of hits in the plane                                                  |
+ * | Data structure | `PlaneData_t<T>`                                                             |
+ * | Indices (2)    | first: index of the track/shower                                             |
+ * |                | second: index of the plane (fixed dimension kNplanes)                        |
+ * | Fill call      | `for (auto& elem: VarName) FillWith(elem, Value);`                           |
+ * | Create branch  | `CreateBranch(BranchName, &VarName, BranchName + NTracksIndexStr + "[3]/T")` |
+ * |                | `CreateBranch(BranchName, &VarName, BranchName + NShowerIndexStr + "[3]/T")` |
+ * 
+ * 
+ * ### information about hits in a track/shower
+ * 
+ * | Example        | dE/dX of a single hit                                                                                     |
+ * | Data structure | `HitData_t<T>`                                                                                            |
+ * | Indices (3)    | first: index of the track/shower                                                                          |
+ * |                | second: index of the plane (fixed dimension kNplanes)                                                     |
+ * |                | third: index of the hit (fixed dimension kMaxTrackHits/kMaxShowerHits)                                    |
+ * | Fill call      | `for (auto& elem: VarName) FillWith(elem, Value);`                                                        |
+ * | Create branch  | `CreateBranch(BranchName, &VarName, BranchName + NTracksIndexStr + "[3]" + MaxTrackHitsIndexStr + "/T")`  |
+ * |                | `CreateBranch(BranchName, &VarName, BranchName + NShowerIndexStr + "[3]" + MaxShowerHitsIndexStr + "/T")` |
+ * 
+ * 
+ * ### 3D coordinates of hits in a track/shower
+ * 
+ * | Example        | position coordinates of a hit                                                                                |
+ * | Data structure | `HitCoordData_t<T>`                                                                                          |
+ * | Indices (4)    | first: index of the track/shower                                                                             |
+ * |                | second: index of the plane (fixed dimension kNplanes)                                                        |
+ * |                | third: index of the hit (fixed dimension kMaxTrackHits/kMaxShowerHits)                                       |
+ * |                | fourth: coordinate index (0 = x, 1 = y, 2 = z)                                                               |
+ * | Fill call      | `for (auto& elem: VarName) FillWith(elem, Value);`                                                           |
+ * | Create branch  | `CreateBranch(BranchName, &VarName, BranchName + NTracksIndexStr + "[3]" + MaxTrackHitsIndexStr + "[3]/T")`  |
+ * |                | `CreateBranch(BranchName, &VarName, BranchName + NShowerIndexStr + "[3]" + MaxShowerHitsIndexStr + "[3]/T")` |
+ * 
+ * 
+ * Auxiliary detector information
+ * -------------------------------
+ * 
+ * ### per-true-particle data
+ * 
+ * | Example        | number of auxiliary detectors a particle crossed                         |
+ * | Data structure | `std::vector<T>`                                                         |
+ * | Index          | first: index of the particle                                             |
+ * | Fill call      | `FillWith(VarName, Value);`                                              |
+ * | Create branch  | `CreateBranch(BranchName, VarName, BranchName + "[geant_list_size]/T");` |
+ * 
+ * ### detector data for a given particle
+ * 
+ * | Example        | energy observed by the detector                                                                   |
+ * | Data structure | `AuxDetMCData_t<T>`                                                                               |
+ * | Indices (2)    | first: index of the particle                                                                      |
+ * |                | second: index of the detector                                                                     |
+ * | Fill call      | `for (auto& elem: VarName) FillWith(elem, Value);`                                                |
+ * | Create branch  | `CreateBranch(BranchName, VarName, BranchName + "[geant_list_size]" + MaxAuxDetIndexStr + "/T");` |
+ * 
+ * 
+ ******************************************************************************/

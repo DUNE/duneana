@@ -1,0 +1,11 @@
+BEGIN_PROLOG
+
+dunefd_neutrondecayn2:
+{
+   module_type: "NeutronDecayN2Ana"
+   Verbosity: 1
+   NearEDeps: 5 ### How close should 'uninteresting' EDeps be to 'interesting' EDeps to be merged
+   	      	###  this is particularly for spillation EDeps around nucleon decay events.
+}
+
+END_PROLOG

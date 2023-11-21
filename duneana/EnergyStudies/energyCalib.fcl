@@ -1,0 +1,29 @@
+#include "services_dune.fcl"
+#include "emenergy.fcl"
+
+services:
+{
+  TFileService: { fileName: "EMEnergyCalib.root" }
+        @table::dune35t_services_legacy
+}
+
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1        # Number of events to create
+}
+
+physics:
+{
+  analyzers:
+  {
+    energyCalib: @local::emenergycalib
+  }
+
+ a1: [ energyCalib ]
+ end_paths: [ a1 ]
+
+}
+
+physics.analyzers.energyCalib.HitsModuleLabel: "dcheat"
+physics.analyzers.energyCalib.ClusterModuleLabel: "blurredclusterdc"

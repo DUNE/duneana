@@ -1,0 +1,13 @@
+#include "addnoise_findprim_snanas.fcl"
+
+physics.producers.trigprim800.finder.DoFiltering: false
+physics.producers.trigprim1000.finder.DoFiltering: false
+physics.producers.trigprim1200.finder.DoFiltering: false
+physics.producers.trigprim1400.finder.DoFiltering: false
+physics.producers.trigprim1600.finder.DoFiltering: false
+physics.producers.trigprim1800.finder.DoFiltering: false
+physics.producers.trigprim2000.finder.DoFiltering: false
+physics.producers.trigprim2400.finder.DoFiltering: false
+
+services.TFileService.fileName: "SNAna_plus_trigprim_multithreshold_nofilter.root"
+

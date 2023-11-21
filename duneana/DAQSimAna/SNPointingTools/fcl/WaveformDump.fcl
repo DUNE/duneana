@@ -1,0 +1,80 @@
+# Dump pedestal-subtracted waveforms to file (no filter). 
+# Instead of dumping data from all TPCs, can use 'Threshold' flag to select only 
+# those waveforms that appear to have some signal spikes.
+
+# Each row of the ouput file corresponds to a single waveform 
+# For each row, the columns are: [1] event number, [2] channel number, [3] plane, [4-:] ADCs for that channel for single readout window
+
+#include "services_dune.fcl"
+#include "detsim_1dsimulation_dune10kt_1x2x6.fcl"
+
+process_name: AddNoiseAndDump
+
+services:
+{
+   @table::dunefd_services
+   TFileService:          { fileName: "deleteme.root" }
+   TimeTracker:           {}
+   MemoryTracker:         {} # default is one
+   RandomNumberGenerator: {} #ART native random number generator
+   FileCatalogMetadata:   @local::art_file_catalog_mc
+   NuRandomService:       @local::per_event_NuRandomService  # seedservice.fcl
+}
+
+physics:
+{
+   producers: {
+      simwire: {
+         module_type: "SimWireDUNE"
+         SimChannelLabel: "elecDrift"
+         NoiseOn: true
+         PedestalOn: true
+         DistortOn: false
+         SuppressOn: false
+         KeepEmptyChannels: true
+         AdcSimulator:      "adcsim_ideal"
+         UseRawDigitInput: false
+         RawDigitInputLabel: "daq"
+      }
+
+      rns:            { module_type: "RandomNumberSaver" }
+   }
+   
+   analyzers:
+   {
+      waveformdump: {
+         module_type: WaveformThreshDump
+	 Threshold: 40
+         OutputFile: "event40.txt"
+         InputTag: "simwire"
+      }
+   }
+   
+   ana: [ waveformdump ]
+   sim: [ rns, simwire ]
+   trigger_paths: [ sim ]
+   end_paths: [ ana ] 
+   
+}
+
+source:
+{
+   module_type: RootInput
+   maxEvents:  -1      # Number of events to create
+}
+
+# DetSim services. These are used by SimWire to add noise and
+# pedestals to the incoming (noise-free) waveforms
+services.SimChannelExtractService: @local::scxgeneric
+services.ChannelNoiseService:      @local::chnoiseold
+services.PedestalAdditionService:  @local::padprovided
+services.AdcDistortService:        @local::stuckbits
+services.AdcSuppressService:       @local::zsnone
+services.AdcCompressService:       @local::cmpreplace
+services.DetPedestalService:       @local::dune_fixedpeds
+
+
+# Update the geometry
+services.Geometry.GDML: "dune10kt_v5_refactored_1x2x6.gdml"
+services.Geometry.Name: "dune10kt_v5_1x2x6"
+services.Geometry.ROOT: "dune10kt_v5_refactored_1x2x6.gdml"

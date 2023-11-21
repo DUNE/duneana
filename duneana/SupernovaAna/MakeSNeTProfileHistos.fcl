@@ -1,0 +1,11 @@
+BEGIN_PROLOG
+
+standard_makesnetprofilehistos:
+{
+  module_type:		MakeSNeTProfileHistos
+  #====================
+  TruthLabel:		"generator"	# a string with the process label for the module that made the MCTruth objects
+  HitLabel:		"gaushit"	# a string with the process label for the module that made the Hit objects
+}
+
+END_PROLOG

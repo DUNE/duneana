@@ -1,0 +1,44 @@
+
+
+BEGIN_PROLOG
+
+dune35t_goodwireana:
+{
+  module_type:         "GoodWireAna"
+  HitModuleLabel:      "fasthit"
+  NSigmaGoodWireHigh:  5                #Number of stdevs to look away from occupancy mean on high side while considering quality of wires
+  NSigmaGoodWireLow:   3                #Number of stdevs to look away from occupancy mean on low side while considering quality of wires
+}
+
+dune35t_fastgwa:
+{
+  module_type:         "FastGWA"
+  RawDigitModuleLabel: "unstick"
+  Verbosity:           true
+}
+
+dune35t_robustmcana:
+{
+    module_type: "RobustMCAna"
+    HitsModuleLabel: "robusthit"
+    Verbose: false
+    PreviousMCScale: 1.0
+}
+
+dune35t_signaltonoise:
+{
+    module_type:                "SignalToNoise"
+    ExternalCounterModuleLabel: "SplitterInput:TRIGGER"
+    RawDigitModuleLabel:        "SplitterInput:TPC"
+    CalDataModuleLabel:         "noiserm"
+    TrackModuleLabel:           "pmtrack"
+    IsData:                     true
+}
+
+pdsp_hitana:
+{
+    module_type:                "HitAnaPDSP"
+    HitModuleLabel:             "hitpdune"
+}
+
+END_PROLOG

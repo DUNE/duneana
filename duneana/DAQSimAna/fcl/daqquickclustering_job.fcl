@@ -1,0 +1,42 @@
+#include "services_dune.fcl"
+#include "DAQQuickClustering.fcl"
+
+process_name: DAQQuickClustering
+
+services:
+{
+  @table::dunefd_services
+  TFileService:          { fileName: "DAQQuickClustering_hist.root" }
+  TimeTracker:           {}
+  MemoryTracker:         {} # default is one
+  RandomNumberGenerator: {} #ART native random number generator
+  FileCatalogMetadata:   @local::art_file_catalog_mc
+  Geometry:              @local::dune10kt_1x2x6_geo
+}
+
+# a temporary fix until the photon back tracker gets fixed...
+#services.PhotonBackTrackerService:	@erase
+
+physics:
+{
+  analyzers:
+  {
+#daqanahitfd:     @local::standard_daqquickclustering
+   daqquickclustering:     @local::standard_daqquickclustering
+  }
+
+  #ana: [ daqanahitfd, daqanafasth ]
+  ana: [ daqquickclusteringfasthit ]
+  end_paths: [ ana ] 
+
+}
+
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+
+physics.analyzers.daqquickclusteringgaushit.HitLabel: "gaushit"	# string for the process that made the fast hits
+physics.analyzers.daqquickclusteringfasthit.HitLabel: "fasthit"	# string for the process that made the fast hits

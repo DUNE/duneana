@@ -1,0 +1,8 @@
+#include "addnoise_findprim_daqsimanas.fcl"
+
+services.TFileService.fileName: "DAQSimAna_plus_trigprim_nonoise.root"
+services.ChannelNoiseService.NoiseNormU: 0
+services.ChannelNoiseService.NoiseNormV: 0
+services.ChannelNoiseService.NoiseNormZ: 0
+
+

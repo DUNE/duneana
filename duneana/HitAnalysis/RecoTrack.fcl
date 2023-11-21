@@ -1,0 +1,50 @@
+#include "services_dune.fcl"
+
+process_name: RecoTrack
+
+services:
+{
+  TFileService:           { fileName: "RecoTrack.root" }
+  TimeTracker:       {}
+  MemoryTracker:         { } # default is one
+  RandomNumberGenerator: {} #ART native random number generator
+  message:              @local::dune_message_services_prod_debug
+  FileCatalogMetadata:  @local::art_file_catalog_mc
+                        @table::dune35t_services_legacy
+} # services
+
+source:
+{
+  module_type: RootInput
+
+  maxEvents:  -1 
+}
+
+# outputs:
+# {
+#	 out1:
+#        {
+#          fastCloning: false
+#        }
+# }
+
+physics:
+{
+  analyzers:
+  {
+    recotrack: 
+    {
+      module_type:     "RecoTrack"
+
+      TrackLabel:       "costrk"
+
+      HitLabel:        "gaushit" # gaushit is the label used in the root file
+    }
+  }
+
+  analysis: [ recotrack ]
+
+  end_paths: [ analysis ]
+
+} # physics
+

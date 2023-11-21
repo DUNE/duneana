@@ -1,0 +1,121 @@
+BEGIN_PROLOG
+
+dune35t_analysistree:
+{ 
+ module_type:                 "AnalysisTree"
+ DigitModuleLabel:            "daq"
+ HitsModuleLabel:             "linecluster"
+ LArGeantModuleLabel:         "largeant"
+ CalDataModuleLabel:          "caldata"
+ GenieGenModuleLabel:         "generator"
+ CryGenModuleLabel:           "generator"
+ ProtoGenModuleLabel:         ""
+ G4ModuleLabel:               "largeant"
+ SimChannelLabel:             "tpcrawdecoder:simpleSC" # For previous versions use `largeant`
+ TrackModuleLabel:            ["pandoraTrack", "pmtrack", "pmtrackdc", "pandoraTrackdc" ]
+ VertexModuleLabel:           [ "linecluster", "lineclusterdc", "pmtrack", "pmtrackdc", "pandora", "pandoradc" ]
+ PandoraNuVertexModuleLabel:  ""
+ ClusterModuleLabel:          "linecluster"
+ OpFlashModuleLabel:          "opflash"
+ ExternalCounterModuleLabel:  "simcounter"
+ MCShowerModuleLabel:         ""          # Don't have in the 35 ton....
+ MCTrackModuleLabel:          ""          # Don't have in the 35 ton....
+ SpacePointSolverModuleLabel: "reco3d" ## Use reco3d1 for CNN results
+ CnnModuleLabel:              "emtrkmichelid:emtrkmichel"
+ CalorimetryModuleLabel:      [ "pmtrackcalo", "pmtrackcalodc", "pandoracalo", "pandoracalodc" ]
+ ParticleIDModuleLabel:       [ "", "", "", "" ]
+ MVAPIDTrackModuleLabel:      [ "", "", "", "" ]
+ MVAPIDShowerModuleLabel:     [ "", "", "", "" ]
+ FlashT0FinderLabel:          [ "photont0pmtrack", "photont0pmtrackcd", "photont0pandora", "photont0pandoradc" ]
+ MCT0FinderLabel:             [ "mctrutht0pmtrack", "mctrutht0pmtrackdc", "mctrutht0pandora", "mctrutht0pandoradc" ]
+ ShowerModuleLabel:           [ "emshower", "emshowerdc" ] ### , "mergeemshower3d", "mergeemshower3ddc" ] ## When we want to add back Dorota's showering.
+ CosmicClusterTaggerAssocLabel: ""   # Not used in 35 ton
+ CosmicTaggerAssocLabel:      [ "", "", "", "" ] # Not used in 35 ton
+ ContainmentTaggerAssocLabel: [ "", "", "", "" ] # Not used in 35 ton
+ FlashMatchAssocLabel:        [ "", "", "", "" ] # Not used in 35 ton
+ POTModuleLabel:              ""
+ PFParticleModuleLabel:       "pandora" # pandoraTrack and pandoraShower should be passed as the first labels for tracks and showers
+
+
+ UseBuffers:               false
+ IgnoreMissingShowers:     false
+ SaveAuxDetInfo:           false
+ SaveCryInfo:              true
+ SaveProtoInfo:            false # ProtoDUNE specific
+ SaveGenieInfo:            false # Don't have in the 35 ton
+ SaveGeantInfo:            true
+ SaveMCShowerInfo:         false # Don't have in the 35 ton 
+ SaveMCTrackInfo:          false # Don't have in the 35 ton
+ SaveHitInfo:              true
+ SaveRawDigitInfo:         false #set this to false by default since not everyone want rawdigits.
+ SaveTrackInfo:            true
+ SaveVertexInfo:           true 
+ SavePandoraNuVertexInfo:  false # Don't have in the 35 ton
+ SaveClusterInfo:          true
+ SaveFlashInfo:            true
+ SaveExternCounterInfo:    true
+ SaveShowerInfo:           false
+ SaveCaloCosmics:          true
+ SaveSpacePointSolverInfo: false
+ SaveCnnInfo:              false
+ SavePFParticleInfo:       true
+ G4minE:                   -1
+ RollUpUnsavedIDs:         true
+}
+
+protodune_analysistree:   @local::dune35t_analysistree
+protodune_analysistree.CryGenModuleLabel: "cosmicgenerator"
+protodune_analysistree.ProtoGenModuleLabel: "generator"
+protodune_analysistree.SaveProtoInfo: true
+protodune_analysistree.TrackModuleLabel: ["pandoraTrack", "pmtrack" ]
+protodune_analysistree.CalorimetryModuleLabel: [ "pmtrackcalo", "pandoracalo" ]
+protodune_analysistree.ParticleIDModuleLabel:       [ "pmtrackpid", "pandorapid" ]
+protodune_analysistree.FlashT0FinderLabel: [ "", "" ]
+protodune_analysistree.MCT0FinderLabel:   [ "", "" ]
+protodune_analysistree.CosmicTaggerAssocLabel:  [ "", "" ]
+protodune_analysistree.ContainmentTaggerAssocLabel: [ "", "" ]
+protodune_analysistree.FlashMatchAssocLabel: [ "", "" ]
+protodune_analysistree.SaveShowerInfo:  false
+protodune_analysistree.SaveCryInfo: false
+protodune_analysistree.VertexModuleLabel: [ "linecluster", "pmtrack", "pandora" ]
+
+protodune_analysistree_data: @local::protodune_analysistree
+protodune_analysistree_data.SaveGeantInfo: false
+protodune_analysistree_data.SaveProtoInfo: false
+
+dune10kt_analysistree: @local::dune35t_analysistree
+dune10kt_analysistree.PandoraNuVertexModuleLabel: "pandora"
+dune10kt_analysistree.LArGeantModuleLabel: "tpcrawdecoder:simpleSC"
+dune10kt_analysistree.TrackModuleLabel: ["pandoraTrack", "pmtrack", "pmtracktc", "pmtrajfit" ]
+dune10kt_analysistree.CalorimetryModuleLabel: [ "pmtrackcalo", "pmtracktccalo", "pandoracalo", "pmtrajfitcalo" ]
+dune10kt_analysistree.ParticleIDModuleLabel:       [ "pmtrackpid", "pmtracktcpid", "pandorapid", "pmtrajfitpid" ]
+SpacePointSolverModuleLabel: "spsolve"
+dune10kt_analysistree.FlashT0FinderLabel: [ "", "", "", "" ]
+dune10kt_analysistree.MCT0FinderLabel:   [ "", "", "", "" ]
+dune10kt_analysistree.CosmicTaggerAssocLabel:  [ "", "", "", "" ]
+dune10kt_analysistree.ContainmentTaggerAssocLabel: [ "", "", "", "" ]
+dune10kt_analysistree.FlashMatchAssocLabel: [ "", "", "", "" ]
+dune10kt_analysistree.VertexModuleLabel: [ "linecluster", "pmtrack", "pandora" ]
+dune10kt_analysistree.ShowerModuleLabel:          ["pandoraShower"]
+dune10kt_analysistree.POTModuleLabel:             "generator"
+dune10kt_analysistree.SaveCryInfo:                false
+dune10kt_analysistree.SaveGenieInfo:              true
+dune10kt_analysistree.SaveExternCounterInfo:      false
+dune10kt_analysistree.SaveFlashInfo:              false
+dune10kt_analysistree.SaveShowerInfo:             true
+dune10kt_analysistree.SavePandoraNuVertexInfo:    true
+
+fddphase_analysistree: @local::dune35t_analysistree
+fddphase_analysistree.TrackModuleLabel: [ "pmtrack" ]
+fddphase_analysistree.CalorimetryModuleLabel: [ "pmtrackcalo" ]
+fddphase_analysistree.ParticleIDModuleLabel:       [ "pmtrackpid" ]
+fddphase_analysistree.FlashT0FinderLabel: [ ""  ]
+fddphase_analysistree.MCT0FinderLabel:   [ ""  ]
+fddphase_analysistree.CosmicTaggerAssocLabel:  [ "" ]
+fddphase_analysistree.ContainmentTaggerAssocLabel: [ "" ]
+fddphase_analysistree.FlashMatchAssocLabel: [ "" ]
+fddphase_analysistree.SaveShowerInfo:  false
+
+
+
+END_PROLOG

@@ -1,0 +1,45 @@
+#include "services_dune.fcl"
+#include "NucleonDecayFilter.fcl"
+
+process_name: DecayFilter
+
+services:
+{
+  # Load the service that manages root files for histograms.
+  TFileService:           { fileName: "NucleonFilterTree.root" }
+  TimeTracker:            {}
+  RandomNumberGenerator:  {}
+  MemoryTracker:          {}
+  FileCatalogMetadata:    @local::art_file_catalog_mc
+  			  @table::dunefd_simulation_services
+  ExptGeoHelperInterface: @local::dune_geometry_helper
+  GeometryConfigurationWriter: {}
+  Geometry:               @local::dune10kt_geo
+  MagneticField:          @local::no_mag  
+}
+
+source:
+{
+  module_type: RootInput
+  maxEvents:   -1         # Number of events to create
+}
+
+physics: {
+ filters: {
+  nucleonfilter: @local::dunefd_nucleondecayfilter
+ }
+
+ filter:    [nucleonfilter]
+ stream1:   [out1]
+ end_paths: [stream1]
+}
+
+outputs: {
+  out1: {
+        module_type: RootOutput
+        fileName:    "%ifb_%tc_Filtered.root"
+        dataTier:    "full-reconstructed"
+        compressionLevel: 1
+	SelectEvents: [filter]
+  }
+}

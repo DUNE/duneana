@@ -1,0 +1,26 @@
+# Standard configurations for shower analysis modules
+# M Wallbank (m.wallbank@sheffield.ac.uk), October 2016
+
+showerana: {
+  module_type: "ShowerAnalysis"
+  HitsModuleLabel: "lineclusterdc"
+  ClusterModuleLabel: "blurredclusterdc"
+  ShowerModuleLabel: "emshowerdc"
+}
+
+reconana: {
+  module_type: "NuEReconAna"
+  HitsModuleLabel: "lineclusterdc"
+  TrackModuleLabel: "pmtrackdc"
+  ShowerModuleLabel: "emshowerdc"
+}
+
+trackshowerana: {
+  module_type: "TrackShowerSep"
+  HitsModuleLabel: "lineclusterdc"
+  TrackModuleLabel: "pmtrackdc"
+  SpacePointModuleLabel: "pmtrackdc"
+  ConeAngle: 10
+  CylinderRadius: 10
+  SphereRadius: 1
+}

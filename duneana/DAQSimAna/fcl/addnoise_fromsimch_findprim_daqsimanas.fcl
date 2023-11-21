@@ -1,0 +1,5 @@
+#include "addnoise_findprim_daqsimanas.fcl"
+
+physics.producers.simwire.UseRawDigitInput: false
+physics.producers.simwire.SimChannelLabel: "largeant"
+services.TFileService.fileName: "DAQSimAna_plus_trigprim_fromsimchannel.root"

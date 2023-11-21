@@ -1,0 +1,10 @@
+BEGIN_PROLOG
+
+cosmic_eff:
+{
+   module_type:             "CosmicEfficiency"
+   TrackerTag:              "pmtrack"
+   Verbose:                 false
+}
+
+END_PROLOG

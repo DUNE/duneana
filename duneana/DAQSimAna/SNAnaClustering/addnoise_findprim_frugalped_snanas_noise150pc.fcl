@@ -1,0 +1,4 @@
+#include "addnoise_findprim_frugalped_snanas.fcl"
+
+services.TFileService.fileName: "SNAna_plus_trigprim_frugalped_multithreshold_noise150pc.root"
+services.ChannelNoiseService.NoiseNormZ: 4.74

@@ -1,0 +1,60 @@
+#include "services_dune.fcl"
+#include "singles_dune.fcl"
+#include "largeantmodules_dune.fcl"
+#include "detsimmodules_dune.fcl"
+
+# steering file for running a test of the impact of zero-suppression thresholds
+# on energy resolution of an ADC sum of the collection wires.  This module
+# assumes the input file consists of many identically generated events (say a sample
+# of electrons all of which have the same enrgy)
+
+# it is derived from AnalysisExample and most comments are stripped out.
+
+process_name: dunezsanalysis
+
+services:
+{
+  # example command-line steering of the input and output files:
+  #  lar -c dunezsanalysis.fcl -T myhistograms.root -s myinput.root
+
+  # default output file -- contains a tree of ADC sums 
+  TFileService: { fileName: "dunezsanalysis.root" }
+
+  TimeTracker:       {}
+  RandomNumberGenerator: {} 
+  message:      @local::standard_info
+                @table::dune35t_simulation_services_legacy
+}
+
+source:
+{
+  module_type: RootInput
+
+  # Number of events to analyze; "-1" means all of the events in the input
+  # file. You can override this value with the "-n" option on the command line. 
+  maxEvents:  -1
+  # maxEvents:  1
+
+  # default input file -- 30 MeV electrons in the 35t geometry.
+  fileNames: ["/dune/data/users/babu2038/result_1000_event/35T_singleGen_electron_30MeV.root"]
+}
+
+# This is empty, because we're not writing any art::Events to an output file. 
+outputs:{}
+
+
+physics:
+{
+  analyzers:
+  {
+    dunezsanalysis: 
+    {
+      module_type:     "dunezsanalysis"
+    }
+  }
+
+  analysis: [ dunezsanalysis ]
+
+  end_paths: [ analysis ]  
+}
+

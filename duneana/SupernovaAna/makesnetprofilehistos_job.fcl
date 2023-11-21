@@ -1,0 +1,34 @@
+#include "services_dune.fcl"
+#include "MakeSNeTProfileHistos.fcl"
+
+process_name: MakeSNeTProfileHistos
+
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+services:
+{
+  TFileService: { fileName: "SNeTProfile_hist.root" }
+  TimeTracker:       {}
+  RandomNumberGenerator: {} #ART native random number generator
+  @table::dunefd_services
+}
+
+services.PhotonBackTrackerService:	@erase
+
+
+
+physics:
+{
+  analyzers:
+  {
+    makesnetprofilehistos:     @local::standard_makesnetprofilehistos
+  }
+
+  ana: [ makesnetprofilehistos ]
+  end_paths: [ ana ] 
+
+}

@@ -1,0 +1,13 @@
+#include "addnoise_findprim_snanas.fcl"
+
+physics.producers.trigprim800.finder.DownsampleFactor: 2
+physics.producers.trigprim1000.finder.DownsampleFactor: 2
+physics.producers.trigprim1200.finder.DownsampleFactor: 2
+physics.producers.trigprim1400.finder.DownsampleFactor: 2
+physics.producers.trigprim1600.finder.DownsampleFactor: 2
+physics.producers.trigprim1800.finder.DownsampleFactor: 2
+physics.producers.trigprim2000.finder.DownsampleFactor: 2
+physics.producers.trigprim2400.finder.DownsampleFactor: 2
+
+services.TFileService.fileName: "SNAna_plus_trigprim_multithreshold_downsample2.root"
+

@@ -1,0 +1,8 @@
+#include "addnoise_findprim_snanas.fcl"
+
+services.TFileService.fileName: "SNAna_plus_trigprim_nonoise.root"
+services.ChannelNoiseService.NoiseNormU: 0
+services.ChannelNoiseService.NoiseNormV: 0
+services.ChannelNoiseService.NoiseNormZ: 0
+
+

@@ -1,0 +1,141 @@
+# addnoise_findprim_frugalped_daqsimanas.fcl
+
+# Read in (presumably noise-free) waveforms, add noise and pedestals,
+# then find trigger primitives on the (now noisy) waveforms, and save
+# the trigger primitives (as "Hits") to an output TTree.
+
+# Any number of trigger primitive finders can be run: useful for
+# running the same finder with multiple parameter settings, for
+# example. The output of each trigger primitive finder should be
+# connected to a DaqSimAna analyzer
+
+#include "SNAna.fcl"
+#include "trigprim.fcl"
+BEGIN_PROLOG
+trigprim_snana: {
+   @table::standard_snana
+   SaveNeighbourADCs:    false
+   SaveTruth:            false
+
+}
+END_PROLOG
+#include "standard_detsim_dune10kt_1x2x6.fcl"
+
+
+process_name: PrimSim
+
+services: @local::dunefd_simulation_services
+services.TFileService: { fileName: "SNAna_plus_trigprim_frugalped_multithreshold.root" }
+services.TimeTracker:       {}
+services.MemoryTracker:         { } # default is one
+services.RandomNumberGenerator: {} #ART native random number generator
+// services.FileCatalogMetadata:  @local::art_file_catalog_mc
+services.NuRandomService:       @local::per_event_NuRandomService  # seedservice.fcl
+services.message:              @local::dune_message_services_prod
+#source is now a root file
+source: {
+  module_type: RootInput
+  maxEvents:  -1        # Number of events to create
+}
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics: {
+   producers: {
+      simwire: {
+         module_type: "SimWireDUNE"
+         SimChannelLabel: "largeant"
+         NoiseOn: true
+         PedestalOn: true
+         DistortOn: false
+         SuppressOn: false
+         KeepEmptyChannels: true
+         AdcSimulator:      "adcsim_ideal"
+         UseRawDigitInput: true
+         RawDigitInputLabel: "daq"
+      }
+
+      # You can add any number of trigger primitive finders here. Make
+      # sure each one has a distinct name, and has a corresponding
+      # daqsimana analyzer (otherwise you won't get a corresponding
+      # TTree in the output file. Also make sure to add it to the "simulate" list below
+      trigprim800:  @local::trigprimpass1frugal
+      trigprim1000: @local::trigprimpass1frugal
+      trigprim1200: @local::trigprimpass1frugal
+      trigprim1400: @local::trigprimpass1frugal
+      trigprim1600: @local::trigprimpass1frugal
+      trigprim1800: @local::trigprimpass1frugal
+      trigprim2000: @local::trigprimpass1frugal
+      trigprim2400: @local::trigprimpass1frugal
+
+      rns:            { module_type: "RandomNumberSaver" }
+   }
+   
+   analyzers:
+   {
+      # Create an SNAna for each trigger primitive finders. Make
+      # sure to add each one to the "ana" list below
+      snanatrigprim800:     @local::trigprim_snana
+      snanatrigprim1000:    @local::trigprim_snana
+      snanatrigprim1200:    @local::trigprim_snana
+      snanatrigprim1400:    @local::trigprim_snana
+      snanatrigprim1600:    @local::trigprim_snana
+      snanatrigprim1800:    @local::trigprim_snana
+      snanatrigprim2000:    @local::trigprim_snana
+      snanatrigprim2400:    @local::trigprim_snana
+      waveformstotree: {
+         module_type: "WaveformsToTree"
+         InputTag: "simwire"
+         MaxChannels: 50
+      }
+   }
+
+   simulate: [ rns, simwire, trigprim800, trigprim1000, trigprim1200, trigprim1400, trigprim1600, trigprim1800, trigprim2000, trigprim2400 ]
+   ana: [ snanatrigprim800, snanatrigprim1000, snanatrigprim1200, snanatrigprim1400, snanatrigprim1600, snanatrigprim1800, snanatrigprim2000, snanatrigprim2400, waveformstotree ]
+
+   trigger_paths: [simulate] 
+   end_paths: [ ana ] 
+
+}
+
+# Modify the settings of each of the trigger primitive finders. If you
+# want to use a different trigger primitive finder class, set
+# "physics.producers.<itemname>.finder.tool_type: MyNewTriggerPrimitiveFinderTool"
+physics.producers.trigprim800.finder.Threshold:   800
+physics.producers.trigprim1000.finder.Threshold: 1000
+physics.producers.trigprim1200.finder.Threshold: 1200
+physics.producers.trigprim1400.finder.Threshold: 1400
+physics.producers.trigprim1600.finder.Threshold: 1600
+physics.producers.trigprim1800.finder.Threshold: 1800
+physics.producers.trigprim2000.finder.Threshold: 2000
+physics.producers.trigprim2400.finder.Threshold: 2400
+
+# Set the HitLabel to make sure each DaqAnaSim reads hits from its
+#  corresponding TriggerPrimitiveFinder
+physics.analyzers.snanatrigprim800.HitLabel:   "trigprim800"
+physics.analyzers.snanatrigprim1000.HitLabel: "trigprim1000"
+physics.analyzers.snanatrigprim1200.HitLabel: "trigprim1200"
+physics.analyzers.snanatrigprim1400.HitLabel: "trigprim1400"
+physics.analyzers.snanatrigprim1600.HitLabel: "trigprim1600"
+physics.analyzers.snanatrigprim1800.HitLabel: "trigprim1800"
+physics.analyzers.snanatrigprim2000.HitLabel: "trigprim2000"
+physics.analyzers.snanatrigprim2400.HitLabel: "trigprim2400"
+
+# =====================================================================
+# You probably won't need to change anything below here
+
+# Shut up the backtracker
+services.message.destinations.LogStandardOut.categories.BackTracker.limit: 0
+services.message.destinations.LogStandardError.categories.BackTracker.limit: 0
+
+# DetSim services. These are used by SimWire to add noise and
+# pedestals to the incoming (noise-free) waveforms
+services.SimChannelExtractService: @local::scxgeneric
+services.ChannelNoiseService:      @local::chnoiseold
+services.PedestalAdditionService:  @local::padprovided
+services.AdcDistortService:        @local::stuckbits
+services.AdcSuppressService:       @local::zsnone
+services.AdcCompressService:       @local::cmpreplace
+services.DetPedestalService:       @local::dune_fixedpeds
+

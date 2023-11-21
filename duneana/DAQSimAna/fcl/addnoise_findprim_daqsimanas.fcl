@@ -1,0 +1,155 @@
+# addnoise_findprim_daqsimanas.fcl
+
+# Read in (presumably noise-free) waveforms, add noise and pedestals,
+# then find trigger primitives on the (now noisy) waveforms, and save
+# the trigger primitives (as "Hits") to an output TTree.
+
+# Any number of trigger primitive finders can be run: useful for
+# running the same finder with multiple parameter settings, for
+# example. The output of each trigger primitive finder should be
+# connected to a DaqSimAna analyzer
+
+BEGIN_PROLOG
+
+# This is the generic trigger primitive finder call. To make your own,
+#  add another call to "@local::trigprimpass1" to the producers list,
+#  and modify its settings later on
+
+trigprimpass1: {
+   module_type: "TriggerPrimitiveFinder"
+   InputTag: "simwire"
+   finder: {
+      tool_type: "TriggerPrimitiveFinderPass1"
+   }
+}
+END_PROLOG
+
+#include "DAQSimAna.fcl"
+#include "standard_detsim_dune10kt_1x2x6.fcl"
+
+process_name: PrimSim
+
+services: @local::dunefd_simulation_services
+services.TFileService: { fileName: "DAQSimAna_plus_trigprim_multithreshold.root" }
+services.TimeTracker:       {}
+services.MemoryTracker:         { } # default is one
+services.RandomNumberGenerator: {} #ART native random number generator
+// services.FileCatalogMetadata:  @local::art_file_catalog_mc
+services.NuRandomService:       @local::per_event_NuRandomService  # seedservice.fcl
+services.message:              @local::dune_message_services_prod
+#source is now a root file
+source: {
+  module_type: RootInput
+  maxEvents:  -1        # Number of events to create
+}
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics: {
+   producers: {
+      simwire: {
+         module_type: "SimWireDUNE"
+         SimChannelLabel: "largeant"
+         NoiseOn: true
+         PedestalOn: true
+         DistortOn: false
+         SuppressOn: false
+         KeepEmptyChannels: true
+         AdcSimulator:      "adcsim_ideal"
+         UseRawDigitInput: true
+         RawDigitInputLabel: "daq"
+      }
+
+      # You can add any number of trigger primitive finders here. Make
+      # sure each one has a distinct name, and has a corresponding
+      # daqsimana analyzer (otherwise you won't get a corresponding
+      # TTree in the output file. Also make sure to add it to the "simulate" list below
+      trigprim600: @local::trigprimpass1
+      trigprim800: @local::trigprimpass1
+      trigprim1000: @local::trigprimpass1
+      trigprim1200: @local::trigprimpass1
+      trigprim1400: @local::trigprimpass1
+      trigprim1600: @local::trigprimpass1
+      trigprim1800: @local::trigprimpass1
+
+      rns:            { module_type: "RandomNumberSaver" }
+   }
+   
+   analyzers:
+   {
+      # Create a DAQSimAna for each trigger primitive finders. Make
+      # sure to add each one to the "ana" list below
+      daqanatrigprim600:     @local::standard_daqsimana
+      daqanatrigprim800:     @local::standard_daqsimana
+      daqanatrigprim1000:     @local::standard_daqsimana
+      daqanatrigprim1200:    @local::standard_daqsimana
+      daqanatrigprim1400:    @local::standard_daqsimana
+      daqanatrigprim1600:    @local::standard_daqsimana
+      daqanatrigprim1800:    @local::standard_daqsimana
+      waveformstotree: {
+         module_type: "WaveformsToTree"
+         InputTag: "simwire"
+         MaxChannels: 10
+      }
+   }
+
+   simulate: [ rns, simwire, trigprim600, trigprim800, trigprim1000, trigprim1200, trigprim1400, trigprim1600, trigprim1800 ]
+   ana: [ daqanatrigprim600, daqanatrigprim800, daqanatrigprim1000, daqanatrigprim1200, daqanatrigprim1400, daqanatrigprim1600, daqanatrigprim1800, waveformstotree ]
+
+   trigger_paths: [simulate] 
+   end_paths: [ ana ] 
+
+}
+
+# Modify the settings of each of the trigger primitive finders. If you
+# want to use a different trigger primitive finder class, set
+# "physics.producers.<itemname>.finder.tool_type: MyNewTriggerPrimitiveFinderTool"
+physics.producers.trigprim600.finder.Threshold: 600
+physics.producers.trigprim800.finder.Threshold: 800
+physics.producers.trigprim1000.finder.Threshold: 1000
+physics.producers.trigprim1200.finder.Threshold: 1200
+physics.producers.trigprim1400.finder.Threshold: 1400
+physics.producers.trigprim1600.finder.Threshold: 1600
+physics.producers.trigprim1800.finder.Threshold: 1800
+
+# Set the HitLabel to make sure each DaqAnaSim reads hits from its
+#  corresponding TriggerPrimitiveFinder
+physics.analyzers.daqanatrigprim600.HitLabel: "trigprim600"
+physics.analyzers.daqanatrigprim600.MARLEYLabel: "marley"
+
+physics.analyzers.daqanatrigprim800.HitLabel: "trigprim800"
+physics.analyzers.daqanatrigprim800.MARLEYLabel: "marley"
+
+physics.analyzers.daqanatrigprim1000.HitLabel: "trigprim1000"
+physics.analyzers.daqanatrigprim1000.MARLEYLabel: "marley"
+
+physics.analyzers.daqanatrigprim1200.HitLabel: "trigprim1200"
+physics.analyzers.daqanatrigprim1200.MARLEYLabel: "marley"
+
+physics.analyzers.daqanatrigprim1400.HitLabel: "trigprim1400"
+physics.analyzers.daqanatrigprim1400.MARLEYLabel: "marley"
+
+physics.analyzers.daqanatrigprim1600.HitLabel: "trigprim1600"
+physics.analyzers.daqanatrigprim1600.MARLEYLabel: "marley"
+
+physics.analyzers.daqanatrigprim1800.HitLabel: "trigprim1800"
+physics.analyzers.daqanatrigprim1800.MARLEYLabel: "marley"
+
+# =====================================================================
+# You probably won't need to change anything below here
+
+# Shut up the backtracker
+services.message.destinations.LogStandardOut.categories.BackTracker.limit: 0
+services.message.destinations.LogStandardError.categories.BackTracker.limit: 0
+
+# DetSim services. These are used by SimWire to add noise and
+# pedestals to the incoming (noise-free) waveforms
+services.SimChannelExtractService: @local::scxgeneric
+services.ChannelNoiseService:      @local::chnoiseold
+services.PedestalAdditionService:  @local::padprovided
+services.AdcDistortService:        @local::stuckbits
+services.AdcSuppressService:       @local::zsnone
+services.AdcCompressService:       @local::cmpreplace
+services.DetPedestalService:       @local::dune_fixedpeds
+

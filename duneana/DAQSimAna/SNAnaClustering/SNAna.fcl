@@ -1,0 +1,31 @@
+BEGIN_PROLOG
+
+standard_snana:
+{
+  module_type:		SNAna
+
+  RawDigitLabel:	"daq"           #String for the process that made the raw digits
+  HitLabel:		"hitfd"         #String for the process that made the reco hits
+  CalDataModuleLabel:   "caldata"
+  OpHitModuleLabel:     "ophit"
+
+  SaveNeighbourADCs:    false
+  SaveTruth:            false # save all the generated particle
+  SaveIDEs:             false
+  SaveTPC:              true
+  SavePDS:              true
+
+
+  GEANT4Label:   "largeant"    # The label for the process which ran GEANT4
+  MARLEYLabel:   "marley"      # The label for the process which produced MARLEY events
+  APALabel:      "apaGen"      # The label for the process which produced APA events
+  CPALabel:      "cpaGen"      # The label for the process which produced CPA events
+  Argon39Label:  "ar39Gen"     # The label for the process which produced Argon 39 events
+  NeutronLabel:  "cNeutronGen" # The label for the process which produced Neutron events
+  KryptonLabel:  "kr85Gen"     # The label for the process which produced Krypton events
+  PoloniumLabel: "po210Gen"    # The label for the process which produced Polonium events
+  RadonLabel:    "rn222Gen"    # The label for the process which produced Radon events
+  Argon42Label:  "ar42Gen"     # The label for the process which produced Argon 42 events
+}
+
+END_PROLOG

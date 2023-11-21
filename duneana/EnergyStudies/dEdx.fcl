@@ -1,0 +1,41 @@
+#include "services_dune.fcl"
+
+
+process_name: dEdx
+
+
+services:
+{
+  TFileService: { fileName: "dEdx.root" }
+  TimeTracker:       {}
+  RandomNumberGenerator: {}
+  message:      @local::standard_info
+                @table::dunefd_simulation_services
+}
+
+
+source:
+{
+  module_type: RootInput
+  maxEvents:   -1
+  firstEvent:  1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+  analyzers:
+  {
+    dEdx: 
+    {
+      module_type:     "dEdx"
+      SimulationLabel: "largeant"
+    }
+  }
+  analysis: [ dEdx ]
+  end_paths: [ analysis ]  
+}
+

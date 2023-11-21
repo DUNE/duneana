@@ -1,0 +1,12 @@
+BEGIN_PROLOG
+
+track_eff:
+{
+   module_type:             "TrackingEfficiency"
+   HitsModuleLabel:         "gaushit"
+   TrackModuleLabel:        "costrk"
+   MCTruthT0ModuleLabel:    "mctrutht0"
+   PhotonT0ModuleLabel:     "photont0costrk"
+}
+
+END_PROLOG

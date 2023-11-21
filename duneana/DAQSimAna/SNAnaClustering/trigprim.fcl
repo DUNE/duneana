@@ -1,0 +1,59 @@
+BEGIN_PROLOG
+
+# This is the generic trigger primitive finder call. To make your own,
+#  add another call to "@local::trigprimpass1" to the producers list,
+#  and modify its settings later on
+
+trigprimpass1: {
+   module_type: "TriggerPrimitiveFinder"
+   InputTag: "simwire"
+   finder: {
+      tool_type: "TriggerPrimitiveFinderPass1"
+      UseSignalKill: true
+      SignalKillLookahead: 6
+      SignalKillThreshold: 15
+      SignalKillNContig: 10
+   }
+}
+
+trigprimpass2: {
+   module_type: "TriggerPrimitiveFinder"
+   InputTag: "simwire"
+   finder: {
+      tool_type: "TriggerPrimitiveFinderPass2"
+      UseSignalKill: true
+      SignalKillLookahead: 6
+      SignalKillThreshold: 15
+      SignalKillNContig: 10
+      ThresholdInSigma: 5
+   }
+}
+
+trigprimpass1_protodune: {
+   @table::trigprimpass1
+   InputTag: "tpcrawdecoder:daq:DecoderandReco"  
+}
+
+trigprimpass1old: {
+   module_type: "TriggerPrimitiveFinder"
+   InputTag: "simwire"
+   finder: {
+      tool_type: "TriggerPrimitiveFinderPass1"
+      UseSignalKill: true
+      SignalKillLookahead: 6
+      SignalKillThreshold: 15
+      SignalKillNContig: 1
+   }
+}
+
+trigprimpass1frugal: {
+   module_type: "TriggerPrimitiveFinder"
+   InputTag: "simwire"
+   finder: {
+      tool_type: "TriggerPrimitiveFinderPass1"
+      UseSignalKill: false
+      FrugalPedestalNContig: 10
+   }
+}
+
+END_PROLOG

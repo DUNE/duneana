@@ -1,0 +1,14 @@
+BEGIN_PROLOG
+
+dunefd_nucleondecayfilter:
+{
+   module_type:            "NucleonDecayFilter"
+
+   WantMuon: false
+   WantPion: false
+   WantPi0:  false
+   WantKaon: true
+   WantElec: false
+}
+
+END_PROLOG

@@ -1,0 +1,32 @@
+# Configuration for the standard HF without the FIR filter 
+# i.e. the TrigPrim generation chain consists only of pedestal subtraction and hit finding 
+
+BEGIN_PROLOG
+
+# Version of the Standard HF which uses static user-specified ADC threshold 
+trigprimpass1: {
+   module_type: "TriggerPrimitiveFinder"
+   InputTag: "simwire"
+   finder: {
+      tool_type:        "TriggerPrimitiveFinderPass1"
+      DoFiltering:       false    #don't use the FIR 
+      DownsampleFactor:  1        #don't downsample   
+      # no FIR - need to set coefficients to 1 such that the multiplier=1 i.e. waveforms remain unchanged.	
+      FilterCoeffs:      [1] 
+   }
+}
+
+# Version of the Standard HF which uses dynamic noise IQR-based threhsold 
+trigprimpass2: {
+   module_type: "TriggerPrimitiveFinder"
+   InputTag: "simwire"
+   finder: {
+      tool_type:        "TriggerPrimitiveFinderPass2"
+      DoFiltering:       false    #don't use the FIR 
+      DownsampleFactor:  1        #don't downsample   
+      # no FIR - need to set coefficients to 1 such that the multiplier=1 i.e. waveforms remain unchanged.	
+      FilterCoeffs:      [1] 
+   }
+}
+END_PROLOG
+

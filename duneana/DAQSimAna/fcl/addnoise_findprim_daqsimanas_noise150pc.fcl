@@ -1,0 +1,4 @@
+#include "addnoise_findprim_daqsimanas.fcl"
+
+services.TFileService.fileName: "DAQSimAna_plus_trigprim_multithreshold_noise150pc.root"
+services.ChannelNoiseService.NoiseNormZ: 4.74

@@ -1,0 +1,5 @@
+#include "addnoise_findprim_snanas.fcl"
+
+physics.producers.simwire.UseRawDigitInput: false
+physics.producers.simwire.SimChannelLabel: "largeant"
+services.TFileService.fileName: "SNAna_plus_trigprim_fromsimchannel.root"

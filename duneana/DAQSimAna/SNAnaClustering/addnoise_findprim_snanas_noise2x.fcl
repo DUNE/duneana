@@ -1,0 +1,9 @@
+#include "addnoise_findprim_snanas.fcl"
+
+services.TFileService.fileName: "SNAna_plus_trigprim_multithreshold_noise2x.root"
+services.ChannelNoiseService.NoiseNormZ: 6.32
+
+physics.simulate: [ rns, simwire, trigprim1200, trigprim1400, trigprim1600, trigprim1800, trigprim2000, trigprim2400, trigprim2800, trigprim3200 ]
+physics.ana: [ snanatrigprim1200, snanatrigprim1400, snanatrigprim1600, snanatrigprim1800, snanatrigprim2000, snanatrigprim2400, snanatrigprim2800, snanatrigprim3200, waveformstotree ]
+
+physics.analyzers.snanatrigprim1200.SaveIDEs: true

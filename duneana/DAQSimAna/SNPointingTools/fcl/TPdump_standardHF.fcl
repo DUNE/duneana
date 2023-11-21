@@ -1,0 +1,100 @@
+# Read in (presumably noise-free) waveforms, add noise and pedestals,
+# then find trigger primitives on the (now noisy) waveforms, and save
+# the trigger primitives (as "Hits") to a txt file - simulating a TP stream 
+#
+# Standard hit finding on induction and collection planes without any filters
+
+# module configuration for the TP dump
+
+BEGIN_PROLOG
+
+tagged_TP_dump_config: {
+   module_type:   TPStreamer
+   OutputFile:    "tpstream_standardHF.txt"
+   HitLabel:      "trigprim1"
+   InputTag:      "simwire"
+   GenLabel:      "marley"
+   GEANT4Label:   "largeant"
+   HitWindow:     5
+}
+END_PROLOG
+
+#include "TrigPrimConfig.fcl"
+#include "detsim_1dsimulation_dune10kt_1x2x6.fcl"
+
+process_name: TPGen
+
+services: @local::dunefd_simulation_services
+services.TimeTracker:           {}
+services.MemoryTracker:         {} # default is one
+services.RandomNumberGenerator: {} #ART native random number generator
+services.TFileService: { fileName: "delete_me.root" }
+services.NuRandomService:       @local::per_event_NuRandomService 
+services.message:               @local::dune_message_services_prod
+
+source: {
+  module_type: RootInput
+  maxEvents:  -1        # Number of events to create
+}
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics: {
+   producers: {
+      simwire: {
+         module_type: "SimWireDUNE"
+         SimChannelLabel: "elecDrift"
+         NoiseOn: true
+         PedestalOn: true
+         DistortOn: false
+         SuppressOn: false
+         KeepEmptyChannels: true
+         AdcSimulator:      "adcsim_ideal"
+         UseRawDigitInput: false
+         RawDigitInputLabel: "daq"
+      }
+      
+      trigprim1:      @local::trigprimpass1
+
+      rns:            { module_type: "RandomNumberSaver" }
+   }
+   
+   analyzers: 
+   {
+      daqanatrigprim1:     @local::tagged_TP_dump_config
+   }
+
+   simulate: [ rns, simwire, trigprim1]
+   ana: [ daqanatrigprim1]
+
+   trigger_paths: [simulate] 
+   end_paths: [ ana ] 
+
+}
+
+#Set the thresholds for the HF (common threshold for collection and induction) 
+physics.producers.trigprim1.finder.Threshold: 20
+
+# Geometry 
+services.Geometry.GDML: "dune10kt_v5_refactored_1x2x6.gdml"
+services.Geometry.Name: "dune10kt_v5_1x2x6"
+services.Geometry.ROOT: "dune10kt_v5_refactored_1x2x6.gdml"
+
+# SimWireDUNE settings 
+# =====================================================================
+services.message.destinations.LogStandardOut.categories.BackTracker.limit: 0
+services.message.destinations.LogStandardError.categories.BackTracker.limit: 0
+# Module label to get the correct IDEs 
+services.BackTrackerService.BackTracker.SimChannelModuleLabel: "elecDrift"
+
+
+# DetSim services. These are used by SimWire to add noise and
+# pedestals to the incoming (noise-free) waveforms
+services.SimChannelExtractService: @local::scxgeneric
+services.ChannelNoiseService:      @local::chnoiseold #choose the noise model
+services.PedestalAdditionService:  @local::padprovided
+services.AdcDistortService:        @local::stuckbits
+services.AdcSuppressService:       @local::zsnone
+services.AdcCompressService:       @local::cmpreplace
+services.DetPedestalService:       @local::dune_fixedpeds

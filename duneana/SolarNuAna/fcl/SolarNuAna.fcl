@@ -1,0 +1,60 @@
+BEGIN_PROLOG
+
+solar_nu_ana_hd:
+{
+  module_type:		     "SolarNuAna"
+  RawDigitLabel:       "daq"		      # string for the process that made the raw digits
+  HitLabel:		         "hitfd" 	      # string for the process that made the reco hits
+  GEANT4Label:         "largeant"     # The label for the process which ran GEANT4
+  OpFlashLabel:        "opflash"
+  OpHitLabel:          "ophit"
+
+  #====================================================================================#
+  # Vector with generator labels for the particles included in the event. IMPORTANT: Keep MARLEY label in the first position!!!
+  ParticleLabelVector: ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainRn222GenInLAr","Rn222ChainPo218GenInLAr","Rn222ChainPb214GenInLAr","Rn222ChainBi214GenInLAr","Rn222ChainPb210GenInLAr","Rn220ChainPb212GenInLAr","K40GenInCPA","U238ChainGenInCPA","K42From42ArGenInCPA","Rn222ChainPo218GenInCPA","Rn222ChainPb214GenInCPA","Rn222ChainBi214GenInCPA","Rn222ChainPb210GenInCPA","Rn222ChainFromBi210GenInCPA","Rn220ChainFromPb212GenInCPA","Co60GenInAPA","U238ChainGenInAPA","Th232ChainGenInAPA","Rn222ChainGenInPDS","CavernwallGammasAtLAr","foamGammasAtLAr","CavernwallNeutronsAtLAr","CryostatNGammasAtLAr","CavernNGammasAtLAr"]
+
+  Geometry:            "HD"
+  DetectorSizeX:       365          
+  DetectorSizeY:       610           # Dont't change this value for HD unless you know what you are doing!!!
+  
+  ClusterAlgoTime:        10         # Time window to look for ind. plane clusters in [tick] units.
+  ClusterAlgoAdjChannel:  2          # Number of adjacent channels to look for ind. plane clusters.
+  
+  ClusterMatchNHit:     0.75         # DAQ Clusters min. hit requirement.
+  ClusterMatchCharge:   0.5          # Charge fraction to match clusters.
+  ClusterMatchTime:     20           # Time window to look for ind. plane clusters in [tick] units.
+  ClusterInd0MatchTime: 0            # Goal Time to match clusters in ind. plane 0 in [tick] units. Needs to be calibrated for each geometry!
+  ClusterInd1MatchTime: 0            # Goal Time to match clusters in ind. plane 1 in [tick] units. Needs to be calibrated for each geometry!
+  
+  ClusterPreselectionNHit: 2         # Number of hits to match clusters.
+
+  AdjClusterTime:         1200       # Time window to search for adj. clusters in [tick] units.
+  AdjClusterRad:          50         # Radius to search for adj. clusters in [cm] units.
+  
+  AdjOpFlashTime:      4500          # Time window to look for adjacent flashes in [tick] units should be one full drift length.
+  AdjOpFlashRad:       100           # Radius to search for adj. OpFlashes reconstructed in [cm] units.
+  AdjOpFlashMaxPECut:  0.5           # Cut on the maximum PE OpHit contribution to the total OpFlash PE (lower limit).
+  AdjOpFlashMinPECut:  20            # Cut on the minimum PE OpHit.
+}
+
+legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
+legacy_solar_nu_ana_hd_v2.ParticleLabelVector: ["marley","apa","neut","po","cpa","ar42","kr85","ar39","rn222"]
+
+legacy_solar_nu_ana_hd_v4: @local::solar_nu_ana_hd
+legacy_solar_nu_ana_hd_v4.ParticleLabelVector: ["marley","apaGen","cNeutronGen","cpaGen","ar42Gen","kr85Gen","ar39Gen","rn222Gen","po210Gen"]
+
+solar_nu_ana_vd: @local::solar_nu_ana_hd
+solar_nu_ana_vd.HitLabel:             "gaushit"
+solar_nu_ana_vd.OpFlashLabel:         "opflash10ppm"
+solar_nu_ana_vd.OpHitLabel:           "ophit10ppm"
+solar_nu_ana_vd.OpDetWaveformLabel:   "opdigi10ppm"
+solar_nu_ana_vd.ParticleLabelVector:  ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainRn222GenInLAr","Rn220ChainPb212GenInLAr","K40GenInCathode","U238ChainGenInCathode","K42From42ArGenInCathode","Rn220ChainFromPb212GenInCathode","Rn222ChainGenInPDS","CavernwallGammasAtLAr","foamGammasAtLAr","CavernwallNeutronsAtLAr","CryostatNGammasAtLAr","CavernNGammasAtLAr" ]
+solar_nu_ana_vd.DetectorSizeY:        1500 
+solar_nu_ana_vd.AdjOpFlashTime:       8500
+solar_nu_ana_vd.ClusterInd1MatchTime: 5 
+solar_nu_ana_vd.ClusterInd0MatchTime: 10 
+solar_nu_ana_vd.AdjOpFlashMinPECut:   100
+
+solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
+
+END_PROLOG

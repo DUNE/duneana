@@ -1,0 +1,31 @@
+BEGIN_PROLOG
+
+standard_daqquickclustering:
+{
+        module_type: DAQQuickClustering
+        AdjChanTolerance : [1,2,2,2,2,2]
+	HitsInWindow     : [2,3,3,4,5,6]
+	MinChannels      : [2,2,2,2,2,2]
+	MinChanWidth     : [0,0,0,0,0,0]
+	TimeWindowSize   : [20,20,20,20,20,20]
+	TotalADC         : [350,400,450,400,400,0]
+        detectorScaling  : 0.12
+
+	RawDigitLabel: "daq"	     # String for the process that made the raw digits
+	HitLabel:      "whatever"    # String for the process that made the reco hits
+	
+	GEANT4Label:   "largeant"    # The label for the process which ran GEANT4
+	MARLEYLabel:   "marley"      # The label for the process which produced MARLEY events
+	APALabel:      "apaGen"      # The label for the process which produced APA events
+	CPALabel:      "cpaGen"      # The label for the process which produced CPA events
+	Argon39Label:  "ar39Gen"     # The label for the process which produced Argon 39 events
+	NeutronLabel:  "cNeutronGen" # The label for the process which produced Neutron events
+	KryptonLabel:  "kr85Gen"     # The label for the process which produced Krypton events
+	PoloniumLabel: "po210Gen"    # The label for the process which produced Polonium events
+	RadonLabel:    "rn222Gen"    # The label for the process which produced Radon events
+	Argon42Label:  "ar42Gen"     # The label for the process which produced Argon 42 events
+
+
+
+}
+END_PROLOG

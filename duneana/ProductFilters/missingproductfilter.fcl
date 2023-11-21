@@ -1,0 +1,14 @@
+BEGIN_PROLOG
+
+
+standard_missingproductfilter:
+{
+ module_type:     "MissingProductFilter"
+ # Supported products:
+ # reco3d, pandora, pandoraTrack, pandoraShower
+ # opflash, opflashExternal, opflashInternal
+ 
+ Modules:   ["reco3d","pandoraTrack"]
+}
+
+END_PROLOG

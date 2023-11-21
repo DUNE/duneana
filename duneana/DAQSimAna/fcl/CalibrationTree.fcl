@@ -1,0 +1,44 @@
+BEGIN_PROLOG
+
+standard_calibrationtree:
+{
+  module_type:	CalibrationTree	
+
+}
+
+END_PROLOG
+
+#include "services_dune.fcl"
+
+process_name: CalibrationTree
+
+services:
+{
+  @table::dunefd_services
+  TFileService:          { fileName: "CalibrationTree.root" }
+  TimeTracker:           {}
+  MemoryTracker:         {}
+  RandomNumberGenerator: {}
+  PhotonBackTrackerService:              @local::standard_photonbacktrackerservice
+  BackTrackerService:                    @local::standard_backtrackerservice
+  ParticleInventoryService:              @local::standard_particleinventoryservice
+}
+
+physics:
+{
+  analyzers:
+  {
+    calibTree:     @local::standard_calibrationtree
+  }
+
+  ana: [ calibTree ]
+  end_paths: [ ana ] 
+
+}
+
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+

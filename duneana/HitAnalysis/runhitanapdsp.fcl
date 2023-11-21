@@ -1,0 +1,37 @@
+#include "services_dune.fcl"
+#include "resourcetracking_services.fcl"
+#include "hitanalysismodules_dune.fcl"
+#include "protodune_tools_dune.fcl"
+
+process_name: SignalToNoise
+
+services:
+{
+    TFileService: { fileName: "hitanapdsp.root" }
+    @table::standard_resourcetrackers
+    @table::protodune_data_reco_services
+    IFDH: {}
+}
+
+source:
+{
+  module_type: RootInput
+  fileNames: [ "/afs/fnal.gov/files/home/room3/jpdavies/lbne_r000200_sr01_20140807T150347.root" ]
+  maxEvents: -1
+}
+
+physics:
+{
+  analyzers:
+  {
+    hitana: @local::pdsp_hitana
+  }
+
+  ana: [ hitana ]
+#  output: [ out1 ]
+#  trigger_paths: [ produce ]
+  end_paths: [ ana ]
+
+}
+
+
