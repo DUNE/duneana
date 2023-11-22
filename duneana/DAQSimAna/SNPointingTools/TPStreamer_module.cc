@@ -38,8 +38,32 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-
-enum PType{ kUnknown=0, kGen, kBgd}; //0 == noise hit, 1 == signal hit, 2 == radiological/background hit
+// adding all of the different backgrounds to have a complete set, can group them in the analysis
+enum PType{ 
+  kUnknown=0,
+  kMarley=1,
+  kAr39GenInLAr=2,
+  kKr85GenInLAr=3,
+  kAr42GenInLAr=4,
+  kK42From42ArGenInLAr=5,
+  kRn222ChainRn222GenInLAr=6,
+  kRn222ChainPo218GenInLAr=7,
+  kRn222ChainPb214GenInLAr=8,
+  kRn222ChainBi214GenInLAr=9,
+  kRn222ChainPb210GenInLAr=10,
+  kK40GenInCPA=11,
+  kU238ChainGenInCPA=12,
+  kK42From42ArGenInCPA=13,
+  kRn222ChainPo218GenInCPA=14,
+  kRn222ChainPb214GenInCPA=15,
+  kRn222ChainBi214GenInCPA=16,
+  kRn222ChainPb210GenInCPA=17,
+  kRn222ChainFromBi210GenInCPA=18,
+  kCo60GenInAPA=19,
+  kU238ChainGenInAPA=20,
+  kRn222ChainGenInPDS=21,
+  kNeutronGenInRock=22
+};
 
 class TPStreamer : public art::EDAnalyzer {
 
@@ -66,7 +90,30 @@ private:
 			std::map<int, int>* indexMap=nullptr);
 
   //--- producer labels
-  std::string m_GenLabel; //generator used for signal events 
+  std::string m_MarleyLabel; //generator used for signal events 
+  // add all background variables at once please
+  std::string m_Ar39GenInLArLabel;
+  std::string m_Kr85GenInLArLabel;
+  std::string m_Ar42GenInLArLabel;
+  std::string m_K42From42ArGenInLArLabel;
+  std::string m_Rn222ChainRn222GenInLArLabel;
+  std::string m_Rn222ChainPo218GenInLArLabel;
+  std::string m_Rn222ChainPb214GenInLArLabel;
+  std::string m_Rn222ChainBi214GenInLArLabel;
+  std::string m_Rn222ChainPb210GenInLArLabel;
+  std::string m_K40GenInCPALabel;
+  std::string m_U238ChainGenInCPALabel;
+  std::string m_K42From42ArGenInCPALabel;
+  std::string m_Rn222ChainPo218GenInCPALabel;
+  std::string m_Rn222ChainPb214GenInCPALabel;
+  std::string m_Rn222ChainBi214GenInCPALabel;
+  std::string m_Rn222ChainPb210GenInCPALabel;
+  std::string m_Rn222ChainFromBi210GenInCPALabel;
+  std::string m_Co60GenInAPALabel;
+  std::string m_U238ChainGenInAPALabel;
+  std::string m_Rn222ChainGenInPDSLabel;
+  std::string m_NeutronGenInRockLabel;
+
   std::string m_GeantLabel; //g4
   std::string m_HitLabel; // which hit finder to use 
 
@@ -78,8 +125,8 @@ private:
   std::string m_outputFilename;
   std::ofstream m_outputFile; 
 
-  std::map< int, simb::MCParticle> GenParts;
-  std::map< int, simb::MCParticle> BgdParts;
+  std::map< int, simb::MCParticle> MarleyPMap;
+  std::map< int, simb::MCParticle> BgdPMap;
 
   //Mapping from track ID to particle type, for use in WhichParType() 
   std::map<int, PType> trkIDToPType; 
@@ -95,12 +142,35 @@ private:
 TPStreamer::TPStreamer(fhicl::ParameterSet const & p)
   :
   EDAnalyzer(p), 
-  m_GenLabel(      p.get<std::string>("GenLabel")),
+  // gen labels to retrieve MCtruth
+  m_MarleyLabel(                      p.get<std::string>("GenLabels.MarleyLabel")),
+  m_Ar39GenInLArLabel(                p.get<std::string>("GenLabels.Ar39GenInLarLabel")),
+  m_Kr85GenInLArLabel(                p.get<std::string>("GenLabels.Kr85GenInLarLabel")),
+  m_Ar42GenInLArLabel(                p.get<std::string>("GenLabels.Ar42GenInLarLabel")),
+  m_K42From42ArGenInLArLabel(         p.get<std::string>("GenLabels.K42From42ArGenInLarLabel")),
+  m_Rn222ChainRn222GenInLArLabel(     p.get<std::string>("GenLabels.Rn222ChainRn222GenInLarLabel")),
+  m_Rn222ChainPo218GenInLArLabel(     p.get<std::string>("GenLabels.Rn222ChainPo218GenInLarLabel")),
+  m_Rn222ChainPb214GenInLArLabel(     p.get<std::string>("GenLabels.Rn222ChainPb214GenInLarLabel")),
+  m_Rn222ChainBi214GenInLArLabel(     p.get<std::string>("GenLabels.Rn222ChainBi214GenInLarLabel")),
+  m_Rn222ChainPb210GenInLArLabel(     p.get<std::string>("GenLabels.Rn222ChainPb210GenInLarLabel")),
+  m_K40GenInCPALabel(                 p.get<std::string>("GenLabels.K40GenInCPALabel")),
+  m_U238ChainGenInCPALabel(           p.get<std::string>("GenLabels.U238ChainGenInCPALabel")),
+  m_K42From42ArGenInCPALabel(         p.get<std::string>("GenLabels.K42From42ArGenInCPALabel")),
+  m_Rn222ChainPo218GenInCPALabel(     p.get<std::string>("GenLabels.Rn222ChainPo218GenInCPALabel")),
+  m_Rn222ChainPb214GenInCPALabel(     p.get<std::string>("GenLabels.Rn222ChainPb214GenInCPALabel")),
+  m_Rn222ChainBi214GenInCPALabel(     p.get<std::string>("GenLabels.Rn222ChainBi214GenInCPALabel")),
+  m_Rn222ChainPb210GenInCPALabel(     p.get<std::string>("GenLabels.Rn222ChainPb210GenInCPALabel")),
+  m_Rn222ChainFromBi210GenInCPALabel( p.get<std::string>("GenLabels.Rn222ChainFromBi210GenInCPALabel")),
+  m_Co60GenInAPALabel(                p.get<std::string>("GenLabels.Co60GenInAPALabel")),
+  m_U238ChainGenInAPALabel(           p.get<std::string>("GenLabels.U238ChainGenInAPALabel")),
+  m_Rn222ChainGenInPDSLabel(          p.get<std::string>("GenLabels.Rn222ChainGenInPDSLabel")),
+  m_NeutronGenInRockLabel(            p.get<std::string>("GenLabels.NeutronGenInRockLabel")),
+
   m_GeantLabel(    p.get<std::string>("GEANT4Label")),
   m_HitLabel(      p.get<std::string>("HitLabel")),
   m_HitWindow(     p.get<raw::TDCtick_t>("HitWindow", 20)), 
   m_AbsRS(         p.get<bool>("AbsRSHits", false)),
-  m_outputFilename(p.get<std::string>("OutputFile")),
+  m_outputFilename(p.get<std::string>("OutputFile")), // TODO add here reading of threshold to compose filename
   m_outputFile(m_outputFilename)
 {
   
@@ -108,8 +178,8 @@ TPStreamer::TPStreamer(fhicl::ParameterSet const & p)
 
 void TPStreamer::ResetVariables()
 {
-  GenParts.clear();
-  BgdParts.clear();
+  MarleyPMap.clear();
+  BgdPMap.clear();
   trkIDToPType.clear(); 
   Hit_True_MainTrID.clear();
 
@@ -135,6 +205,12 @@ PType TPStreamer::WhichParType (int TrkID)
 {
   PType ThisPType= kUnknown;
   auto const& it = trkIDToPType.find(TrkID);
+  // create a quick output textfile called "trkIDToPType.txt" to check the mapping
+  std::ofstream trkIDToPTypeFile("trkIDToPType.txt", std::ios_base::app);
+  trkIDToPTypeFile << TrkID << " " << it->second << std::endl;
+  trkIDToPTypeFile.close();
+  // TODO remove this
+
   if(it!=trkIDToPType.end()){   ThisPType=it->second;  }
   return ThisPType; 
 } // WhichParType
@@ -155,16 +231,18 @@ void TPStreamer::analyze(art::Event const & evt)
     const std::string GenModuleLabel = handle.provenance()->moduleLabel();
 
     //Get a map between G4 Track IDs and signal MC parts. 
-    if (GenModuleLabel == m_GenLabel){
+    if (GenModuleLabel == m_MarleyLabel){
       
-      auto GenTrue = evt.getHandle< std::vector<simb::MCTruth> >(m_GenLabel);
+      auto GenTrue = evt.getHandle< std::vector<simb::MCTruth> >(m_MarleyLabel);
       if (GenTrue){	
         art::FindManyP<simb::MCParticle> GenAssn( GenTrue, evt, m_GeantLabel); 
-	      FillMyMaps( GenParts, GenAssn, GenTrue); 
+	      FillMyMaps( MarleyPMap, GenAssn, GenTrue); 
       }
     }
     //Get a map between G4 Track IDs and bgd MC parts.
     else{
+      // in this way, you only check that there is a handle to not classify noise as background
+      // but the proper way is to have all the handles of different brackgrounds
       auto BgdTrue = evt.getHandle< std::vector<simb::MCTruth> >(GenModuleLabel);   
       if (BgdTrue){                                                                                                           
 	      art::FindManyP<simb::MCParticle> BgdAssn(BgdTrue, evt, m_GeantLabel);      
@@ -174,7 +252,7 @@ void TPStreamer::analyze(art::Event const & evt)
         FillMyMaps(tempBgdMap, BgdAssn, BgdTrue);
 
         //Merge the temporary map with the full backgrounds map
-        BgdParts.insert(tempBgdMap.begin(), tempBgdMap.end());                                                         
+        BgdPMap.insert(tempBgdMap.begin(), tempBgdMap.end());                                                         
       }
     }
   }
@@ -191,13 +269,13 @@ void TPStreamer::analyze(art::Event const & evt)
       const simb::MCParticle trueParticle = mcParticles->at(i);
       // if (trueParticle.Mother() != 0){ 	DaughterParts[trueParticle.TrackId()] = trueParticle;      }
      
-      // Check if the TrackId() is not in GenParts or BgdParts
-      if (GenParts.find(trueParticle.TrackId()) == GenParts.end() && BgdParts.find(trueParticle.TrackId()) == BgdParts.end()){
+      // Check if the TrackId() is not in MarleyPMap or BgdPMap
+      if (MarleyPMap.find(trueParticle.TrackId()) == MarleyPMap.end() && BgdPMap.find(trueParticle.TrackId()) == BgdPMap.end()){
         DaughterParts[trueParticle.TrackId()] = trueParticle;
       }
     }
     //Add daughter particles to signal map
-    GenParts.insert(DaughterParts.begin(), DaughterParts.end()); 
+    MarleyPMap.insert(DaughterParts.begin(), DaughterParts.end()); 
   }
  
   // ---
@@ -206,8 +284,28 @@ void TPStreamer::analyze(art::Event const & evt)
 
   //Map each particle map to its corresponding enum tag 
   std::map<PType, std::map< int, simb::MCParticle >&> PTypeToMap{
-    {kGen,  GenParts },
-    {kBgd,  BgdParts }
+    {kMarley,  MarleyPMap },
+    {kAr39GenInLAr, Ar39GenInLArPMap },
+    {kKr85GenInLAr, Kr85GenInLArPMap },
+    {kAr42GenInLAr, Ar42GenInLArPMap },
+    {kK42From42ArGenInLAr, K42From42ArGenInLArPMap },
+    {kRn222ChainRn222GenInLAr, Rn222ChainRn222GenInLArPMap },
+    {kRn222ChainPo218GenInLAr, Rn222ChainPo218GenInLArPMap },
+    {kRn222ChainPb214GenInLAr, Rn222ChainPb214GenInLArPMap },
+    {kRn222ChainBi214GenInLAr, Rn222ChainBi214GenInLArPMap },
+    {kRn222ChainPb210GenInLAr, Rn222ChainPb210GenInLArPMap },
+    {kK40GenInCPA, K40GenInCPAPMap },
+    {kU238ChainGenInCPA, U238ChainGenInCPAPMap },
+    {kK42From42ArGenInCPA, K42From42ArGenInCPAPMap },
+    {kRn222ChainPo218GenInCPA, Rn222ChainPo218GenInCPAPMap },
+    {kRn222ChainPb214GenInCPA, Rn222ChainPb214GenInCPAPMap },
+    {kRn222ChainBi214GenInCPA, Rn222ChainBi214GenInCPAPMap },
+    {kRn222ChainPb210GenInCPA, Rn222ChainPb210GenInCPAPMap },
+    {kRn222ChainFromBi210GenInCPA, Rn222ChainFromBi210GenInCPAPMap },
+    {kCo60GenInAPA, Co60GenInAPAPMap },
+    {kU238ChainGenInAPA, U238ChainGenInAPAPMap },
+    {kRn222ChainGenInPDS, Rn222ChainGenInPDSPMap },
+    {kNeutronGenInRock, NeutronGenInRockPMap }
   };
   
   //run over the particle assn map
@@ -215,13 +313,13 @@ void TPStreamer::analyze(art::Event const & evt)
 
     //particle tag e.g. kGen
     const PType p = it.first;
-    // gen-g4 mapping e.g. GenParts
+    // gen-g4 mapping e.g. MarleyPMap
     auto const& m = it.second;
 
-    //run over each row in e.g. GenParts
+    //run over each row in e.g. MarleyPMap
     for (auto const& it2 : m){
       //add a row to the trkIDToPType map consisting of [particle trk ID, kGen] 
-      //trkIDToPType is a 2xn matrix
+      //trkIDToPType is now a 22xn matrix
       trkIDToPType.insert( std::make_pair(it2.first, p));
     }
   }
