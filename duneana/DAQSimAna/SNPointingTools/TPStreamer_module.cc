@@ -228,33 +228,36 @@ void TPStreamer::analyze(art::Event const & evt)
   for (auto const& handle: GenHandles){
 
     //Get the gen module labels for signal + radiologicals
-    const std::string GenModuleLabel = handle.provenance()->moduleLabel();
+    const std::string thisGenLabel = handle.provenance()->moduleLabel();
 
-    //Get a map between G4 Track IDs and signal MC parts. 
-    if (GenModuleLabel == m_MarleyLabel){
+    //Get the particle assn for this gen module label
+    art::FindManyP<simb::MCParticle> Assn(handle, evt, m_GeantLabel);
+
+    // //Get a map between G4 Track IDs and signal MC parts. 
+    // if (GenModuleLabel == m_MarleyLabel){
       
-      auto GenTrue = evt.getHandle< std::vector<simb::MCTruth> >(m_MarleyLabel);
-      if (GenTrue){	
-        art::FindManyP<simb::MCParticle> GenAssn( GenTrue, evt, m_GeantLabel); 
-	      FillMyMaps( MarleyPMap, GenAssn, GenTrue); 
-      }
-    }
-    //Get a map between G4 Track IDs and bgd MC parts.
-    else{
-      // in this way, you only check that there is a handle to not classify noise as background
-      // but the proper way is to have all the handles of different brackgrounds
-      auto BgdTrue = evt.getHandle< std::vector<simb::MCTruth> >(GenModuleLabel);   
-      if (BgdTrue){                                                                                                           
-	      art::FindManyP<simb::MCParticle> BgdAssn(BgdTrue, evt, m_GeantLabel);      
+    //   auto GenTrue = evt.getHandle< std::vector<simb::MCTruth> >(m_MarleyLabel);
+    //   if (GenTrue){	
+    //     art::FindManyP<simb::MCParticle> GenAssn( GenTrue, evt, m_GeantLabel); 
+	  //     FillMyMaps( MarleyPMap, GenAssn, GenTrue); 
+    //   }
+    // }
+    // //Get a map between G4 Track IDs and bgd MC parts.
+    // else{
+    //   // in this way, you only check that there is a handle to not classify noise as background
+    //   // but the proper way is to have all the handles of different brackgrounds
+    //   auto BgdTrue = evt.getHandle< std::vector<simb::MCTruth> >(GenModuleLabel);   
+    //   if (BgdTrue){                                                                                                           
+	  //     art::FindManyP<simb::MCParticle> BgdAssn(BgdTrue, evt, m_GeantLabel);      
 
-        //Create a temporary map for the specific background source 
-        std::map<int, simb::MCParticle> tempBgdMap; 
-        FillMyMaps(tempBgdMap, BgdAssn, BgdTrue);
+    //     //Create a temporary map for the specific background source 
+    //     std::map<int, simb::MCParticle> tempBgdMap; 
+    //     FillMyMaps(tempBgdMap, BgdAssn, BgdTrue);
 
-        //Merge the temporary map with the full backgrounds map
-        BgdPMap.insert(tempBgdMap.begin(), tempBgdMap.end());                                                         
-      }
-    }
+    //     //Merge the temporary map with the full backgrounds map
+    //     BgdPMap.insert(tempBgdMap.begin(), tempBgdMap.end());                                                         
+    //   }
+    // }
   }
 
 
@@ -274,7 +277,7 @@ void TPStreamer::analyze(art::Event const & evt)
         DaughterParts[trueParticle.TrackId()] = trueParticle;
       }
     }
-    //Add daughter particles to signal map
+    //Add daughter particles to signal map. TODO check if daughter particles are supposed to be only for marley or also bgd
     MarleyPMap.insert(DaughterParts.begin(), DaughterParts.end()); 
   }
  
