@@ -125,9 +125,31 @@ private:
   std::string m_outputFilename;
   std::ofstream m_outputFile; 
 
-  std::map< int, simb::MCParticle> ParticleMap;
-  // std::map< int, simb::MCParticle> BgdPMap;
-
+  std::map< int, simb::MCParticle> MarleyMap;
+  //  I am not satisfied with this, but for the moment let's not change too much the structure
+  // an update will be transparent to the user
+  std::map< int, simb::MCParticle> Ar39GenInLArPMap;
+  std::map< int, simb::MCParticle> Kr85GenInLArPMap;
+  std::map< int, simb::MCParticle> Ar42GenInLArPMap;
+  std::map< int, simb::MCParticle> K42From42ArGenInLArPMap;
+  std::map< int, simb::MCParticle> Rn222ChainRn222GenInLArPMap;
+  std::map< int, simb::MCParticle> Rn222ChainPo218GenInLArPMap;
+  std::map< int, simb::MCParticle> Rn222ChainPb214GenInLArPMap;
+  std::map< int, simb::MCParticle> Rn222ChainBi214GenInLArPMap;
+  std::map< int, simb::MCParticle> Rn222ChainPb210GenInLArPMap;
+  std::map< int, simb::MCParticle> K40GenInCPAPMap;
+  std::map< int, simb::MCParticle> U238ChainGenInCPAPMap;
+  std::map< int, simb::MCParticle> K42From42ArGenInCPAPMap;
+  std::map< int, simb::MCParticle> Rn222ChainPo218GenInCPAPMap;
+  std::map< int, simb::MCParticle> Rn222ChainPb214GenInCPAPMap;
+  std::map< int, simb::MCParticle> Rn222ChainBi214GenInCPAPMap;
+  std::map< int, simb::MCParticle> Rn222ChainPb210GenInCPAPMap;
+  std::map< int, simb::MCParticle> Rn222ChainFromBi210GenInCPAPMap;
+  std::map< int, simb::MCParticle> Co60GenInAPAPMap;
+  std::map< int, simb::MCParticle> U238ChainGenInAPAPMap;
+  std::map< int, simb::MCParticle> Rn222ChainGenInPDSPMap;
+  std::map< int, simb::MCParticle> NeutronGenInRockPMap;
+  
   //Mapping from track ID to particle type, for use in WhichParType() 
   std::map<int, PType> trkIDToPType; 
   std::vector<int> Hit_True_MainTrID;
@@ -178,7 +200,7 @@ TPStreamer::TPStreamer(fhicl::ParameterSet const & p)
 
 void TPStreamer::ResetVariables()
 {
-  ParticleMap.clear();
+  MarleyMap.clear();
   // BgdPMap.clear();
   trkIDToPType.clear(); 
   Hit_True_MainTrID.clear();
@@ -232,8 +254,29 @@ void TPStreamer::analyze(art::Event const & evt)
 
     //Get the particle assn for this gen module label
     art::FindManyP<simb::MCParticle> Association(handle, evt, m_GeantLabel);
-    FillMyMaps(ParticleMap, Association, handle);
-    // should be all the needed, but maybe check
+    if (thisGenLabel == m_MarleyLabel) FillMyMaps(MarleyMap, Association, handle);
+    if (thisGenLabel == m_Ar39GenInLArLabel) FillMyMaps(Ar39GenInLArPMap, Association, handle);
+    if (thisGenLabel == m_Kr85GenInLArLabel) FillMyMaps(Kr85GenInLArPMap, Association, handle);
+    if (thisGenLabel == m_Ar42GenInLArLabel) FillMyMaps(Ar42GenInLArPMap, Association, handle);
+    if (thisGenLabel == m_K42From42ArGenInLArLabel) FillMyMaps(K42From42ArGenInLArPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainRn222GenInLArLabel) FillMyMaps(Rn222ChainRn222GenInLArPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainPo218GenInLArLabel) FillMyMaps(Rn222ChainPo218GenInLArPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainPb214GenInLArLabel) FillMyMaps(Rn222ChainPb214GenInLArPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainBi214GenInLArLabel) FillMyMaps(Rn222ChainBi214GenInLArPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainPb210GenInLArLabel) FillMyMaps(Rn222ChainPb210GenInLArPMap, Association, handle);
+    if (thisGenLabel == m_K40GenInCPALabel) FillMyMaps(K40GenInCPAPMap, Association, handle);
+    if (thisGenLabel == m_U238ChainGenInCPALabel) FillMyMaps(U238ChainGenInCPAPMap, Association, handle);
+    if (thisGenLabel == m_K42From42ArGenInCPALabel) FillMyMaps(K42From42ArGenInCPAPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainPo218GenInCPALabel) FillMyMaps(Rn222ChainPo218GenInCPAPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainPb214GenInCPALabel) FillMyMaps(Rn222ChainPb214GenInCPAPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainBi214GenInCPALabel) FillMyMaps(Rn222ChainBi214GenInCPAPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainPb210GenInCPALabel) FillMyMaps(Rn222ChainPb210GenInCPAPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainFromBi210GenInCPALabel) FillMyMaps(Rn222ChainFromBi210GenInCPAPMap, Association, handle);
+    if (thisGenLabel == m_Co60GenInAPALabel) FillMyMaps(Co60GenInAPAPMap, Association, handle);
+    if (thisGenLabel == m_U238ChainGenInAPALabel) FillMyMaps(U238ChainGenInAPAPMap, Association, handle);
+    if (thisGenLabel == m_Rn222ChainGenInPDSLabel) FillMyMaps(Rn222ChainGenInPDSPMap, Association, handle);
+    if (thisGenLabel == m_NeutronGenInRockLabel) FillMyMaps(NeutronGenInRockPMap, Association, handle);
+
 
     // //Get a map between G4 Track IDs and signal MC parts. 
     // if (GenModuleLabel == m_MarleyLabel){
@@ -241,7 +284,7 @@ void TPStreamer::analyze(art::Event const & evt)
     //   auto GenTrue = evt.getHandle< std::vector<simb::MCTruth> >(m_MarleyLabel);
     //   if (GenTrue){	
     //     art::FindManyP<simb::MCParticle> GenAssn( GenTrue, evt, m_GeantLabel); 
-	  //     FillMyMaps( ParticleMap, GenAssn, GenTrue); 
+	  //     FillMyMaps( MarleyMap, GenAssn, GenTrue); 
     //   }
     // }
     // //Get a map between G4 Track IDs and bgd MC parts.
@@ -274,22 +317,22 @@ void TPStreamer::analyze(art::Event const & evt)
       const simb::MCParticle trueParticle = mcParticles->at(i);
       // if (trueParticle.Mother() != 0){ 	DaughterParts[trueParticle.TrackId()] = trueParticle;      }
      
-      // Check if the TrackId() is not in ParticleMap or BgdPMap
-      if (ParticleMap.find(trueParticle.TrackId()) == ParticleMap.end() ){ // && BgdPMap.find(trueParticle.TrackId()) == BgdPMap.end()
+      // Check if the TrackId() is not in MarleyMap or BgdPMap
+      if (MarleyMap.find(trueParticle.TrackId()) == MarleyMap.end() ){ // && BgdPMap.find(trueParticle.TrackId()) == BgdPMap.end()
         DaughterParts[trueParticle.TrackId()] = trueParticle;
       }
     }
     //Add daughter particles to signal map. TODO check if daughter particles are supposed to be only for marley or also bgd
-    ParticleMap.insert(DaughterParts.begin(), DaughterParts.end()); 
+    MarleyMap.insert(DaughterParts.begin(), DaughterParts.end()); 
   }
  
   // ---
 
 
 
-  //Map each particle map to its corresponding enum tag 
+  //Map each particle map to its corresponding enum tag, maybe can avoid
   std::map<PType, std::map< int, simb::MCParticle >&> PTypeToMap{
-    {kMarley,  ParticleMap },
+    {kMarley,  MarleyMap },
     {kAr39GenInLAr, Ar39GenInLArPMap },
     {kKr85GenInLAr, Kr85GenInLArPMap },
     {kAr42GenInLAr, Ar42GenInLArPMap },
@@ -313,15 +356,16 @@ void TPStreamer::analyze(art::Event const & evt)
     {kNeutronGenInRock, NeutronGenInRockPMap }
   };
   
+
   //run over the particle assn map
   for (auto const& it : PTypeToMap){
 
     //particle tag e.g. kGen
     const PType p = it.first;
-    // gen-g4 mapping e.g. ParticleMap
+    // gen-g4 mapping e.g. MarleyMap
     auto const& m = it.second;
 
-    //run over each row in e.g. ParticleMap
+    //run over each row in e.g. MarleyMap
     for (auto const& it2 : m){
       //add a row to the trkIDToPType map consisting of [particle trk ID, kGen] 
       //trkIDToPType is now a 22xn matrix
