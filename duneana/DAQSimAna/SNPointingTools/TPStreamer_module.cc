@@ -125,8 +125,8 @@ private:
   std::string m_outputFilename;
   std::ofstream m_outputFile; 
 
-  std::map< int, simb::MCParticle> MarleyPMap;
-  std::map< int, simb::MCParticle> BgdPMap;
+  std::map< int, simb::MCParticle> ParticleMap;
+  // std::map< int, simb::MCParticle> BgdPMap;
 
   //Mapping from track ID to particle type, for use in WhichParType() 
   std::map<int, PType> trkIDToPType; 
@@ -178,8 +178,8 @@ TPStreamer::TPStreamer(fhicl::ParameterSet const & p)
 
 void TPStreamer::ResetVariables()
 {
-  MarleyPMap.clear();
-  BgdPMap.clear();
+  ParticleMap.clear();
+  // BgdPMap.clear();
   trkIDToPType.clear(); 
   Hit_True_MainTrID.clear();
 
@@ -231,7 +231,9 @@ void TPStreamer::analyze(art::Event const & evt)
     const std::string thisGenLabel = handle.provenance()->moduleLabel();
 
     //Get the particle assn for this gen module label
-    art::FindManyP<simb::MCParticle> Assn(handle, evt, m_GeantLabel);
+    art::FindManyP<simb::MCParticle> Association(handle, evt, m_GeantLabel);
+    FillMyMaps(ParticleMap, Association, handle);
+    // should be all the needed, but maybe check
 
     // //Get a map between G4 Track IDs and signal MC parts. 
     // if (GenModuleLabel == m_MarleyLabel){
@@ -239,7 +241,7 @@ void TPStreamer::analyze(art::Event const & evt)
     //   auto GenTrue = evt.getHandle< std::vector<simb::MCTruth> >(m_MarleyLabel);
     //   if (GenTrue){	
     //     art::FindManyP<simb::MCParticle> GenAssn( GenTrue, evt, m_GeantLabel); 
-	  //     FillMyMaps( MarleyPMap, GenAssn, GenTrue); 
+	  //     FillMyMaps( ParticleMap, GenAssn, GenTrue); 
     //   }
     // }
     // //Get a map between G4 Track IDs and bgd MC parts.
@@ -272,13 +274,13 @@ void TPStreamer::analyze(art::Event const & evt)
       const simb::MCParticle trueParticle = mcParticles->at(i);
       // if (trueParticle.Mother() != 0){ 	DaughterParts[trueParticle.TrackId()] = trueParticle;      }
      
-      // Check if the TrackId() is not in MarleyPMap or BgdPMap
-      if (MarleyPMap.find(trueParticle.TrackId()) == MarleyPMap.end() && BgdPMap.find(trueParticle.TrackId()) == BgdPMap.end()){
+      // Check if the TrackId() is not in ParticleMap or BgdPMap
+      if (ParticleMap.find(trueParticle.TrackId()) == ParticleMap.end() ){ // && BgdPMap.find(trueParticle.TrackId()) == BgdPMap.end()
         DaughterParts[trueParticle.TrackId()] = trueParticle;
       }
     }
     //Add daughter particles to signal map. TODO check if daughter particles are supposed to be only for marley or also bgd
-    MarleyPMap.insert(DaughterParts.begin(), DaughterParts.end()); 
+    ParticleMap.insert(DaughterParts.begin(), DaughterParts.end()); 
   }
  
   // ---
@@ -287,7 +289,7 @@ void TPStreamer::analyze(art::Event const & evt)
 
   //Map each particle map to its corresponding enum tag 
   std::map<PType, std::map< int, simb::MCParticle >&> PTypeToMap{
-    {kMarley,  MarleyPMap },
+    {kMarley,  ParticleMap },
     {kAr39GenInLAr, Ar39GenInLArPMap },
     {kKr85GenInLAr, Kr85GenInLArPMap },
     {kAr42GenInLAr, Ar42GenInLArPMap },
@@ -316,10 +318,10 @@ void TPStreamer::analyze(art::Event const & evt)
 
     //particle tag e.g. kGen
     const PType p = it.first;
-    // gen-g4 mapping e.g. MarleyPMap
+    // gen-g4 mapping e.g. ParticleMap
     auto const& m = it.second;
 
-    //run over each row in e.g. MarleyPMap
+    //run over each row in e.g. ParticleMap
     for (auto const& it2 : m){
       //add a row to the trkIDToPType map consisting of [particle trk ID, kGen] 
       //trkIDToPType is now a 22xn matrix
