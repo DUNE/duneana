@@ -195,13 +195,59 @@ TPStreamer::TPStreamer(fhicl::ParameterSet const & p)
   m_outputFilename(p.get<std::string>("OutputFile")), // TODO add here reading of threshold to compose filename
   m_outputFile(m_outputFilename)
 {
-  
+ // print to file the read labels
+ std::ofstream labelsFile("labels.txt", std::ios_base::app);
+  labelsFile << m_MarleyLabel << std::endl;
+  labelsFile << m_Ar39GenInLArLabel << std::endl;
+  labelsFile << m_Kr85GenInLArLabel << std::endl; 
+  labelsFile << m_Ar42GenInLArLabel << std::endl;
+  labelsFile << m_K42From42ArGenInLArLabel << std::endl;
+  labelsFile << m_Rn222ChainRn222GenInLArLabel << std::endl;
+  labelsFile << m_Rn222ChainPo218GenInLArLabel << std::endl;
+  labelsFile << m_Rn222ChainPb214GenInLArLabel << std::endl;
+  labelsFile << m_Rn222ChainBi214GenInLArLabel << std::endl;
+  labelsFile << m_Rn222ChainPb210GenInLArLabel << std::endl;
+  labelsFile << m_K40GenInCPALabel << std::endl;
+  labelsFile << m_U238ChainGenInCPALabel << std::endl;
+  labelsFile << m_K42From42ArGenInCPALabel << std::endl;
+  labelsFile << m_Rn222ChainPo218GenInCPALabel << std::endl;
+  labelsFile << m_Rn222ChainPb214GenInCPALabel << std::endl;
+  labelsFile << m_Rn222ChainBi214GenInCPALabel << std::endl;
+  labelsFile << m_Rn222ChainPb210GenInCPALabel << std::endl;
+  labelsFile << m_Rn222ChainFromBi210GenInCPALabel << std::endl;
+  labelsFile << m_Co60GenInAPALabel << std::endl;
+  labelsFile << m_U238ChainGenInAPALabel << std::endl;
+  labelsFile << m_Rn222ChainGenInPDSLabel << std::endl;
+  labelsFile << m_NeutronGenInRockLabel << std::endl;
+  labelsFile.close();
+  // TODO remove this
+
 } // TPStreamer constructor
 
 void TPStreamer::ResetVariables()
 {
   MarleyMap.clear();
-  // BgdPMap.clear();
+  Ar39GenInLArPMap.clear();
+  Kr85GenInLArPMap.clear();
+  Ar42GenInLArPMap.clear();
+  K42From42ArGenInLArPMap.clear();
+  Rn222ChainRn222GenInLArPMap.clear();
+  Rn222ChainPo218GenInLArPMap.clear();
+  Rn222ChainPb214GenInLArPMap.clear();
+  Rn222ChainBi214GenInLArPMap.clear();
+  Rn222ChainPb210GenInLArPMap.clear();
+  K40GenInCPAPMap.clear();
+  U238ChainGenInCPAPMap.clear();
+  K42From42ArGenInCPAPMap.clear();
+  Rn222ChainPo218GenInCPAPMap.clear();
+  Rn222ChainPb214GenInCPAPMap.clear();
+  Rn222ChainBi214GenInCPAPMap.clear();
+  Rn222ChainPb210GenInCPAPMap.clear();
+  Rn222ChainFromBi210GenInCPAPMap.clear();
+  Co60GenInAPAPMap.clear();
+  U238ChainGenInAPAPMap.clear();
+  Rn222ChainGenInPDSPMap.clear();
+  NeutronGenInRockPMap.clear();
   trkIDToPType.clear(); 
   Hit_True_MainTrID.clear();
 
@@ -212,8 +258,13 @@ void TPStreamer::FillMyMaps(std::map<int, simb::MCParticle> &MyMap,
 				    art::Handle< std::vector<simb::MCTruth> > Handle, 
 				    std::map<int,int>* indexMap)
 {
+  std::ofstream AssnFile("Assn.txt", std::ios_base::app);
   for ( size_t L1=0; L1 < Handle->size(); ++L1 ) {
     for ( size_t L2=0; L2 < Assn.at(L1).size(); ++L2 ) {
+      // print to file the size of this, with some details
+      AssnFile << Assn.at(L1).size() << " " << L1 << " " << L2 << " " << Assn.at(L1).at(L2)->TrackId() << std::endl;
+      // print module label in the association
+      // AssnFile << Assn.provenance()->moduleLabel() << std::endl;
       const simb::MCParticle ThisParticle = (*Assn.at(L1).at(L2));
       MyMap[ThisParticle.TrackId()] = ThisParticle;
       if(indexMap) indexMap->insert({ThisParticle.TrackId(), L1});
@@ -233,7 +284,7 @@ PType TPStreamer::WhichParType (int TrkID)
   trkIDToPTypeFile.close();
   // TODO remove this
 
-  if(it!=trkIDToPType.end()){   ThisPType=it->second;  }
+  if(it!=trkIDToPType.end()){   ThisPType=it->second; /*std::cout << "This PType in whichptype is " << ThisPType << std::endl;*/  }
   return ThisPType; 
 } // WhichParType
 
@@ -251,32 +302,184 @@ void TPStreamer::analyze(art::Event const & evt)
 
     //Get the gen module labels for signal + radiologicals
     const std::string thisGenLabel = handle.provenance()->moduleLabel();
+    // print out the module label in a file
+    std::ofstream genLabelsFile("genLabels.txt", std::ios_base::app);
+    genLabelsFile << thisGenLabel << std::endl;
+    genLabelsFile.close();
+    // TODO remove this
 
     //Get the particle assn for this gen module label
-    art::FindManyP<simb::MCParticle> Association(handle, evt, m_GeantLabel);
-    if (thisGenLabel == m_MarleyLabel) FillMyMaps(MarleyMap, Association, handle);
-    if (thisGenLabel == m_Ar39GenInLArLabel) FillMyMaps(Ar39GenInLArPMap, Association, handle);
-    if (thisGenLabel == m_Kr85GenInLArLabel) FillMyMaps(Kr85GenInLArPMap, Association, handle);
-    if (thisGenLabel == m_Ar42GenInLArLabel) FillMyMaps(Ar42GenInLArPMap, Association, handle);
-    if (thisGenLabel == m_K42From42ArGenInLArLabel) FillMyMaps(K42From42ArGenInLArPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainRn222GenInLArLabel) FillMyMaps(Rn222ChainRn222GenInLArPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainPo218GenInLArLabel) FillMyMaps(Rn222ChainPo218GenInLArPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainPb214GenInLArLabel) FillMyMaps(Rn222ChainPb214GenInLArPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainBi214GenInLArLabel) FillMyMaps(Rn222ChainBi214GenInLArPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainPb210GenInLArLabel) FillMyMaps(Rn222ChainPb210GenInLArPMap, Association, handle);
-    if (thisGenLabel == m_K40GenInCPALabel) FillMyMaps(K40GenInCPAPMap, Association, handle);
-    if (thisGenLabel == m_U238ChainGenInCPALabel) FillMyMaps(U238ChainGenInCPAPMap, Association, handle);
-    if (thisGenLabel == m_K42From42ArGenInCPALabel) FillMyMaps(K42From42ArGenInCPAPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainPo218GenInCPALabel) FillMyMaps(Rn222ChainPo218GenInCPAPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainPb214GenInCPALabel) FillMyMaps(Rn222ChainPb214GenInCPAPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainBi214GenInCPALabel) FillMyMaps(Rn222ChainBi214GenInCPAPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainPb210GenInCPALabel) FillMyMaps(Rn222ChainPb210GenInCPAPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainFromBi210GenInCPALabel) FillMyMaps(Rn222ChainFromBi210GenInCPAPMap, Association, handle);
-    if (thisGenLabel == m_Co60GenInAPALabel) FillMyMaps(Co60GenInAPAPMap, Association, handle);
-    if (thisGenLabel == m_U238ChainGenInAPALabel) FillMyMaps(U238ChainGenInAPAPMap, Association, handle);
-    if (thisGenLabel == m_Rn222ChainGenInPDSLabel) FillMyMaps(Rn222ChainGenInPDSPMap, Association, handle);
-    if (thisGenLabel == m_NeutronGenInRockLabel) FillMyMaps(NeutronGenInRockPMap, Association, handle);
+    // art::FindManyP<simb::MCParticle> Association(handle, evt, m_GeantLabel);
+    
+    std::ofstream MapSizes("MapSizes.txt", std::ios_base::app);
 
+    if (thisGenLabel == m_MarleyLabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_MarleyLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( MarleyMap, Assn, thisHandle); 
+      }
+    }
+    if (thisGenLabel == m_Ar39GenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Ar39GenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( Ar39GenInLArPMap, Assn, thisHandle); 
+        std::cout << "Filling map of ar39" << std::endl;
+        MapSizes << "Size of Ar39 Map" << Ar39GenInLArPMap.size() << std::endl;
+        std::cout << "Size of Ar39 Map" << Ar39GenInLArPMap.size() << std::endl;
+      }
+    }
+    if (thisGenLabel == m_Kr85GenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Kr85GenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( Kr85GenInLArPMap, Assn, thisHandle); 
+        MapSizes << "Size of Kr85 Map" << Kr85GenInLArPMap.size() << std::endl;
+        std::cout << "Size of Kr85 Map" << Kr85GenInLArPMap.size() << std::endl;
+      }
+    }
+    if (thisGenLabel == m_Ar42GenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Ar42GenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( Ar42GenInLArPMap, Assn, thisHandle); 
+        MapSizes << "Size of Ar42 Map" << Ar42GenInLArPMap.size() << std::endl;
+        std::cout << "Size of Ar42 Map" << Ar42GenInLArPMap.size() << std::endl;
+      }
+    }
+    if (thisGenLabel == m_K42From42ArGenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_K42From42ArGenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( K42From42ArGenInLArPMap, Assn, thisHandle); 
+        MapSizes << "Size of K42From42Ar Map" << K42From42ArGenInLArPMap.size() << std::endl;
+        std::cout << "Size of K42From42Ar Map" << K42From42ArGenInLArPMap.size() << std::endl;
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainRn222GenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainRn222GenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( Rn222ChainRn222GenInLArPMap, Assn, thisHandle); 
+        MapSizes << "Size of Rn222ChainRn222 Map" << Rn222ChainRn222GenInLArPMap.size() << std::endl;
+        std::cout << "Size of Rn222ChainRn222 Map" << Rn222ChainRn222GenInLArPMap.size() << std::endl;
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainPo218GenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainPo218GenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( Rn222ChainPo218GenInLArPMap, Assn, thisHandle); 
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainPb214GenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainPb214GenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( Rn222ChainPb214GenInLArPMap, Assn, thisHandle); 
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainBi214GenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainBi214GenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
+        FillMyMaps( Rn222ChainBi214GenInLArPMap, Assn, thisHandle); 
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainPb210GenInLArLabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainPb210GenInLArLabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel); 
+        FillMyMaps( Rn222ChainPb210GenInLArPMap, Assn, thisHandle); 
+      }
+    }
+    if (thisGenLabel == m_K40GenInCPALabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_K40GenInCPALabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel); 
+        FillMyMaps( K40GenInCPAPMap, Assn, thisHandle); 
+      }
+    }
+    if (thisGenLabel == m_U238ChainGenInCPALabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_U238ChainGenInCPALabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel); 
+        FillMyMaps( U238ChainGenInCPAPMap, Assn, thisHandle); 
+      }
+    }
+    if (thisGenLabel == m_K42From42ArGenInCPALabel){
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_K42From42ArGenInCPALabel);
+      if (thisHandle){	
+        art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel); 
+        FillMyMaps( K42From42ArGenInCPAPMap, Assn, thisHandle); 
+      }
+    }
+
+    if (thisGenLabel == m_Rn222ChainPo218GenInCPALabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainPo218GenInCPALabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(Rn222ChainPo218GenInCPAPMap, Assn, thisHandle);
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainPb214GenInCPALabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainPb214GenInCPALabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(Rn222ChainPb214GenInCPAPMap, Assn, thisHandle);
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainBi214GenInCPALabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainBi214GenInCPALabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(Rn222ChainBi214GenInCPAPMap, Assn, thisHandle);
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainPb210GenInCPALabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainPb210GenInCPALabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(Rn222ChainPb210GenInCPAPMap, Assn, thisHandle);
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainFromBi210GenInCPALabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainFromBi210GenInCPALabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(Rn222ChainFromBi210GenInCPAPMap, Assn, thisHandle);
+      }
+    }
+    if (thisGenLabel == m_Co60GenInAPALabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Co60GenInAPALabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(Co60GenInAPAPMap, Assn, thisHandle);
+      }
+    }
+    if (thisGenLabel == m_U238ChainGenInAPALabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_U238ChainGenInAPALabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(U238ChainGenInAPAPMap, Assn, thisHandle);
+      }
+    }
+    if (thisGenLabel == m_Rn222ChainGenInPDSLabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainGenInPDSLabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(Rn222ChainGenInPDSPMap, Assn, thisHandle);
+        std::cout << "Filling map of Rn222ChainGenInPDSPMap" << std::endl;
+      }
+    }
+    if (thisGenLabel == m_NeutronGenInRockLabel) {
+      auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_NeutronGenInRockLabel);
+      if (thisHandle) {
+        art::FindManyP<simb::MCParticle> Assn(thisHandle, evt, m_GeantLabel);
+        FillMyMaps(NeutronGenInRockPMap, Assn, thisHandle);
+      }
+    }
 
     // //Get a map between G4 Track IDs and signal MC parts. 
     // if (GenModuleLabel == m_MarleyLabel){
@@ -313,16 +516,23 @@ void TPStreamer::analyze(art::Event const & evt)
   if (mcParticles.isValid()){
     std::map< int, simb::MCParticle> DaughterParts;
 
-    for (unsigned int i = 0; i < mcParticles->size(); ++i){
+    for (unsigned int i = 0; i < mcParticles->size(); ++i) {
       const simb::MCParticle trueParticle = mcParticles->at(i);
       // if (trueParticle.Mother() != 0){ 	DaughterParts[trueParticle.TrackId()] = trueParticle;      }
-     
-      // Check if the TrackId() is not in MarleyMap or BgdPMap
-      if (MarleyMap.find(trueParticle.TrackId()) == MarleyMap.end() ){ // && BgdPMap.find(trueParticle.TrackId()) == BgdPMap.end()
-        DaughterParts[trueParticle.TrackId()] = trueParticle;
+
+      // Check if the TrackId() is not in any map, then add it to the daughter map
+      std::vector<std::map<int, simb::MCParticle>> AllMaps = {MarleyMap, Ar39GenInLArPMap, Kr85GenInLArPMap, Ar42GenInLArPMap, K42From42ArGenInLArPMap, Rn222ChainRn222GenInLArPMap, Rn222ChainPo218GenInLArPMap, Rn222ChainPb214GenInLArPMap, Rn222ChainBi214GenInLArPMap, Rn222ChainPb210GenInLArPMap, K40GenInCPAPMap, U238ChainGenInCPAPMap, K42From42ArGenInCPAPMap, Rn222ChainPo218GenInCPAPMap, Rn222ChainPb214GenInCPAPMap, Rn222ChainBi214GenInCPAPMap, Rn222ChainPb210GenInCPAPMap, Rn222ChainFromBi210GenInCPAPMap, Co60GenInAPAPMap, U238ChainGenInAPAPMap, Rn222ChainGenInPDSPMap, NeutronGenInRockPMap};
+      bool found = false;
+      for (auto const& it : AllMaps) {
+        if (it.find(trueParticle.TrackId()) != it.end()) {
+          found = true;
+          break;
+        }
       }
+      if (!found) DaughterParts[trueParticle.TrackId()] = trueParticle;
     }
-    //Add daughter particles to signal map. TODO check if daughter particles are supposed to be only for marley or also bgd
+    //Add daughter particles to signal map. 
+    // TODO check if daughter particles are supposed to be only for marley or also bgd
     MarleyMap.insert(DaughterParts.begin(), DaughterParts.end()); 
   }
  
@@ -362,8 +572,10 @@ void TPStreamer::analyze(art::Event const & evt)
 
     //particle tag e.g. kGen
     const PType p = it.first;
+    std::cout << "PType is " << p << std::endl;
     // gen-g4 mapping e.g. MarleyMap
     auto const& m = it.second;
+    std::cout << "Size of map is " << m.size() << std::endl;
 
     //run over each row in e.g. MarleyMap
     for (auto const& it2 : m){
@@ -412,10 +624,6 @@ void TPStreamer::analyze(art::Event const & evt)
     PType ThisPType = WhichParType( Hit_True_MainTrID.at(hit));
   
     //dump the hits to a file with one hit per line in the following format:
-    //event number, plane, start time, end time, peak time, TOT, channel, SADC, Peak ADC, MC producer
-
-    // to match DAQ (just for simplicity), format needs to be
-    // ([tp.time_start, tp.time_over_threshold, tp.time_peak, tp.channel, tp.adc_integral, tp.adc_peak, tp.detid, tp.flag, tp.version]) + truth
 
     // I want numbers to be printed out always as integers, not floats
     m_outputFile << std::fixed << std::setprecision(0) << std::setw(0) << std::setfill('0'); // TODO alignment
