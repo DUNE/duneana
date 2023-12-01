@@ -623,12 +623,12 @@ void TPStreamer::analyze(art::Event const & evt)
      << ThisPType << ' ' 
      << evt.event() << ' '
      << ThisHit.View() << ' '
-     << 0 << ' ' // energy, to be implemented in BT
-     << 0 << ' ' // nElectrons, to be implemented in BT
-     << 0 << ' ' // trackId, to be implemented in BT
      << 0 << ' ' // trueX, to be implemented in BT
      << 0 << ' ' // trueY, to be implemented in BT
      << 0 << ' ' // trueZ, to be implemented in BT
+     << 0 << ' ' // energy, to be implemented in BT
+     << 0 << ' ' // nElectrons, to be implemented in BT
+     << 0 << ' ' // trackId, to be implemented in BT
      <<  std::endl; 
 
   } // Loop over reco_hits.
