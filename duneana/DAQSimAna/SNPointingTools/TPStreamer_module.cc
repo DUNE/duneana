@@ -480,32 +480,6 @@ void TPStreamer::analyze(art::Event const & evt)
         FillMyMaps(NeutronGenInRockPMap, Assn, thisHandle);
       }
     }
-
-    // //Get a map between G4 Track IDs and signal MC parts. 
-    // if (GenModuleLabel == m_MarleyLabel){
-      
-    //   auto GenTrue = evt.getHandle< std::vector<simb::MCTruth> >(m_MarleyLabel);
-    //   if (GenTrue){	
-    //     art::FindManyP<simb::MCParticle> GenAssn( GenTrue, evt, m_GeantLabel); 
-	  //     FillMyMaps( MarleyMap, GenAssn, GenTrue); 
-    //   }
-    // }
-    // //Get a map between G4 Track IDs and bgd MC parts.
-    // else{
-    //   // in this way, you only check that there is a handle to not classify noise as background
-    //   // but the proper way is to have all the handles of different brackgrounds
-    //   auto BgdTrue = evt.getHandle< std::vector<simb::MCTruth> >(GenModuleLabel);   
-    //   if (BgdTrue){                                                                                                           
-	  //     art::FindManyP<simb::MCParticle> BgdAssn(BgdTrue, evt, m_GeantLabel);      
-
-    //     //Create a temporary map for the specific background source 
-    //     std::map<int, simb::MCParticle> tempBgdMap; 
-    //     FillMyMaps(tempBgdMap, BgdAssn, BgdTrue);
-
-    //     //Merge the temporary map with the full backgrounds map
-    //     BgdPMap.insert(tempBgdMap.begin(), tempBgdMap.end());                                                         
-    //   }
-    // }
   }
 
 
@@ -518,10 +492,16 @@ void TPStreamer::analyze(art::Event const & evt)
 
     for (unsigned int i = 0; i < mcParticles->size(); ++i) {
       const simb::MCParticle trueParticle = mcParticles->at(i);
-      // if (trueParticle.Mother() != 0){ 	DaughterParts[trueParticle.TrackId()] = trueParticle;      }
+      // if (trueParticle.Mother() != 0){ 	DaughterParts[trueParticle.TrackId()] = trueParticle;      } // why this was commented?
 
       // Check if the TrackId() is not in any map, then add it to the daughter map
-      std::vector<std::map<int, simb::MCParticle>> AllMaps = {MarleyMap, Ar39GenInLArPMap, Kr85GenInLArPMap, Ar42GenInLArPMap, K42From42ArGenInLArPMap, Rn222ChainRn222GenInLArPMap, Rn222ChainPo218GenInLArPMap, Rn222ChainPb214GenInLArPMap, Rn222ChainBi214GenInLArPMap, Rn222ChainPb210GenInLArPMap, K40GenInCPAPMap, U238ChainGenInCPAPMap, K42From42ArGenInCPAPMap, Rn222ChainPo218GenInCPAPMap, Rn222ChainPb214GenInCPAPMap, Rn222ChainBi214GenInCPAPMap, Rn222ChainPb210GenInCPAPMap, Rn222ChainFromBi210GenInCPAPMap, Co60GenInAPAPMap, U238ChainGenInAPAPMap, Rn222ChainGenInPDSPMap, NeutronGenInRockPMap};
+      // TODO maybe make this a bit more efficient?
+      std::vector<std::map<int, simb::MCParticle>> AllMaps = {
+        MarleyMap, Ar39GenInLArPMap, Kr85GenInLArPMap, Ar42GenInLArPMap, K42From42ArGenInLArPMap, 
+        Rn222ChainRn222GenInLArPMap, Rn222ChainPo218GenInLArPMap, Rn222ChainPb214GenInLArPMap, Rn222ChainBi214GenInLArPMap, Rn222ChainPb210GenInLArPMap, K40GenInCPAPMap, U238ChainGenInCPAPMap, 
+        K42From42ArGenInCPAPMap, Rn222ChainPo218GenInCPAPMap, Rn222ChainPb214GenInCPAPMap, Rn222ChainBi214GenInCPAPMap, Rn222ChainPb210GenInCPAPMap, Rn222ChainFromBi210GenInCPAPMap, 
+        Co60GenInAPAPMap, U238ChainGenInAPAPMap, Rn222ChainGenInPDSPMap, NeutronGenInRockPMap};
+      
       bool found = false;
       for (auto const& it : AllMaps) {
         if (it.find(trueParticle.TrackId()) != it.end()) {
