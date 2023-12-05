@@ -602,11 +602,29 @@ void TPStreamer::analyze(art::Event const & evt)
       }
     }
     PType ThisPType = WhichParType( Hit_True_MainTrID.at(hit));
-  
-    //dump the hits to a file with one hit per line in the following format:
+    
+    // add multiple catches? TODO
+    std::vector<const sim::IDE*> ThisSimIDE = bt_serv->HitToSimIDEs_Ps(clockData, ThisHit.Channel(), WindowStart, WindowEnd);
+    // there should be more conditions here...
+
+    double trueX = 0, trueY = 0, trueZ = 0, trueEnergy = 0, nElectrons = 0, trackId = 0;
+    
+    for(unsigned int i = 0; i < ThisSimIDE.size(); i++)
+    {
+      if(ThisSimIDE.at(i)->trackID==Hit_True_MainTrID.at(hit))
+      {
+        trueX = ThisSimIDE.at(i)->x;
+        trueY = ThisSimIDE.at(i)->y;
+        trueZ = ThisSimIDE.at(i)->z;
+        trueEnergy = ThisSimIDE.at(i)->energy;
+        nElectrons = ThisSimIDE.at(i)->numElectrons;
+        break;
+      }
+    }
 
     // I want numbers to be printed out always as integers, not floats
     m_outputFile << std::fixed << std::setprecision(0) << std::setw(0) << std::setfill('0'); // TODO alignment
+    // printing TPs
     m_outputFile
      << ThisHit.StartTick() << ' '
      << ThisHit.EndTick() - ThisHit.StartTick() << ' ' // TOT
@@ -623,12 +641,12 @@ void TPStreamer::analyze(art::Event const & evt)
      << ThisPType << ' ' 
      << evt.event() << ' '
      << ThisHit.View() << ' '
-     << 0 << ' ' // trueX, to be implemented in BT
-     << 0 << ' ' // trueY, to be implemented in BT
-     << 0 << ' ' // trueZ, to be implemented in BT
-     << 0 << ' ' // energy, to be implemented in BT
-     << 0 << ' ' // nElectrons, to be implemented in BT
-     << 0 << ' ' // trackId, to be implemented in BT
+     << trueX << ' ' // trueX, to be implemented in BT
+     << trueY << ' ' // trueY, to be implemented in BT
+     << trueZ << ' ' // trueZ, to be implemented in BT
+     << trueEnergy << ' ' // energy, to be implemented in BT
+     << nElectrons << ' ' // nElectrons, to be implemented in BT OR SOMETHING ELSE
+     << 0 << ' ' // trackId, to be implemented in BT OR SOMETHING ELSE
      <<  std::endl; 
 
   } // Loop over reco_hits.
