@@ -604,10 +604,10 @@ void TPStreamer::analyze(art::Event const & evt)
     PType ThisPType = WhichParType( Hit_True_MainTrID.at(hit));
     
     // add multiple catches? TODO
-    std::vector<const sim::IDE*> ThisSimIDE = bt_serv->HitToSimIDEs_Ps(clockData, ThisHit.Channel(), WindowStart, WindowEnd);
+    std::vector<const sim::IDE*> ThisSimIDE = bt_serv->HitToSimIDEs_Ps(clockData, ThisHit);
     // there should be more conditions here...
 
-    double trueX = 0, trueY = 0, trueZ = 0, trueEnergy = 0, nElectrons = 0, trackId = 0;
+    double trueX = 0, trueY = 0, trueZ = 0, trueEnergy = 0, nElectrons = 0;
     
     for(unsigned int i = 0; i < ThisSimIDE.size(); i++)
     {
