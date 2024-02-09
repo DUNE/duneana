@@ -1,0 +1,24 @@
+BEGIN_PROLOG
+
+standard_roiana:
+{
+  module_type:ROIAna
+  #====================
+  InputWireProducerLabel:       "caldata"
+  InputRawProducerLabel:        "tpcrawdecoder:daq"
+  SimChannelLabel:              "tpcrawdecoder:simpleSC"
+  SimulationProducerLabel:      "largeant"
+  LogLevel:                     0
+  ChannelPerApa:                2560
+  TickesPerWire:                6000
+
+  ROIPeak:                      100
+  ROIRange:                     120
+  ROICH:                        10
+  TREENAME:                     "roiana"
+  fECMin:                       -1e-8
+  fHistEnergyMax:               20     
+  fHistChargeMax:               3000 
+}
+
+END_PROLOG
