@@ -1,3 +1,4 @@
+add_subdirectory(fcl)
 art_make(BASENAME_ONLY
 	       MODULE_LIBRARIES
          dunecore::DAQTriggerSim_TriggerDataProducts
