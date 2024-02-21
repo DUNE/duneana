@@ -1,7 +1,6 @@
 #include "ROIAna_module.h"
 //Constructor for cnn struct
 
-
 roiana::ROIAna::ROIAna(fhicl::ParameterSet const& pset)
   : EDAnalyzer{pset}  ,
   fWireProducerLabel(pset.get< art::InputTag >("InputWireProducerLabel", "caldata")),
@@ -17,8 +16,11 @@ roiana::ROIAna::ROIAna(fhicl::ParameterSet const& pset)
   //geo = art::ServiceHandle<geo::Geometry>::get();
   fNPlanes = geo->Nplanes();
 
+  fLabels      = pset.get<std::vector<std::string>>("ParticleLabelVector");
+  fInteraction = pset.get<std::vector<std::string>>("InteractionLabelVector");
+
   fROI_Peak  = pset.get<float>("ROIPeak", 20);
-  fROI_Range = pset.get<int>("ROIRange", 120);
+  //fROI_Range = pset.get<int>("ROIRange", 120);
   fROI_CH    = pset.get<int>("ROICH", 10);
 
   fTreeName          = pset.get<std::string>("TREENAME", "wireana");
@@ -41,51 +43,47 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   event = evt.id().event();
   std::cout<<"########## EvtNo."<<event<<std::endl;
   std::cout<<"ROI peak threshold: "<<fROI_Peak<<std::endl;
-  std::cout<<"ROI timetick width: "<<fROI_Range<<std::endl;
+  //std::cout<<"ROI timetick width: "<<fROI_Range<<std::endl;
   std::cout<<"ROI channel width: "<<fROI_CH<<std::endl;
   std::cout<<"Let's TRY!"<<std::endl;
 
   MC = !evt.isRealData();
-  ////////////////////////////////////////////////////////////
-  //FillTruthInfo to internal data objects
-  /// i.e. trkid_to_label_map
+  std::map<int,simb::MCParticle> ThisGeneratorParts;
 
-  // This attempt used MCTruths_marley, but didn't give TrackIds that matched SimChannels
+  //--------------------------------------------------------------------------------------------//
+  //--------------------------------- Create maps for ID tracking ------------------------------//
+  //--------------------------------------------------------------------------------------------//
+  // -------- Fill MC Truth IDs to tracking vectors. Get a list of all of my particles ---------//
+  mf::LogInfo lparticle("particles");
+  std::string lparticlestr = "";
+  const sim::ParticleList& PartList = pi_serv->ParticleList();
+  lparticle << "\nTotal #particles: " << PartList.size();
   
-  /*
-  auto MarleyTruthHandle = evt.getValidHandle<std::vector<simb::MCTruth>>("marley");
-  //std::cout << "MarleyTruth.size()=" << MarleyTruth->size() << std::endl;
-  for (size_t i=0; i< MarleyTruthHandle->size(); i++) {
-    simb::MCTruth MarleyTruth = MarleyTruthHandle->at(i);
-    //std::cout << "MarleyTruth.size()=" << MarleyTruth.NParticles() << std::endl;
-    for (int j=0; j < MarleyTruth.NParticles(); j++) {
-      const simb::MCParticle ThisPar = MarleyTruth.GetParticle(j);
-      std::cout << "MarleyTruth.TrackId()=" << ThisPar.TrackId() << std::endl;
-      trkid_to_label_map[ThisPar.TrackId()] = "marley";
-    }
-  }
-  */
-
-  // This isanother attempt at pulling out truth info for a sensitivity study
-  /*
-  auto LargeantAssnsHandle = evt.getValidHandle<art::Assns<simb::MCTruth,simb::MCParticle,sim::GeneratedParticleInfo>>("largeant");
-  //std::cout << "LargeantAssnsHandle.size()=" << LargeantAssnsHandle->size() << std::endl;
-  for (auto i=LargeantAssnsHandle->begin(); i!= LargeantAssnsHandle->end(); i++) {
-    //auto LargeantAssn = LargeantAssnsHandle->at(i);
-    //const simb::MCTruth* ThisParMCTruth = i->first.get();
-    const simb::MCParticle* ThisParMCParticle = i->second.get();
-    //const sim::GeneratedParticleInfo& ThisParData = data(i);
-    //const simb::MCGeneratorInfo ThisParGenInfo = ThisParMCTruth->GeneratorInfo();
+  // Loop over all signal+bkg handles and collect track IDs
+  for ( size_t i = 0; i < fLabels.size(); i++){
+    Parts.push_back(ThisGeneratorParts); // For each label insert empty list
     
-    //std::cout << "ThisParGenInfo.generatorConfig.size()=" << ThisParGenInfo.generatorConfig.size() << std::endl;
-    //std::cout << "ThisParMCTruth.NParticles()=" << ThisParMCTruth->NParticles() << std::endl;
-    if (ThisParMCParticle->PdgCode() == 12) {
-      std::cout << "Found a neutrino - ThisParMCParticle.TrackId()=" << ThisParMCParticle->TrackId() << std::endl;
-      trkid_to_label_map[ThisParMCParticle->TrackId()]="marley?";
+    art::Handle<std::vector<simb::MCTruth>> ThisHandle;
+    evt.getByLabel(fLabels[i], ThisHandle);
+    
+    if(ThisHandle){
+      lparticlestr = PrintInColor(lparticlestr,"\n"+fLabels[i]+" *is generated!",GetColor("green"));
+      
+      auto ThisValidHandle = evt.getValidHandle<std::vector<simb::MCTruth>>(fLabels[i]); 
+      art::FindManyP<simb::MCParticle> Assn(ThisValidHandle,evt,fSimulationProducerLabel);            
+      
+      FillMyMaps( Parts[i], Assn, ThisValidHandle);                                                                           
+      //FillMCInteractionTree(Parts[i], fInteraction, fLogLevel);
+      TPart.push_back(Parts[i].size()); // Insert #signal+bkg particles generated
+      lparticlestr = PrintInColor(lparticlestr,"\n-> #Particles: "+std::to_string(Parts[i].size()),GetColor("blue"));
     }
-    //std::cout << "ThisParMCParticle.TrackId()=" << ThisParMCParticle->TrackId() << std::endl;
+    else{
+      TPart.push_back(0);
+      lparticlestr = PrintInColor(lparticlestr,"\n"+fLabels[i]+": *not generated!",GetColor("yellow"));
+    }
   }
-  */
+  lparticle << lparticlestr;
+  fMCTruthTree->Fill();  
 
   ////////////////////////////////////////////////////////////
   //Build Wire SimChannel List
@@ -95,6 +93,25 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   if (evt.getByLabel(fSimChannelLabel, simChannelListHandle)) 
     art::fill_ptr_vector(channellist, simChannelListHandle);
   SortWirePtrByChannel( channellist, true );
+
+  // MarleyTrackIDs and MarleyChannels store TrackId and Channel+IDE of energy deposits from Marley produced signals
+  std::vector<int> MarleyTrackIDs;
+  std::map<int,sim::IDE> MarleyChannels;
+  //std::vector<float> Marley
+  for (const auto& [TrackID, MCPart] : Parts[0]) {
+    //std::cout << "Marley particle TrackID: " << TrackID << std::endl;
+    MarleyTrackIDs.push_back(TrackID);
+  }
+  for (auto mySimChannel : channellist) {
+    std::vector<sim::IDE> simIDEList = mySimChannel->TrackIDsAndEnergies(0, fNTicksPerWire);
+    for (auto simIDE : simIDEList) {
+      if (std::find(MarleyTrackIDs.begin(), MarleyTrackIDs.end(), simIDE.trackID) != MarleyTrackIDs.end()) {
+        //std::cout << "marley particle in channel: " << mySimChannel->Channel() << std::endl;
+        MarleyChannels[mySimChannel->Channel()] = simIDE;
+        //MarleyChannels.push_back(mySimChannel->Channel());
+      }
+    }
+  }
 
   ////////////////////////////////////////////////////////////
   //Build RawDigit List
@@ -125,7 +142,7 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   //compute efficiency and data reduction
   if( fLogLevel >= 3 ) std::cout << "starting ROIEfficiencies" << std::endl;
   int n_channels = rawList.size();
-  ROIEfficiencies(ret, n_channels);
+  ROIEfficiencies(ret, n_channels, MarleyChannels);
 }
 
 
@@ -181,11 +198,39 @@ void roiana::ROIAna::beginJob() {
 
   art::ServiceHandle<art::TFileService> tfs;
   fTree = tfs->make<TTree>(fTreeName.c_str() ,fTreeName.c_str() );
+  fMCTruthTree = tfs->make<TTree>("MCTruthTree","MC Truth Tree");
+  //fInteractionTree = tfs->make<TTree>("MCInteraction","MC Event Tree");
 
   fTree->Branch("run", &run);
   fTree->Branch("subrun", &subrun);
   fTree->Branch("event", &event);
   fTree->Branch("MC", &MC);
+
+  fMCTruthTree -> Branch("Event",                &event,          "Event/I");  // Event number.
+  fMCTruthTree -> Branch("Flag",                 &flag,           "Flag/I");   // Flag used to match truth with reco tree entries.
+  fMCTruthTree -> Branch("TruthPart",            &TPart);                      // Number particles per generator.
+
+  /*
+  fInteractionTree -> Branch("Event",            &event,          "Event/I");  // Event number.
+  fInteractionTree -> Branch("Flag",             &flag,           "Flag/I");   // Flag used to match truth with reco tree entries.
+  fInteractionTree -> Branch("PDG",              &PDG,            "PDG/I");    // Main interacting particle PDG.
+  fInteractionTree -> Branch("Energy",           &Energy,         "Energy/F"); // Main interacting particle energy [GeV^2].
+  fInteractionTree -> Branch("Interaction",      &Interaction);                // Type of interaction.
+  fInteractionTree -> Branch("Momentum",         &Momentum);                   // Main interacting particle momentum [GeV^2].
+  fInteractionTree -> Branch("StartVertex",      &StartVertex);                // Main interacting particle start vertex [cm].
+  fInteractionTree -> Branch("EndVertex",        &EndVertex);                  // Main interacting particle end vertex [cm].
+  fInteractionTree -> Branch("DaughterPDG",      &DaughterPDG);                // Main interacting particle daughter PDG.
+  fInteractionTree -> Branch("DaughterE",        &DaughterE);                  // Main interacting particle daughter energy [GeV^2].
+  fInteractionTree -> Branch("DaughterPx",       &DaughterPx);                 // Main interacting particle daughter momentum X [GeV^2].
+  fInteractionTree -> Branch("DaughterPy",       &DaughterPy);                 // Main interacting particle daughter momentum Y [GeV^2].
+  fInteractionTree -> Branch("DaughterPz",       &DaughterPz);                 // Main interacting particle daughter momentum Z [GeV^2].
+  fInteractionTree -> Branch("DaughterStartVx",  &DaughterStartVx);            // Main interacting particle daughter start vertex X [cm].
+  fInteractionTree -> Branch("DaughterStartVy",  &DaughterStartVy);            // Main interacting particle daughter start vertex Y [cm].
+  fInteractionTree -> Branch("DaughterStartVz",  &DaughterStartVz);            // Main interacting particle daughter start vertex Z [cm].
+  fInteractionTree -> Branch("DaughterEndVx",    &DaughterEndVx);              // Main interacting particle daughter end vertex X [cm].
+  fInteractionTree -> Branch("DaughterEndVy",    &DaughterEndVy);              // Main interacting particle daughter end vertex Y [cm].
+  fInteractionTree -> Branch("DaughterEndVz",    &DaughterEndVz);              // Main interacting particle daughter end vertex Z [cm].
+  */
 
   std::string name1 = Form("TrueEnergyDeposited_%s",fTreeName.c_str() );
   std::string name2 = Form("TrueEnergyDepositedInROI_%s",fTreeName.c_str() );
@@ -203,6 +248,9 @@ void roiana::ROIAna::beginJob() {
 
   std::string name7 = Form("DataReductionRate_%s",fTreeName.c_str() );
   DataReductionRate = tfs->make<TH1F>( name7.c_str(), "Data retention fraction; (channels in ROI)/(total channels)",100,0,1);
+
+  std::string name8 = Form("MarleySignalSensitivity_%s",fTreeName.c_str() );
+  MarleySignalSensitivity = tfs->make<TH1F>( name8.c_str(), "Marley event energy fraction in ROI; (energy in ROI)/(total energy)",100,0,1);
 }
 
 void roiana::ROIAna::endJob()
@@ -379,7 +427,11 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
   }
 }
 
-void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels )
+void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, std::map<int,sim::IDE> MarleyChannels )
+/*
+ * Fill ROI performance histograms:
+ *   */
+
 {
   // True energy & charge ratio in ROI
   TrueEnergyDepositedRatio->Divide(TrueEnergyDepositedInROI, TrueEnergyDeposited);
@@ -395,7 +447,153 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels )
   double ROIDataFraction = static_cast<double>(n_channels_in_ROI)/n_channels;
   std::cout << "Fraction of data kept by ROI: " << ROIDataFraction << std::endl;
   DataReductionRate->Fill(ROIDataFraction);
+
+  // Marley sensitivity
+  float MarleyEnergyTot = 0.0;
+  float MarleyChargeTot = 0.0;
+  float MarleyEnergyROI = 0.0;
+  float MarleyChargeROI = 0.0;
+  for (const auto& Ch_IDE : MarleyChannels) {
+    int MarleyCh = Ch_IDE.first;
+    sim::IDE MarleyIDE = Ch_IDE.second;
+
+    MarleyEnergyTot += MarleyIDE.energy;
+    MarleyChargeTot += MarleyIDE.numElectrons;
+    if (ret[MarleyCh]) {
+      //if signal channel is in ROI
+      MarleyEnergyROI += MarleyIDE.energy;
+      MarleyChargeROI += MarleyIDE.numElectrons;
+    } 
+
+  }//for MarleyChannels
+  std::cout << "Marley signal energy total (MeV): " << MarleyEnergyTot << std::endl;
+  std::cout << "Marley signal energy fraction in ROI: " << MarleyEnergyROI/MarleyEnergyTot << std::endl;
+  std::cout << "Marley signal charge fraction in ROI: " << MarleyEnergyROI/MarleyEnergyTot << std::endl;
+  MarleySignalSensitivity->Fill(MarleyEnergyROI/MarleyEnergyTot);
 }
 
+//......................................................
+void roiana::ROIAna::FillMCInteractionTree( std::map< int, simb::MCParticle> &MCParticleList, std::vector<std::string> ProcessList, int fLogLevel )
+/*
+Fill MCInteraction Tree with information about the main interaction in the event:
+- MCParticleList is the list of MCParticles with a given generator label in the event
+- ProcessList is the list of processes to be considered as main interactions
+- HeavDebug is a boolean to turn on/off debugging statements
+*/
+{ 
+  mf::LogInfo lheader("header");
+  std::string lheaderstr = "";
+  // Make a copy of MCParticleList to be used for finding Daughter info
+  std::map< int, simb::MCParticle> MCParticleListCopy = MCParticleList;
+  bool FoundInteraction;
+
+  if (ProcessList.empty()){
+    lheaderstr = PrintInColor(lheaderstr,"\n-> No processes in the list!",GetColor("red"));
+    lheader << lheaderstr;
+    return;  
+  }
+  
+  for (size_t j = 0; j < ProcessList.size(); j++){
+    FoundInteraction = false;    
+    for ( std::map<int,simb::MCParticle>::iterator mainiter = MCParticleList.begin(); mainiter != MCParticleList.end(); mainiter++ ){
+      if ( mainiter->second.Process() != ProcessList[j] && mainiter->second.EndProcess() != ProcessList[j]){continue;}
+      if( fLogLevel >= 3 ) lheaderstr = lheaderstr+"\nFound a main interaction "+mainiter->second.EndProcess();
+      FoundInteraction = true;
+      simb::MCParticle MCParticle = mainiter->second;
+      Interaction =  MCParticle.EndProcess();
+      PDG =          MCParticle.PdgCode();
+      Energy =       MCParticle.E();
+      Momentum =    {MCParticle.Px(),MCParticle.Py(),MCParticle.Pz()};
+      StartVertex = {MCParticle.Vx(),MCParticle.Vy(),MCParticle.Vz()};
+      EndVertex =   {MCParticle.EndX(),MCParticle.EndY(),MCParticle.EndZ()};
+      
+      std::vector<int> DaughterList = {};
+      for (int i = 0; i < MCParticle.NumberDaughters(); i++){
+        DaughterList.push_back(MCParticle.Daughter(i));
+      }
+      // Print nice output with all the main interaction info
+      if( fLogLevel >= 3 ) {
+        lheaderstr = PrintInColor(lheaderstr,"\nMain interacting particle for process "+mainiter->second.Process()+": ",GetColor("magenta"));
+        lheaderstr = PrintInColor(lheaderstr,"\nPDG ->\t"         + std::to_string(PDG),GetColor("cyan"));
+        lheaderstr = PrintInColor(lheaderstr,"\nEnergy ->\t"      + std::to_string(Energy),GetColor("cyan"));
+        lheaderstr = PrintInColor(lheaderstr,"\nMomentum ->\t"    + std::to_string(Momentum[0]) + " " + std::to_string(Momentum[1]) + " " + std::to_string(Momentum[2]),GetColor("cyan"));
+        lheaderstr = PrintInColor(lheaderstr,"\nStartVertex ->\t" + std::to_string(StartVertex[0]) + " " + std::to_string(StartVertex[1]) + " " + std::to_string(StartVertex[2]),GetColor("cyan"));
+        lheaderstr = PrintInColor(lheaderstr,"\nEndVertex ->\t"   + std::to_string(EndVertex[0]) + " " + std::to_string(EndVertex[1]) + " " + std::to_string(EndVertex[2]),GetColor("cyan"));
+      }
+
+      for ( std::map<int,simb::MCParticle>::iterator daughteriter = MCParticleListCopy.begin(); daughteriter != MCParticleListCopy.end(); daughteriter++ ){
+        for (size_t i = 0; i < DaughterList.size(); i++){
+          if (daughteriter->first == MCParticle.Daughter(i)){
+            DaughterPDG.push_back(daughteriter->second.PdgCode());
+            DaughterE.push_back(daughteriter->second.E());
+            DaughterPx.push_back(daughteriter->second.Px());
+            DaughterPy.push_back(daughteriter->second.Py());
+            DaughterPz.push_back(daughteriter->second.Pz());
+            DaughterStartVx.push_back(daughteriter->second.Vx());
+            DaughterStartVy.push_back(daughteriter->second.Vy());
+            DaughterStartVz.push_back(daughteriter->second.Vz());
+            DaughterEndVx.push_back(daughteriter->second.EndX());
+            DaughterEndVy.push_back(daughteriter->second.EndY());
+            DaughterEndVz.push_back(daughteriter->second.EndZ());
+          } // If the particle is a daughter of the main interaction
+        } // Loop over all daughters
+      } // Loop over all particles in the map
+      fInteractionTree -> Fill();
+    } // Loop over all particles in the map
+    if( fLogLevel >= 3 ) {
+      if (!FoundInteraction) lheaderstr = PrintInColor(lheaderstr,"\n-> No main interaction found for process "+ProcessList[j]+"!",GetColor("yellow"));
+      else lheaderstr = PrintInColor(lheaderstr,"\n-> Filled MCINteraction Tree for process "+ProcessList[j]+"!",GetColor("green"));
+    }
+  } // Loop over all processes in the list
+  if( fLogLevel >= 3 ) { lheader << lheaderstr;}
+  return;
+} // FillMCInteractionTree
+
+//......................................................
+void roiana::ROIAna::FillMyMaps( std::map< int, simb::MCParticle> &MyMap, art::FindManyP<simb::MCParticle> Assn, art::ValidHandle< std::vector<simb::MCTruth> > Hand )
+/*
+ * This function fills a map with the MCParticles from a given MCTruth
+ * */ 
+{
+  for ( size_t L1=0; L1 < Hand->size(); ++L1 ) {
+    for ( size_t L2=0; L2 < Assn.at(L1).size(); ++L2 ) {
+      const simb::MCParticle ThisPar = (*Assn.at(L1).at(L2));
+      MyMap[ThisPar.TrackId()] = ThisPar;
+      if (fLogLevel >= 3 ) std::cout << ThisPar.PdgCode() << " " << ThisPar.E() << std::endl;
+    }
+  }
+  return;
+}
+
+//......................................................
+// This function checks if a given TrackID is in a given map
+bool roiana::ROIAna::InMyMap( int TrID, std::map< int, simb::MCParticle> ParMap ){
+  std::map<int, simb::MCParticle>::iterator ParIt;
+  ParIt = ParMap.find( TrID );
+  if (ParIt != ParMap.end()) {return true;}
+  else return false;
+}
+
+//......................................................
+// This function creates a terminal color printout
+std::string roiana::ROIAna::PrintInColor( std::string InputString, std::string MyString, int Color ){
+  std::string OutputString = InputString + "\033[" + std::to_string(Color) + "m" + MyString + "\033[0m";
+  return OutputString;
+}
+
+// ......................................................
+// This function returns an integer that corresponds to a given color name
+int roiana::ROIAna::GetColor( std::string ColorName ){
+  if (ColorName == "black") return 30;
+  else if (ColorName == "red") return 31;
+  else if (ColorName == "green") return 32;
+  else if (ColorName == "yellow") return 33;
+  else if (ColorName == "blue") return 34;
+  else if (ColorName == "magenta") return 35;
+  else if (ColorName == "cyan") return 36;
+  else if (ColorName == "white") return 37;
+  else {std::cout << "Color " << ColorName << " not recognized. Returning white." << std::endl; return 37;}
+  return 0;
+}
 
 DEFINE_ART_MODULE(roiana::ROIAna)

@@ -14,6 +14,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+//#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -37,6 +38,7 @@
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
+//////////////////#include "duneana/LowEAna/LowEAna_module.cc"
 
 #include "lardataobj/RawData/RDTimeStamp.h"
 
@@ -54,6 +56,8 @@
 #include "TFile.h"
 #include "TROOT.h"
 #include "TLorentzVector.h"
+
+#include <algorithm>
 
 //Others
 #define DEFAULT_VALUE -99999
@@ -107,8 +111,10 @@ private:
   int fNChanPerApa;
   int fNTicksPerWire;
 
+  std::vector<std::string> fLabels, fInteraction;
+
   int fROI_Peak;
-  int fROI_Range;
+  //int fROI_Range;
   int fROI_CH;
 
   std::map<raw::ChannelID_t, std::pair<art::Ptr<raw::RawDigit>, art::Ptr<sim::SimChannel>>> 
@@ -124,7 +130,19 @@ private:
   int subrun;
   int event;
   int MC;
+  int flag;
 
+  std::vector<int> TPart;
+  std::vector<std::map<int,simb::MCParticle>> Parts = {};
+  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+
+  // --- MC Interaction Variables
+  std::string Interaction;
+  int PDG;
+  float Energy;
+  std::vector<int> DaughterPDG;
+  std::vector<double> Momentum,StartVertex,EndVertex;
+  std::vector<double> DaughterE,DaughterPx,DaughterPy,DaughterPz,DaughterStartVx,DaughterStartVy,DaughterStartVz,DaughterEndVx,DaughterEndVy,DaughterEndVz;
   
   /////////////////////////////////////////////
   // Private Functions
@@ -142,11 +160,27 @@ private:
   void ROIFilter( std::map<int,bool> );
   /////////////////////////////////////////////
   // ROI Efficiencies
-  void ROIEfficiencies( std::map<int,bool>, int );
+  void ROIEfficiencies( std::map<int,bool>, int , std::map<int,sim::IDE>);
+
+  // Helper functions
+  std::string PrintInColor ( std::string InputString, std::string MyString, int MyColor );
+  void FillMyMaps    ( std::map< int, simb::MCParticle> &MyMap, art::FindManyP<simb::MCParticle> Assn, art::ValidHandle< std::vector<simb::MCTruth> > Hand );
+  void FillMCInteractionTree(
+    std::map< int, simb::MCParticle> &MCParticleList,
+    std::vector<std::string> ProcessList,
+    int fLogLevel);
+  bool InMyMap(
+    int TrID,
+    std::map< int,
+    simb::MCParticle> ParMap);
+  int GetColor( std::string ColorName );
+
   /////////////////////////////////////////////
   // Declare output data
   TTree *fTree;
   std::string fTreeName;
+  TTree* fMCTruthTree;
+  TTree* fInteractionTree;
 
   TH1F* TrueEnergyDeposited;
   TH1F* TrueEnergyDepositedInROI; //Filled in TagROITruth
@@ -155,6 +189,7 @@ private:
   TH1F* TrueChargeDepositedInROI; //Filled in TagROITruth
   TH1F* TrueChargeDepositedRatio;
   TH1F* DataReductionRate;
+  TH1F* MarleySignalSensitivity;
   float fECMin; //minimum energy and charge to begin accumulation
   float fHistEnergyMax;
   float fHistChargeMax;
