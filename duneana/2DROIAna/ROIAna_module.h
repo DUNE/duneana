@@ -153,7 +153,7 @@ private:
   /////////////////////////////////////////////
   // Truth Filter
   art::ServiceHandle<cheat::ParticleInventoryService> PIS;
-  void TruthFilter();
+  void TruthFilter( std::map<int,bool> );
   /////////////////////////////////////////////
   // ROI Filter
   //art::ServiceHandle<cheat::ParticleInventoryService> PIS;

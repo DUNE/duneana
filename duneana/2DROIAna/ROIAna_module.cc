@@ -20,7 +20,6 @@ roiana::ROIAna::ROIAna(fhicl::ParameterSet const& pset)
   fInteraction = pset.get<std::vector<std::string>>("InteractionLabelVector");
 
   fROI_Peak  = pset.get<float>("ROIPeak", 20);
-  //fROI_Range = pset.get<int>("ROIRange", 120);
   fROI_CH    = pset.get<int>("ROICH", 10);
 
   fTreeName          = pset.get<std::string>("TREENAME", "wireana");
@@ -43,7 +42,6 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   event = evt.id().event();
   std::cout<<"########## EvtNo."<<event<<std::endl;
   std::cout<<"ROI peak threshold: "<<fROI_Peak<<std::endl;
-  //std::cout<<"ROI timetick width: "<<fROI_Range<<std::endl;
   std::cout<<"ROI channel width: "<<fROI_CH<<std::endl;
   std::cout<<"Let's TRY!"<<std::endl;
 
@@ -97,7 +95,6 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   // MarleyTrackIDs and MarleyChannels store TrackId and Channel+IDE of energy deposits from Marley produced signals
   std::vector<int> MarleyTrackIDs;
   std::map<int,sim::IDE> MarleyChannels;
-  //std::vector<float> Marley
   for (const auto& [TrackID, MCPart] : Parts[0]) {
     //std::cout << "Marley particle TrackID: " << TrackID << std::endl;
     MarleyTrackIDs.push_back(TrackID);
@@ -108,7 +105,6 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
       if (std::find(MarleyTrackIDs.begin(), MarleyTrackIDs.end(), simIDE.trackID) != MarleyTrackIDs.end()) {
         //std::cout << "marley particle in channel: " << mySimChannel->Channel() << std::endl;
         MarleyChannels[mySimChannel->Channel()] = simIDE;
-        //MarleyChannels.push_back(mySimChannel->Channel());
       }
     }
   }
@@ -128,8 +124,8 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   for( auto w: channellist) 
     ch_w_sc[ w->Channel() ].second= w;
 
-  if( fLogLevel >= 3 ) std::cout << "starting TruthFilter" << std::endl;
-  TruthFilter();
+  //if( fLogLevel >= 3 ) std::cout << "starting TruthFilter" << std::endl;
+  //TruthFilter();
 
   //Creating ROI
   if( fLogLevel >= 3 ) std::cout << "starting ProcessROI" << std::endl;
@@ -137,7 +133,7 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   ret = ProcessROIWide(rawList);
 
   if( fLogLevel >= 3 ) std::cout << "starting ROIFilter" << std::endl;
-  ROIFilter(ret);
+  TruthFilter(ret);
 
   //compute efficiency and data reduction
   if( fLogLevel >= 3 ) std::cout << "starting ROIEfficiencies" << std::endl;
@@ -247,10 +243,10 @@ void roiana::ROIAna::beginJob() {
   TrueChargeDepositedRatio =  tfs->make<TH1F>( name6.c_str(), "Charge; Number of ionization electrons",100,0,fHistChargeMax);
 
   std::string name7 = Form("DataReductionRate_%s",fTreeName.c_str() );
-  DataReductionRate = tfs->make<TH1F>( name7.c_str(), "Data retention fraction; (channels in ROI)/(total channels)",100,0,1);
+  DataReductionRate = tfs->make<TH1F>( name7.c_str(), "Data retention fraction; (channels in ROI)/(total channels)",100,0,1.02);
 
   std::string name8 = Form("MarleySignalSensitivity_%s",fTreeName.c_str() );
-  MarleySignalSensitivity = tfs->make<TH1F>( name8.c_str(), "Marley event energy fraction in ROI; (energy in ROI)/(total energy)",100,0,1);
+  MarleySignalSensitivity = tfs->make<TH1F>( name8.c_str(), "Marley event energy fraction in ROI; (energy in ROI)/(total energy)",100,0,1.02);
 }
 
 void roiana::ROIAna::endJob()
@@ -274,75 +270,39 @@ void roiana::ROIAna::SortWirePtrByChannel( std::vector<art::Ptr<T>> &vec, bool i
   }
 }
 
-void roiana::ROIAna::TruthFilter()
+void roiana::ROIAna::TruthFilter( std::map<int,bool> ret )
 {
   for( auto m: ch_w_sc)
   {
-    //auto channel = m.first;
+    auto channel = m.first;
     //auto rawdigit = m.second.first;
     auto sim = m.second.second;
     for( auto &tdcide: sim->TDCIDEMap() )
     {
-      std::vector<float> energies(partTypes.size(),fECMin );
-      std::vector<float> charges(partTypes.size(),fECMin );
-      std::vector<float> energiesNeut(partTypes.size(),fECMin );
-      std::vector<float> chargesNeut(partTypes.size(),fECMin );
-      std::vector<float> energiesRad(partTypes.size(),fECMin );
-      std::vector<float> chargesRad(partTypes.size(),fECMin );
+      float energies=0.0;
+      float charges=0.0;
+      float energies_roi=0.0;
+      float charges_roi=0.0;
       
       for( auto &ide: tdcide.second )
       {
         if( fLogLevel >= 3 ) std::cout<<"ide.trackID: "<<ide.trackID<<std::endl;
-        //std::cout<<"TruthFilter: ide.trackID: "<<ide.trackID<<std::endl;
-        //std::string label = trkid_to_label_map[ ide.trackID ];
-        //if (label == "marley?") {
-        //  std::cout << "label is marley(?)" << std::endl;
-        //  std::cout<<"ide.trackID: "<<ide.trackID<<std::endl;
-        //}
-        bool isSignal = trkid_to_label_map[ ide.trackID ] == "NuEScatter" || trkid_to_label_map[ ide.trackID ] == "marley";
-        int pdg = PIS->TrackIdToParticle_P( ide.trackID )->PdgCode();
         float energy = ide.energy;
         float numElectrons = ide.numElectrons;
-        energies[kAll]+=energy;
-        charges[kAll]+=numElectrons;
-        int partType = -1;
-        if( abs(pdg) == 11 || abs(pdg) == 13 || abs(pdg) == 15 )
-        {
-          partType = kElectron;
-        } else if( abs(pdg) == 2212)
-        {
-          partType = kProton;
-        } else if(abs(pdg) == 2112)
-        {
-          partType = kNeutron;
-        } else if(abs(pdg) == 22)
-        {
-          partType = kPhoton;
-        } else if(abs(pdg) == 12)
-        {
-          partType = kNeutrino;
-          //std::cout<<"TruthFilter: neutrino with trackID: "<<ide.trackID<<std::endl;
-        }else
-        {
-          partType = kNuc;
-        }
-        //parsed particle, accumulate energy
-        energies[partType]+=energy; charges[partType]+=numElectrons;
-        if( isSignal )
-        {
-          energiesNeut[partType]+=energy; chargesNeut[partType]+=numElectrons;
-        }
-        else
-        {
-          energiesRad[partType]+=energy; chargesRad[partType]+=numElectrons;
-          //std::cout << "label: " << label << std::endl;
+        energies+=energy;
+        charges+=numElectrons;
+        if (ret[channel]) {
+          energies_roi+=energy;
+          charges_roi+=numElectrons;
         }
       }
       
       if( fLogLevel >= 3 ) std::cout<<"FillHistogram: begin"<<std::endl;
       //Some function to fill histogram
-      TrueEnergyDeposited->Fill(energies[0]);
-      TrueChargeDeposited->Fill(charges[0]);
+      TrueEnergyDeposited->Fill(energies);
+      TrueChargeDeposited->Fill(charges);
+      TrueEnergyDepositedInROI->Fill(energies_roi);
+      TrueChargeDepositedInROI->Fill(charges_roi);
       if( fLogLevel >= 3 ) std::cout<<"FillHistogram: end"<<std::endl;
     }
   }
@@ -368,16 +328,13 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
       std::vector<float> chargesNeut(partTypes.size(),fECMin );
       std::vector<float> energiesRad(partTypes.size(),fECMin );
       std::vector<float> chargesRad(partTypes.size(),fECMin );
+      //float energies=0.0;
+      //float charges = 0.0;
       
       
       for( auto &ide: tdcide.second )
       {
         if( fLogLevel >= 3 ) std::cout<<"ide.trackID: "<<ide.trackID<<std::endl;
-        //std::string label = trkid_to_label_map[ ide.trackID ];
-        //if (label == "marley?") {
-        //  std::cout << "label is marley(?)" << std::endl;
-        //  std::cout<<"ide.trackID: "<<ide.trackID<<std::endl;
-        //}
         bool isSignal = trkid_to_label_map[ ide.trackID ] == "NuEScatter" || trkid_to_label_map[ ide.trackID ] == "marley";
         int pdg = PIS->TrackIdToParticle_P( ide.trackID )->PdgCode();
         float energy = ide.energy;
@@ -464,7 +421,6 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, st
       MarleyEnergyROI += MarleyIDE.energy;
       MarleyChargeROI += MarleyIDE.numElectrons;
     } 
-
   }//for MarleyChannels
   std::cout << "Marley signal energy total (MeV): " << MarleyEnergyTot << std::endl;
   std::cout << "Marley signal energy fraction in ROI: " << MarleyEnergyROI/MarleyEnergyTot << std::endl;
