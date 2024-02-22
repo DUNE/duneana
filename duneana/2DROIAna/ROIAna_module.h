@@ -38,7 +38,6 @@
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
-//////////////////#include "duneana/LowEAna/LowEAna_module.cc"
 
 #include "lardataobj/RawData/RDTimeStamp.h"
 
@@ -56,8 +55,6 @@
 #include "TFile.h"
 #include "TROOT.h"
 #include "TLorentzVector.h"
-
-#include <algorithm>
 
 //Others
 #define DEFAULT_VALUE -99999
@@ -87,8 +84,6 @@ public:
   void endJob() override;
 
   /////////////////////////////////////////////
-  //std::map<int,std::vector<std::pair<int,int>>>
-    //ProcessROI(std::vector<art::Ptr<raw::RawDigit>>& rawList);
   std::map<int,bool> ProcessROIWide(std::vector<art::Ptr<raw::RawDigit>>& rawList);
 
   bool ispeak(float x) { return (x != 0); }
@@ -114,7 +109,6 @@ private:
   std::vector<std::string> fLabels, fInteraction;
 
   int fROI_Peak;
-  //int fROI_Range;
   int fROI_CH;
 
   std::map<raw::ChannelID_t, std::pair<art::Ptr<raw::RawDigit>, art::Ptr<sim::SimChannel>>> 
@@ -151,12 +145,8 @@ private:
 
   
   /////////////////////////////////////////////
-  // Truth Filter
-  art::ServiceHandle<cheat::ParticleInventoryService> PIS;
-  void TruthFilter( std::map<int,bool> );
-  /////////////////////////////////////////////
   // ROI Filter
-  //art::ServiceHandle<cheat::ParticleInventoryService> PIS;
+  art::ServiceHandle<cheat::ParticleInventoryService> PIS;
   void ROIFilter( std::map<int,bool> );
   /////////////////////////////////////////////
   // ROI Efficiencies
@@ -193,17 +183,6 @@ private:
   float fECMin; //minimum energy and charge to begin accumulation
   float fHistEnergyMax;
   float fHistChargeMax;
-
-  enum SType{
-    kSAll, kSNeutrino, kSRad, kSEnd
-  };
-
-
-  std::vector<std::string> partTypes{"","_electron","_proton","_neutron","_photon","_neutrino","_other"};
-
-  enum PType {
-    kAll, kElectron, kProton, kNeutron, kPhoton, kNuc, kNeutrino, kPEnd
-  };
 };
 
 

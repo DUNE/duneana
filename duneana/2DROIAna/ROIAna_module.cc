@@ -11,9 +11,7 @@ roiana::ROIAna::ROIAna(fhicl::ParameterSet const& pset)
   fLogLevel           = pset.get<int>("LogLevel", 10);
   fNChanPerApa        = pset.get<int>("ChannelPerApa", 2560);
   fNTicksPerWire      = pset.get<int>("TicksPerWire", 6000);
-  //auto const* geo = lar::providerFrom<geo::Geometry>();
   geo = lar::providerFrom<geo::Geometry>();
-  //geo = art::ServiceHandle<geo::Geometry>::get();
   fNPlanes = geo->Nplanes();
 
   fLabels      = pset.get<std::vector<std::string>>("ParticleLabelVector");
@@ -96,14 +94,14 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   std::vector<int> MarleyTrackIDs;
   std::map<int,sim::IDE> MarleyChannels;
   for (const auto& [TrackID, MCPart] : Parts[0]) {
-    //std::cout << "Marley particle TrackID: " << TrackID << std::endl;
+    if( fLogLevel >= 3 ) std::cout << "Marley particle TrackID: " << TrackID << std::endl;
     MarleyTrackIDs.push_back(TrackID);
   }
   for (auto mySimChannel : channellist) {
     std::vector<sim::IDE> simIDEList = mySimChannel->TrackIDsAndEnergies(0, fNTicksPerWire);
     for (auto simIDE : simIDEList) {
       if (std::find(MarleyTrackIDs.begin(), MarleyTrackIDs.end(), simIDE.trackID) != MarleyTrackIDs.end()) {
-        //std::cout << "marley particle in channel: " << mySimChannel->Channel() << std::endl;
+        if( fLogLevel >= 3 ) std::cout << "marley particle in channel: " << mySimChannel->Channel() << std::endl;
         MarleyChannels[mySimChannel->Channel()] = simIDE;
       }
     }
@@ -124,16 +122,14 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   for( auto w: channellist) 
     ch_w_sc[ w->Channel() ].second= w;
 
-  //if( fLogLevel >= 3 ) std::cout << "starting TruthFilter" << std::endl;
-  //TruthFilter();
-
   //Creating ROI
   if( fLogLevel >= 3 ) std::cout << "starting ProcessROI" << std::endl;
   std::map<int,bool> ret;
   ret = ProcessROIWide(rawList);
-
+  
+  // ROIFilter
   if( fLogLevel >= 3 ) std::cout << "starting ROIFilter" << std::endl;
-  TruthFilter(ret);
+  ROIFilter(ret);
 
   //compute efficiency and data reduction
   if( fLogLevel >= 3 ) std::cout << "starting ROIEfficiencies" << std::endl;
@@ -270,7 +266,10 @@ void roiana::ROIAna::SortWirePtrByChannel( std::vector<art::Ptr<T>> &vec, bool i
   }
 }
 
-void roiana::ROIAna::TruthFilter( std::map<int,bool> ret )
+void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
+/*
+  Fill ROI charge and energy histograms:
+*/
 {
   for( auto m: ch_w_sc)
   {
@@ -301,88 +300,18 @@ void roiana::ROIAna::TruthFilter( std::map<int,bool> ret )
       //Some function to fill histogram
       TrueEnergyDeposited->Fill(energies);
       TrueChargeDeposited->Fill(charges);
-      TrueEnergyDepositedInROI->Fill(energies_roi);
-      TrueChargeDepositedInROI->Fill(charges_roi);
+      if (ret[channel]) {
+        TrueEnergyDepositedInROI->Fill(energies_roi);
+        TrueChargeDepositedInROI->Fill(charges_roi);
+      }
       if( fLogLevel >= 3 ) std::cout<<"FillHistogram: end"<<std::endl;
     }
   }
-
+  // True energy & charge ratio in ROI
+  TrueEnergyDepositedRatio->Divide(TrueEnergyDepositedInROI, TrueEnergyDeposited);
+  TrueChargeDepositedRatio->Divide(TrueChargeDepositedInROI, TrueChargeDeposited);
 }
 
-
-void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
-{
-  for( auto m: ch_w_sc)
-  {
-    auto channel = m.first;
-    //auto rawdigit = m.second.first;
-    auto sim = m.second.second;
-    if (!ret[channel]) continue;
-
-    //accumulate energy and charge for all channels
-    for( auto &tdcide: sim->TDCIDEMap() )
-    {
-      std::vector<float> energies(partTypes.size(),fECMin );
-      std::vector<float> charges(partTypes.size(),fECMin );
-      std::vector<float> energiesNeut(partTypes.size(),fECMin );
-      std::vector<float> chargesNeut(partTypes.size(),fECMin );
-      std::vector<float> energiesRad(partTypes.size(),fECMin );
-      std::vector<float> chargesRad(partTypes.size(),fECMin );
-      //float energies=0.0;
-      //float charges = 0.0;
-      
-      
-      for( auto &ide: tdcide.second )
-      {
-        if( fLogLevel >= 3 ) std::cout<<"ide.trackID: "<<ide.trackID<<std::endl;
-        bool isSignal = trkid_to_label_map[ ide.trackID ] == "NuEScatter" || trkid_to_label_map[ ide.trackID ] == "marley";
-        int pdg = PIS->TrackIdToParticle_P( ide.trackID )->PdgCode();
-        float energy = ide.energy;
-        float numElectrons = ide.numElectrons;
-        energies[kAll]+=energy;
-        charges[kAll]+=numElectrons;
-        int partType = -1; 
-        if( abs(pdg) == 11 || abs(pdg) == 13 || abs(pdg) == 15 )
-        { 
-          partType = kElectron;
-        } else if( abs(pdg) == 2212)
-        { 
-          partType = kProton; 
-        } else if(abs(pdg) == 2112)
-        { 
-          partType = kNeutron;
-        } else if(abs(pdg) == 22)
-        { 
-          partType = kPhoton;
-        } else if(abs(pdg) == 12)
-        {
-          partType = kNeutrino;
-          //std::cout<<"ROIFilter: neutrino with trackID: "<<ide.trackID<<std::endl;
-        } else
-        { 
-          partType = kNuc;
-        }
-        //parsed particle, accumulate energy
-        energies[partType]+=energy; charges[partType]+=numElectrons;
-        if( isSignal )
-        {
-          energiesNeut[partType]+=energy; chargesNeut[partType]+=numElectrons;
-        }
-        else
-        {
-          energiesRad[partType]+=energy; chargesRad[partType]+=numElectrons;
-        }
-      } 
-      
-      if( fLogLevel >= 3 ) std::cout<<"FillHistogram: begin"<<std::endl;
-      //if( fLogLevel >= 3 ) std::cout<<"adding charge to ROI: "<<charges[0]<<std::endl;
-      TrueEnergyDepositedInROI->Fill(energies[0]);
-      TrueChargeDepositedInROI->Fill(charges[0]);
-      if( fLogLevel >= 3 ) std::cout<<"FillHistogram: end"<<std::endl;
-
-    }
-  }
-}
 
 void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, std::map<int,sim::IDE> MarleyChannels )
 /*
@@ -390,10 +319,6 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, st
  *   */
 
 {
-  // True energy & charge ratio in ROI
-  TrueEnergyDepositedRatio->Divide(TrueEnergyDepositedInROI, TrueEnergyDeposited);
-  TrueChargeDepositedRatio->Divide(TrueChargeDepositedInROI, TrueChargeDeposited);
-
   // data reduction rate estimation
   int n_channels_in_ROI = 0;
   for (const auto& ROIChannel : ret)
