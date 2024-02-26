@@ -8,6 +8,7 @@ cet_build_plugin(CAFMaker   art::module
                         duneanaobj_StandardRecordFlat
                         nugen::NuReweight
                         nugen::NuReweight_art
+                        nugen::EventGeneratorBase_GENIE
 			nusimdata::SimulationBase
                         ART_FRAMEWORK_CORE
                         ART_FRAMEWORK_PRINCIPAL
@@ -26,6 +27,8 @@ cet_build_plugin(CAFMaker   art::module
 			systematicstools::interpreters
 			systematicstools::utility
                         dunereco::CVN_func
+                        lardataobj::RecoBase
+                        larpandora::LArPandoraInterface
               BASENAME_ONLY
 )
 
