@@ -349,7 +349,7 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, st
   }//for MarleyChannels
   std::cout << "Marley signal energy total (MeV): " << MarleyEnergyTot << std::endl;
   std::cout << "Marley signal energy fraction in ROI: " << MarleyEnergyROI/MarleyEnergyTot << std::endl;
-  std::cout << "Marley signal charge fraction in ROI: " << MarleyEnergyROI/MarleyEnergyTot << std::endl;
+  //std::cout << "Marley signal charge fraction in ROI: " << MarleyEnergyROI/MarleyEnergyTot << std::endl;
   MarleySignalSensitivity->Fill(MarleyEnergyROI/MarleyEnergyTot);
 }
 

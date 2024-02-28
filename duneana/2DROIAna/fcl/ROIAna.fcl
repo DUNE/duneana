@@ -18,13 +18,12 @@ standard_roiana:
   TickesPerWire:                6000
 
   ROIPeak:                      100
-  #ROIRange:                     120
   ROICH:                        10
 
   TREENAME:                     "roiana"
   fECMin:                       -1e-8
   fHistEnergyMax:               20     
-  fHistChargeMax:               3000 
+  fHistChargeMax:               40000 
 }
 
 END_PROLOG
