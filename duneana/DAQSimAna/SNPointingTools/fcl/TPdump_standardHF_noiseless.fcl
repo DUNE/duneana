@@ -9,10 +9,34 @@ BEGIN_PROLOG
 
 tagged_TP_dump_config: {
    module_type:   TaggedTPFinderDump
-   OutputFile:    "tpstream_standardHF_thresh5_nonoise.txt"
+   OutputFile:    "tpstream_standardHF_thresh30_nonoise.txt"
    HitLabel:      "trigprim1"
    InputTag:      "simwire"
-   GenLabel:      "marley"
+   # GenLabel:      "marley"
+   GenLabels: {
+               MarleyLabel: "marley"
+               Ar39GenInLarLabel: "Ar39GenInLAr"
+               Kr85GenInLarLabel: "Kr85GenInLAr"
+               Ar42GenInLarLabel: "Ar42GenInLAr"
+               K42From42ArGenInLarLabel: "K42From42ArGenInLAr"
+               Rn222ChainRn222GenInLarLabel: "Rn222ChainRn222GenInLAr"
+               Rn222ChainPo218GenInLarLabel: "Rn222ChainPo218GenInLAr"
+               Rn222ChainPb214GenInLarLabel: "Rn222ChainPb214GenInLAr"
+               Rn222ChainBi214GenInLarLabel: "Rn222ChainBi214GenInLAr"
+               Rn222ChainPb210GenInLarLabel: "Rn222ChainPb210GenInLAr"
+               K40GenInCPALabel: "K40GenInCPA"
+               U238ChainGenInCPALabel: "U238ChainGenInCPA"
+               K42From42ArGenInCPALabel: "K42From42ArGenInCPA"
+               Rn222ChainPo218GenInCPALabel: "Rn222ChainPo218GenInCPA"
+               Rn222ChainPb214GenInCPALabel: "Rn222ChainPb214GenInCPA"
+               Rn222ChainBi214GenInCPALabel: "Rn222ChainBi214GenInCPA"
+               Rn222ChainPb210GenInCPALabel: "Rn222ChainPb210GenInCPA"
+               Rn222ChainFromBi210GenInCPALabel: "Rn222ChainFromBi210GenInCPA"
+               Co60GenInAPALabel: "Co60GenInAPA"
+               U238ChainGenInAPALabel: "U238ChainGenInAPA"
+               Rn222ChainGenInPDSLabel: "Rn222ChainGenInPDS"
+               NeutronGenInRockLabel: "NeutronGenInRock"
+            }
    GEANT4Label:   "largeant"
    HitWindow:      5
 }
@@ -73,12 +97,12 @@ physics: {
 }
 
 #Set the thresholds for the HF (common threshold for collection and induction) 
-physics.producers.trigprim1.finder.Threshold: 5
+physics.producers.trigprim1.finder.Threshold: 30
 
 # Geometry 
-services.Geometry.GDML: "dune10kt_v5_refactored_1x2x6.gdml"
-services.Geometry.Name: "dune10kt_v5_1x2x6"
-services.Geometry.ROOT: "dune10kt_v5_refactored_1x2x6.gdml"
+services.Geometry.GDML: "dune10kt_v6_refactored_1x2x6.gdml"
+services.Geometry.Name: "dune10kt_v6_1x2x6"
+services.Geometry.ROOT: "dune10kt_v6_refactored_1x2x6.gdml"
 
 # SimWireDUNE settings 
 # =====================================================================
