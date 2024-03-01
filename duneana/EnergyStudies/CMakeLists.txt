@@ -1,25 +1,26 @@
 
-cet_build_plugin(dunezsanalysis art::module
+cet_build_plugin(dunezsanalysis art::module LIBRARIES
   larcore::Geometry_Geometry_service
   larcorealg::Geometry
   lardataobj::RawData
   nusimdata::SimulationBase
-  ART_FRAMEWORK_CORE
-  ART_FRAMEWORK_PRINCIPAL
-  ART_FRAMEWORK_SERVICES_REGISTRY
-  ART_ROOT_IO_TFILE_SUPPORT
+  larsim::Simulation
+  art::Framework_Core
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  art_root_io::tfile_support
   ROOT::Core
-  ART_ROOT_IO_TFILESERVICE_SERVICE
-  art::Persistency_Common canvas
-  art::Persistency_Provenance canvas
-  art::Utilities canvas
+  art_root_io::TFileService_service
+  art::Persistency_Common
+  art::Persistency_Provenance 
+  art::Utilities canvas::canvas
   messagefacility::MF_MessageLogger
-  cetlib::cetlib cetlib_except
-  ROOT_BASIC_LIB_LIST
+  cetlib::cetlib cetlib_except::cetlib_except
+  ROOT::Core ROOT::Hist ROOT::Tree
   BASENAME_ONLY
   )
 
-cet_build_plugin(dEdx art::module
+cet_build_plugin(dEdx art::module LIBRARIES
   larcore::Geometry_Geometry_service
   larcorealg::Geometry
   lardataobj::RawData
@@ -29,22 +30,22 @@ cet_build_plugin(dEdx art::module
   nug4::ParticleNavigation 
   lardataobj::Simulation
   nusimdata::SimulationBase
-  ART_FRAMEWORK_CORE
-  ART_FRAMEWORK_PRINCIPAL
-  ART_FRAMEWORK_SERVICES_REGISTRY
-  ART_ROOT_IO_TFILE_SUPPORT
+  art::Framework_Core
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  art_root_io::tfile_support
   ROOT::Core
-  ART_ROOT_IO_TFILESERVICE_SERVICE
-  art::Persistency_Common canvas
-  art::Persistency_Provenance canvas
-  art::Utilities canvas
+  art_root_io::TFileService_service
+  art::Persistency_Common 
+  art::Persistency_Provenance 
+  art::Utilities canvas::canvas
   messagefacility::MF_MessageLogger
-  cetlib::cetlib cetlib_except
-  ROOT_BASIC_LIB_LIST
+  cetlib::cetlib cetlib_except::cetlib_except
+  ROOT::Core ROOT::Hist ROOT::Tree
   BASENAME_ONLY
   )
 
-cet_build_plugin(EMEnergyCalib art::module
+cet_build_plugin(EMEnergyCalib art::module LIBRARIES
   lardataalg::DetectorInfo
   lardataobj::RawData
   lardataobj::RecoBase
@@ -52,48 +53,50 @@ cet_build_plugin(EMEnergyCalib art::module
   larcore::Geometry_Geometry_service
   larsim::MCCheater_BackTrackerService_service
   larsim::MCCheater_ParticleInventoryService_service
-  larsim::Simulation 
+  larsim::Simulation
+  larevt::Filters
   nug4::ParticleNavigation 
   lardataobj::Simulation
   lardata::Utilities
   nusimdata::SimulationBase
-  ART_FRAMEWORK_CORE
-  ART_FRAMEWORK_PRINCIPAL
-  ART_FRAMEWORK_SERVICES_REGISTRY
-  ART_ROOT_IO_TFILE_SUPPORT
+  art::Framework_Core
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  art_root_io::tfile_support
   ROOT::Core
-  ART_ROOT_IO_TFILESERVICE_SERVICE
-  art::Persistency_Common canvas
-  art::Persistency_Provenance canvas
-  art::Utilities canvas
+  art_root_io::TFileService_service
+  art::Persistency_Common 
+  art::Persistency_Provenance
+  art::Utilities canvas::canvas
   messagefacility::MF_MessageLogger
-  cetlib::cetlib cetlib_except
-  ROOT_BASIC_LIB_LIST
+  cetlib::cetlib cetlib_except::cetlib_except
+  ROOT::Core ROOT::Hist ROOT::Tree
   BASENAME_ONLY
   )
 
-cet_build_plugin(EMPi0Energy art::module
+cet_build_plugin(EMPi0Energy art::module LIBRARIES
   lardataobj::RawData
   lardataobj::RecoBase
   larcorealg::Geometry
   larcore::Geometry_Geometry_service
   larsim::MCCheater_BackTrackerService_service
   larsim::MCCheater_ParticleInventoryService_service
-  larsim::Simulation nug4::ParticleNavigation lardataobj_Simulation
+  larsim::Simulation nug4::ParticleNavigation lardataobj::Simulation
   lardata::Utilities
+  larevt::Filters
   nusimdata::SimulationBase
-  ART_FRAMEWORK_CORE
-  ART_FRAMEWORK_PRINCIPAL
-  ART_FRAMEWORK_SERVICES_REGISTRY
-  ART_ROOT_IO_TFILE_SUPPORT
+  art::Framework_Core
+  art::Framework_Principal
+  art::Framework_Services_Registry
+  art_root_io::tfile_support
   ROOT::Core
-  ART_ROOT_IO_TFILESERVICE_SERVICE
-  art::Persistency_Common canvas
-  art::Persistency_Provenance canvas
-  art::Utilities canvas
+  art_root_io::TFileService_service
+  art::Persistency_Common 
+  art::Persistency_Provenance 
+  art::Utilities canvas::canvas
   messagefacility::MF_MessageLogger
-  cetlib::cetlib cetlib_except
-  ROOT_BASIC_LIB_LIST
+  cetlib::cetlib cetlib_except::cetlib_except
+  ROOT::Core ROOT::Hist ROOT::Tree
   BASENAME_ONLY
   )
 

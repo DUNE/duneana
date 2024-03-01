@@ -10,21 +10,21 @@ art_make( BASENAME_ONLY
          lardata::Utilities
 	 nurandom::RandomUtils_NuRandomService_service
 	 nusimdata::SimulationBase
- 	 ART_FRAMEWORK_CORE
-	 ART_FRAMEWORK_PRINCIPAL
-	 ART_FRAMEWORK_SERVICES_REGISTRY
-	 ART_ROOT_IO_TFILE_SUPPORT
+ 	 art::Framework_Core
+	 art::Framework_Principal
+	 art::Framework_Services_Registry
+	 art_root_io::tfile_support
 	 ROOT::Core
-	 ART_ROOT_IO_TFILESERVICE_SERVICE
-	 art::Persistency_Common canvas
+	 art_root_io::TFileService_service
+	 art::Persistency_Common
 	 art::Utilities 
-	 canvas
+	 canvas::canvas
 	 messagefacility::MF_MessageLogger		   
 	 fhiclcpp::fhiclcpp
 	 cetlib::cetlib 
-	 cetlib_except
-         ROOT_BASIC_LIB_LIST
-         ROOT_GEOM
+	 cetlib_except::cetlib_except
+         ROOT::Core ROOT::Hist ROOT::Tree
+         ROOT::Geom
          )
 
 install_headers()

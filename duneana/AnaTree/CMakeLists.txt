@@ -19,23 +19,24 @@ art_make( MODULE_LIBRARIES
 	  larpandora::LArPandoraInterface
 	  dunecore::SignalShapingServiceDUNE10kt_service
 	  dunecore::SignalShapingServiceDUNE35t_service
+          duneopdet::OpticalDetector
           nusimdata::SimulationBase
-          ART_FRAMEWORK_CORE
-	  ART_FRAMEWORK_PRINCIPAL
-	  ART_FRAMEWORK_SERVICES_REGISTRY
-	  ART_ROOT_IO_TFILE_SUPPORT
+          art::Framework_Core
+	  art::Framework_Principal
+	  art::Framework_Services_Registry
+	  art_root_io::tfile_support
 	  ROOT::Core
-	  ART_ROOT_IO_TFILESERVICE_SERVICE
-	  art::Persistency_Common canvas
-	  art::Persistency_Provenance canvas
-	  art::Utilities canvas
+	  art_root_io::TFileService_service
+	  art::Persistency_Common
+	  art::Persistency_Provenance
+	  art::Utilities canvas::canvas
 	  messagefacility::MF_MessageLogger
 	  fhiclcpp::fhiclcpp
-	  cetlib::cetlib cetlib_except
-          ROOT_GEOM
-          ROOT_XMLIO
-          ROOT_GDML
-	  ROOT_BASIC_LIB_LIST
+	  cetlib::cetlib cetlib_except::cetlib_except
+          ROOT::Geom
+          ROOT::XMLIO
+          ROOT::Gdml
+	  ROOT::Core ROOT::Hist ROOT::Tree
         )
 
 install_headers()
