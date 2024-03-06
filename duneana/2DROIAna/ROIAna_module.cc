@@ -278,10 +278,10 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
     auto sim = m.second.second;
     for( auto &tdcide: sim->TDCIDEMap() )
     {
-      float energies=0.0;
-      float charges=0.0;
-      float energies_roi=0.0;
-      float charges_roi=0.0;
+      float energies=fECMin;
+      float charges=fECMin;
+      float energies_roi=fECMin;
+      float charges_roi=fECMin;
       
       for( auto &ide: tdcide.second )
       {
@@ -331,10 +331,10 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, st
   DataReductionRate->Fill(ROIDataFraction);
 
   // Marley sensitivity
-  float MarleyEnergyTot = 0.0;
-  float MarleyChargeTot = 0.0;
-  float MarleyEnergyROI = 0.0;
-  float MarleyChargeROI = 0.0;
+  float MarleyEnergyTot = fECMin;
+  float MarleyChargeTot = fECMin;
+  float MarleyEnergyROI = fECMin;
+  float MarleyChargeROI = fECMin;
   for (const auto& Ch_IDE : MarleyChannels) {
     int MarleyCh = Ch_IDE.first;
     sim::IDE MarleyIDE = Ch_IDE.second;

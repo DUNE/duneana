@@ -23,7 +23,7 @@ standard_roiana:
   TREENAME:                     "roiana"
   fECMin:                       -1e-8
   fHistEnergyMax:               20     
-  fHistChargeMax:               40000 
+  fHistChargeMax:               80000 
 }
 
 END_PROLOG
