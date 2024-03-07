@@ -10,7 +10,7 @@ standard_roiana:
   SimulationProducerLabel:      "largeant"
   
   # Vector with generator labels for the particles included in the event. IMPORTANT: Keep MARLEY label in the first position!!!
-  ParticleLabelVector: ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainRn222GenInLAr","Rn222ChainPo218GenInLAr","Rn222ChainPb214GenInLAr","Rn222ChainBi214GenInLAr","Rn222ChainPb210GenInLAr","K40GenInCPA","U238ChainGenInCPA","K42From42ArGenInCPA","Rn222ChainPo218GenInCPA","Rn222ChainPb214GenInCPA","Rn222ChainBi214GenInCPA","Rn222ChainPb210GenInCPA","Rn222ChainFromBi210GenInCPA","Co60GenInAPA","U238ChainGenInAPA","Rn222ChainGenInPDS","NeutronGenInRock"]
+  ParticleLabelVector: ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainRn222GenInLAr","Rn222ChainPo218GenInLAr","Rn222ChainPb214GenInLAr","Rn222ChainBi214GenInLAr","Rn222ChainPb210GenInLAr","K40GenInCPA","U238ChainGenInCPA","K42From42ArGenInCPA","Rn222ChainPo218GenInCPA","Rn222ChainPb214GenInCPA","Rn222ChainBi214GenInCPA","Rn222ChainPb210GenInCPA","Rn222ChainFromBi210GenInCPA","Co60GenInAPA","U238ChainGenInAPA","Rn222ChainGenInPDS","NeutronGenInRock","U238Th232K40GenInLArAPAboards","CavernNGammasAtLAr1x2x6","CavernwallGammasAtLAr1x2x6","Th232ChainGenInCPA","Rn220ChainFromPb212GenInCPA","CavernwallNeutronsAtLAr1x2x6","Th232ChainGenInAPA","Rn220ChainPb212GenInLAr","foamGammasAtLAr1x2x6","CryostatNGammasAtLAr1x2x6"]
   InteractionLabelVector: ["primary","nCapture"]
 
   LogLevel:                     0
