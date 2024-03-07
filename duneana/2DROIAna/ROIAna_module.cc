@@ -69,7 +69,7 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
       art::FindManyP<simb::MCParticle> Assn(ThisValidHandle,evt,fSimulationProducerLabel);            
       
       FillMyMaps( Parts[i], Assn, ThisValidHandle);                                                                           
-      //FillMCInteractionTree(Parts[i], fInteraction, fLogLevel);
+      FillMCInteractionTree(Parts[i], fInteraction, fLogLevel);
       TPart.push_back(Parts[i].size()); // Insert #signal+bkg particles generated
       lparticlestr = PrintInColor(lparticlestr,"\n-> #Particles: "+std::to_string(Parts[i].size()),GetColor("blue"));
     }
