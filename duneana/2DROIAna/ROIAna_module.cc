@@ -191,7 +191,7 @@ void roiana::ROIAna::beginJob() {
   art::ServiceHandle<art::TFileService> tfs;
   fTree = tfs->make<TTree>(fTreeName.c_str() ,fTreeName.c_str() );
   fMCTruthTree = tfs->make<TTree>("MCTruthTree","MC Truth Tree");
-  //fInteractionTree = tfs->make<TTree>("MCInteraction","MC Event Tree");
+  fInteractionTree = tfs->make<TTree>("MCInteraction","MC Event Tree");
 
   fTree->Branch("run", &run);
   fTree->Branch("subrun", &subrun);
@@ -202,7 +202,7 @@ void roiana::ROIAna::beginJob() {
   fMCTruthTree -> Branch("Flag",                 &flag,           "Flag/I");   // Flag used to match truth with reco tree entries.
   fMCTruthTree -> Branch("TruthPart",            &TPart);                      // Number particles per generator.
 
-  /*
+  
   fInteractionTree -> Branch("Event",            &event,          "Event/I");  // Event number.
   fInteractionTree -> Branch("Flag",             &flag,           "Flag/I");   // Flag used to match truth with reco tree entries.
   fInteractionTree -> Branch("PDG",              &PDG,            "PDG/I");    // Main interacting particle PDG.
@@ -222,7 +222,7 @@ void roiana::ROIAna::beginJob() {
   fInteractionTree -> Branch("DaughterEndVx",    &DaughterEndVx);              // Main interacting particle daughter end vertex X [cm].
   fInteractionTree -> Branch("DaughterEndVy",    &DaughterEndVy);              // Main interacting particle daughter end vertex Y [cm].
   fInteractionTree -> Branch("DaughterEndVz",    &DaughterEndVz);              // Main interacting particle daughter end vertex Z [cm].
-  */
+  
 
   std::string name1 = Form("TrueEnergyDeposited_%s",fTreeName.c_str() );
   std::string name2 = Form("TrueEnergyDepositedInROI_%s",fTreeName.c_str() );
