@@ -1,0 +1,40 @@
+#include "LowEAna.fcl"
+#include "services_dune.fcl"
+
+process_name: LowEAna
+
+services:{
+  @table::dunefd_services
+  TFileService:          { fileName: "lowe_ana_dune10kt_1x2x6_legacy_hist.root" }
+  TimeTracker:           {}
+  MemoryTracker:         {} # default is one
+  RandomNumberGenerator: {} #ART native random number generator
+  FileCatalogMetadata:   @local::art_file_catalog_mc
+  Geometry:              @local::dune10kt_1x2x6_geo
+  @table::dunefd_simulation_services
+}
+
+physics:{ 
+  analyzers:{
+    loweana: @local::legacy_lowe_ana_hd_v4
+  }
+  ana: [ loweana ]
+  end_paths: [ ana ] 
+}
+
+source:{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+outputs:{
+  out1:{
+    module_type: RootOutput
+    fileName:    "%ifb_lowe.root"
+    dataTier:    "analized"
+    compressionLevel: 1
+  }
+}
+
+services.message.destinations.LogStandardOut.threshold: "INFO"
+services.message.destinations.LogStandardOut.type: "cout"

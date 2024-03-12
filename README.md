@@ -1,6 +1,6 @@
 # duneana
 
-duneopdet contains analysis software modules for DUNE
+duneana contains analysis software modules for DUNE
 
 ## Copyright and Licensing
 Copyright © 2023 FERMI NATIONAL ACCELERATOR LABORATORY for the benefit of the DUNE Collaboration.

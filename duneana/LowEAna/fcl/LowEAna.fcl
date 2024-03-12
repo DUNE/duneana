@@ -1,0 +1,68 @@
+BEGIN_PROLOG
+
+legacy_lowe_ana_hd:
+{
+  module_type:		     "LowEAna"
+  #====================================================================================
+  
+  RawDigitLabel:       "daq"		      # string for the process that made the raw digits
+  HitLabel:		         "hitfd" 	      # string for the process that made the reco hits
+  GEANT4Label:         "largeant"     # The label for the process which ran GEANT4
+  OpFlashLabel:        "opflash"
+  OpHitLabel:          "ophit"
+
+  # Vector with generator labels for the particles included in the event. IMPORTANT: Keep MARLEY label in the first position!!!
+  ParticleLabelVector: ["marley","ar39Gen","ar42Gen","apaGen","cNeutronGen","cpaGen","kr85Gen","rn222Gen","po210Gen"]
+  InteractionLabelVector: ["primary","nCapture"]
+  
+  #====================================================================================
+  # General geometry parameters
+  Geometry:            "HD"
+  DetectorSizeX:       365          
+  DetectorSizeY:       610           # Dont't change this value for HD unless you know what you are doing!!!
+
+  # Parameters for clustering algorithm
+  ClusterAlgoTime:       10          # Time window to look for hits in [tick] units.
+  ClusterAlgoAdjChannel: 2           # Number of adjacent channels to look for hits.
+  
+  # Parameters for the col vs ind plane matching
+  ClusterMatchNHit:     0.5          # DAQ Clusters min. hit requirement.
+  ClusterMatchCharge:   0.5          # Charge fraction to match clusters.
+  ClusterMatchTime:     20           # Time window to look for ind. plane clusters in [tick] units.
+  ClusterInd0MatchTime: 0            # Goal Time to match clusters in ind. plane 0 in [tick] units. Needs to be calibrated for each geometry!
+  ClusterInd1MatchTime: 0            # Goal Time to match clusters in ind. plane 1 in [tick] units. Needs to be calibrated for each geometry!
+  
+  ClusterPreselectionNHit: 2         # Number of hits to match clusters.
+  
+  # Parameters for the adjacent cluster matching
+  AdjClusterTime:      1200          # Time window to search for adj. clusters in [tick] units.
+  AdjClusterRad:       100           # Radius to search for adj. clusters in [cm] units.
+  
+  # Parameters for the adjacent OpFlash matching
+  AdjOpFlashTime:      4500          # Time window to look for adjacent flashes in [tick] units should be one full drift length.
+  AdjOpFlashRad:       200           # Radius to search for adj. OpFlashes reconstructed in [cm] units.
+  AdjOpFlashMaxPECut:  1.01          # Cut on the maximum PE OpHit contribution to the total OpFlash PE (lower limit).
+  AdjOpFlashMinPECut:  20            # Cut on the minimum PE OpHit.
+  
+  # Additional parameters
+}
+
+legacy_lowe_ana_hd_v2: @local::legacy_lowe_hit_ana_hd
+legacy_lowe_ana_hd_v2.ParticleLabelVector: ["marley","apa","neut","po","cpa","ar42","kr85","ar39","rn222"]
+
+legacy_lowe_ana_hd_v4: @local::legacy_lowe_hit_ana_hd
+legacy_lowe_ana_hd_v4.ParticleLabelVector: ["marley","apaGen","cNeutronGen","cpaGen","ar42Gen","kr85Gen","ar39Gen","rn222Gen","po210Gen"]
+
+lowe_ana_hd: @local::legacy_lowe_hit_ana_hd
+lowe_ana_hd.ParticleLabelVector: ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainRn222GenInLAr","Rn222ChainPo218GenInLAr","Rn222ChainPb214GenInLAr","Rn222ChainBi214GenInLAr","Rn222ChainPb210GenInLAr","K40GenInCPA","U238ChainGenInCPA","K42From42ArGenInCPA","Rn222ChainPo218GenInCPA","Rn222ChainPb214GenInCPA","Rn222ChainBi214GenInCPA","Rn222ChainPb210GenInCPA","Rn222ChainFromBi210GenInCPA","Co60GenInAPA","U238ChainGenInAPA","Rn222ChainGenInPDS","NeutronGenInRock"]
+
+lowe_ana_vd: @local::legacy_lowe_hit_ana_hd
+lowe_ana_vd.HitLabel:            "gaushit"
+lowe_ana_vd.OpFlashLabel:        "opflash10ppm"
+lowe_ana_vd.OpHitLabel:          "ophit10ppm"
+lowe_ana_vd.OpDetWaveformLabel:  "opdigi10ppm"
+lowe_ana_vd.ParticleLabelVector: ["marley","Ar39GenInLAr","Kr85GenInLAr","Ar42GenInLAr","K42From42ArGenInLAr","Rn222ChainGenInLAr","K42From42ArGenInCPA","K40inGenInCPA","U238ChainGenInCPA","Rn222ChainGenInPDS","NeutronGenInRock","GammasGenInRock"]
+lowe_ana_vd.DetectorSizeY:       1500 
+lowe_ana_vd.AdjOpFlashTime:      8500 
+
+END_PROLOG
