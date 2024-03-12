@@ -11,7 +11,6 @@
 #ifndef SolarNuAna_h
 #define SolarNuAna_h
 
-// C++ includes
 // ROOT includes
 #include "TH1I.h"
 #include "TH1F.h"
@@ -21,7 +20,7 @@
 #include "TRandom.h"
 #include <fcntl.h>
 
-// Framework includes (not all might be necessary)
+// Framework includes (TODO: check if all are necessary)
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "lardataobj/RawData/OpDetWaveform.h"
@@ -94,10 +93,10 @@ private:
   TTree *fConfigTree;
   TTree *fMCTruthTree;
   TTree *fSolarNuAnaTree;
-  std::string TNuInteraction;
+  std::string TNuInteraction, TNuProcess, TNuMode;
   bool MPrimary;
   int Event, Flag, MNHit, MGen, MTPC, MInd0TPC, MInd1TPC, MInd0NHits, MInd1NHits, MMainID, MMainT, MMainPDG, MMainParentPDG, TrackNum, OpHitNum, OpFlashNum, MTrackNPoints;
-  float TNuE, TNuP, TNuX, TNuY, TNuZ, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
+  float TNuE, TNuP, TNuPx, TNuPy, TNuPz, TNuX, TNuY, TNuZ, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
   float MInd0dT, MInd1dT, MInd0RecoY, MInd1RecoY, MRecY, MRecZ, MPur, MMainE, MMainP, MMainParentE, MMainParentP, MMainParentT, MTrackChi2;
   std::vector<int> MAdjClGen, MAdjClMainID, TPart, MarleyPDGList, MarleyPDGDepList, MarleyIDList, MarleyMotherList, MarleyIDDepList, MAdjClMainPDG, HitNum, ClusterNum, MarleyElectronDepList;
   std::vector<float> MarleyEDepList, MarleyXDepList, MarleyYDepList, MarleyZDepList;
@@ -215,6 +214,9 @@ void SolarNuAna::beginJob()
   fMCTruthTree->Branch("Interaction", &TNuInteraction);            // True neutrino interaction process
   fMCTruthTree->Branch("TNuE", &TNuE, "TruthNuE/F");               // True neutrino energy [MeV]
   fMCTruthTree->Branch("TNuP", &TNuP, "TruthNuP/F");               // True neutrino momentum [MeV]
+  fMCTruthTree->Branch("TNuPx", &TNuPx, "TruthNuPx/F");            // True neutrino momentum [MeV]
+  fMCTruthTree->Branch("TNuPy", &TNuPy, "TruthNuPy/F");            // True neutrino momentum [MeV]
+  fMCTruthTree->Branch("TNuPz", &TNuPz, "TruthNuPz/F");            // True neutrino momentum [MeV]
   fMCTruthTree->Branch("TNuX", &TNuX, "TruthNuX/F");               // True neutrino X [cm]
   fMCTruthTree->Branch("TNuY", &TNuY, "TruthNuY/F");               // True neutrino Y [cm]
   fMCTruthTree->Branch("TNuZ", &TNuZ, "TruthNuZ/F");               // True neutrino Z [cm]
@@ -264,6 +266,9 @@ void SolarNuAna::beginJob()
   fSolarNuAnaTree->Branch("Interaction", &TNuInteraction);         // True neutrino interaction process
   fSolarNuAnaTree->Branch("TNuE", &TNuE, "TruthNuE/F");            // True neutrino energy
   fSolarNuAnaTree->Branch("TNuP", &TNuP, "TruthNuP/F");            // True neutrino momentum
+  fSolarNuAnaTree->Branch("TNuPx", &TNuPx, "TruthNuPx/F");         // True neutrino momentum
+  fSolarNuAnaTree->Branch("TNuPy", &TNuPy, "TruthNuPy/F");         // True neutrino momentum
+  fSolarNuAnaTree->Branch("TNuPz", &TNuPz, "TruthNuPz/F");         // True neutrino momentum
   fSolarNuAnaTree->Branch("TNuX", &TNuX, "TruthNuX/F");            // True neutrino X
   fSolarNuAnaTree->Branch("TNuY", &TNuY, "TruthNuY/F");            // True neutrino Y
   fSolarNuAnaTree->Branch("TNuZ", &TNuZ, "TruthNuZ/F");            // True neutrino Z
@@ -464,14 +469,20 @@ void SolarNuAna::analyze(art::Event const &evt)
     {
       const simb::MCNeutrino &nue = MARLEYtruth.GetNeutrino();
       TNuInteraction = str(nue.InteractionType());
+      TNuProcess = str(nue.CCNC());
+      TNuMode = str(nue.Mode());
       TNuE = 1e3*nue.Nu().E();
       TNuP = 1e3*nue.Nu().Pt();
+      TNuPx = 1e3*nue.Nu().Px();
+      TNuPy = 1e3*nue.Nu().Py();
+      TNuPz = 1e3*nue.Nu().Pz();
       TNuX = nue.Nu().Vx();
       TNuY = nue.Nu().Vy();
       TNuZ = nue.Nu().Vz();
-      int N = MARLEYtruth.NParticles();
       sNuTruth = sNuTruth + "\nNeutrino Interaction: " + TNuInteraction;
-      sNuTruth = sNuTruth + "\nNumber of Neutrino Daughters: " + str(N);
+      sNuTruth = sNuTruth + "\nNeutrino Process: " + TNuProcess;
+      sNuTruth = sNuTruth + "\nNeutrino Mode: " + TNuMode;
+      sNuTruth = sNuTruth + "\nNumber of Neutrino Daughters: " + str(MARLEYtruth.NParticles());
       sNuTruth = sNuTruth + "\nNeutrino energy: " + str(TNuE) + " MeV";
       sNuTruth = sNuTruth + "\nPosition (" + str(TNuX) + ", " + str(TNuY) + ", " + str(TNuZ) + ") cm";
     }
