@@ -90,17 +90,22 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
     art::fill_ptr_vector(channellist, simChannelListHandle);
   SortWirePtrByChannel( channellist, true );
 
-  // MarleyTrackIDs and MarleyChannels store TrackId and Channel+IDE of energy deposits from Marley produced signals
+  ////////////////////////////////////////////////////////////
+  //Store TrackIDs for each generator
+  // MarleyChannels stores Channel+IDE of energy deposits from Marley produced signals
   std::vector<int> MarleyTrackIDs;
+  std::vector<std::vector<int>> AllPartsTrackIDs(fLabels.size()); // list of trackIDs for each generator label in Parts
   std::map<int,sim::IDE> MarleyChannels;
-  for (const auto& [TrackID, MCPart] : Parts[0]) {
-    if( fLogLevel >= 3 ) std::cout << "Marley particle TrackID: " << TrackID << std::endl;
-    MarleyTrackIDs.push_back(TrackID);
+  
+  for ( size_t i = 0; i < fLabels.size(); i++){
+    for (const auto& [TrackID, MCPart] : Parts[i]) AllPartsTrackIDs[i].push_back(TrackID);
   }
+
+  //TODO move this into a function after creating ROI
   for (auto mySimChannel : channellist) {
     std::vector<sim::IDE> simIDEList = mySimChannel->TrackIDsAndEnergies(0, fNTicksPerWire);
     for (auto simIDE : simIDEList) {
-      if (std::find(MarleyTrackIDs.begin(), MarleyTrackIDs.end(), simIDE.trackID) != MarleyTrackIDs.end()) {
+      if (std::find(AllPartsTrackIDs[0].begin(), AllPartsTrackIDs[0].end(), simIDE.trackID) != AllPartsTrackIDs[0].end()) {
         if( fLogLevel >= 3 ) std::cout << "marley particle in channel: " << mySimChannel->Channel() << std::endl;
         MarleyChannels[mySimChannel->Channel()] = simIDE;
       }
@@ -135,6 +140,8 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   if( fLogLevel >= 3 ) std::cout << "starting ROIEfficiencies" << std::endl;
   int n_channels = rawList.size();
   ROIEfficiencies(ret, n_channels, MarleyChannels);
+
+  
 }
 
 
@@ -189,20 +196,26 @@ void roiana::ROIAna::beginJob() {
   gROOT->SetBatch(1);
 
   art::ServiceHandle<art::TFileService> tfs;
-  fTree = tfs->make<TTree>(fTreeName.c_str() ,fTreeName.c_str() );
-  fMCTruthTree = tfs->make<TTree>("MCTruthTree","MC Truth Tree");
-  fInteractionTree = tfs->make<TTree>("MCInteraction","MC Event Tree");
+  fROITree = tfs->make<TTree>("MCROITree" , "MC ROI Tree (for energy depo per timetick per TrackID)" );
+  fMCTruthTree = tfs->make<TTree>("MCTruthTree","contains particle counts from each generator");
+  fInteractionTree = tfs->make<TTree>("MCInteraction","MC Interaction Tree");
 
-  fTree->Branch("run", &run);
-  fTree->Branch("subrun", &subrun);
-  fTree->Branch("event", &event);
-  fTree->Branch("MC", &MC);
+  fROITree -> Branch("Run",      &run);
+  fROITree -> Branch("Subrun",   &subrun);
+  fROITree -> Branch("Event",    &event);
+  fROITree -> Branch("PDG",                    &PDGROITree,   "PDG/I");       // Energy depo per TrackID, PDG
+  fROITree -> Branch("TrackID",                &TrackIDROITree);              // Energy depo per TrackID, TrackID
+  fROITree -> Branch("Generator",              &Generator);                   // Energy depo per TrackID, generator
+  fROITree -> Branch("MCPartEnergy",           &MCParticleEnergy,  "Energy/F");  // Energy depo per TrackID, MC particle energy
+  fROITree -> Branch("TrueEnergyDeposited",    &TEnergyDeposited);            // Energy depo per TrackID, energy deposited
+  fROITree -> Branch("TrueChargeDeposited",    &TChargeDeposited);            // Energy depo per TrackID, charge induced
+  fROITree -> Branch("TrueEnergyDepositedROI", &TEnergyDepositedROI);         // Energy depo per TrackID, energy in ROI 
+  fROITree -> Branch("TrueChargeDepositedROI", &TChargeDepositedROI);         // Energy depo per TrackID, charge in ROI
 
   fMCTruthTree -> Branch("Event",                &event,          "Event/I");  // Event number.
   fMCTruthTree -> Branch("Flag",                 &flag,           "Flag/I");   // Flag used to match truth with reco tree entries.
   fMCTruthTree -> Branch("TruthPart",            &TPart);                      // Number particles per generator.
-
-  
+ 
   fInteractionTree -> Branch("Event",            &event,          "Event/I");  // Event number.
   fInteractionTree -> Branch("Flag",             &flag,           "Flag/I");   // Flag used to match truth with reco tree entries.
   fInteractionTree -> Branch("PDG",              &PDG,            "PDG/I");    // Main interacting particle PDG.
@@ -211,17 +224,17 @@ void roiana::ROIAna::beginJob() {
   fInteractionTree -> Branch("Momentum",         &Momentum);                   // Main interacting particle momentum [GeV^2].
   fInteractionTree -> Branch("StartVertex",      &StartVertex);                // Main interacting particle start vertex [cm].
   fInteractionTree -> Branch("EndVertex",        &EndVertex);                  // Main interacting particle end vertex [cm].
-  fInteractionTree -> Branch("DaughterPDG",      &DaughterPDG);                // Main interacting particle daughter PDG.
-  fInteractionTree -> Branch("DaughterE",        &DaughterE);                  // Main interacting particle daughter energy [GeV^2].
-  fInteractionTree -> Branch("DaughterPx",       &DaughterPx);                 // Main interacting particle daughter momentum X [GeV^2].
-  fInteractionTree -> Branch("DaughterPy",       &DaughterPy);                 // Main interacting particle daughter momentum Y [GeV^2].
-  fInteractionTree -> Branch("DaughterPz",       &DaughterPz);                 // Main interacting particle daughter momentum Z [GeV^2].
-  fInteractionTree -> Branch("DaughterStartVx",  &DaughterStartVx);            // Main interacting particle daughter start vertex X [cm].
-  fInteractionTree -> Branch("DaughterStartVy",  &DaughterStartVy);            // Main interacting particle daughter start vertex Y [cm].
-  fInteractionTree -> Branch("DaughterStartVz",  &DaughterStartVz);            // Main interacting particle daughter start vertex Z [cm].
-  fInteractionTree -> Branch("DaughterEndVx",    &DaughterEndVx);              // Main interacting particle daughter end vertex X [cm].
-  fInteractionTree -> Branch("DaughterEndVy",    &DaughterEndVy);              // Main interacting particle daughter end vertex Y [cm].
-  fInteractionTree -> Branch("DaughterEndVz",    &DaughterEndVz);              // Main interacting particle daughter end vertex Z [cm].
+  //fInteractionTree -> Branch("DaughterPDG",      &DaughterPDG);                // Main interacting particle daughter PDG.
+  //fInteractionTree -> Branch("DaughterE",        &DaughterE);                  // Main interacting particle daughter energy [GeV^2].
+  //fInteractionTree -> Branch("DaughterPx",       &DaughterPx);                 // Main interacting particle daughter momentum X [GeV^2].
+  //fInteractionTree -> Branch("DaughterPy",       &DaughterPy);                 // Main interacting particle daughter momentum Y [GeV^2].
+  //fInteractionTree -> Branch("DaughterPz",       &DaughterPz);                 // Main interacting particle daughter momentum Z [GeV^2].
+  //fInteractionTree -> Branch("DaughterStartVx",  &DaughterStartVx);            // Main interacting particle daughter start vertex X [cm].
+  //fInteractionTree -> Branch("DaughterStartVy",  &DaughterStartVy);            // Main interacting particle daughter start vertex Y [cm].
+  //fInteractionTree -> Branch("DaughterStartVz",  &DaughterStartVz);            // Main interacting particle daughter start vertex Z [cm].
+  //fInteractionTree -> Branch("DaughterEndVx",    &DaughterEndVx);              // Main interacting particle daughter end vertex X [cm].
+  //fInteractionTree -> Branch("DaughterEndVy",    &DaughterEndVy);              // Main interacting particle daughter end vertex Y [cm].
+  //fInteractionTree -> Branch("DaughterEndVz",    &DaughterEndVz);              // Main interacting particle daughter end vertex Z [cm].
   
 
   std::string name1 = Form("TrueEnergyDeposited_%s",fTreeName.c_str() );
@@ -277,7 +290,9 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
     //auto rawdigit = m.second.first;
     auto sim = m.second.second;
     for( auto &tdcide: sim->TDCIDEMap() )
+    //for( auto &tdcide: sim->TrackIDsAndEnergies(0, fNTicksPerWire) )
     {
+      //These energies and charges are per channel
       float energies=fECMin;
       float charges=fECMin;
       float energies_roi=fECMin;
@@ -285,9 +300,17 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
       
       for( auto &ide: tdcide.second )
       {
-        if( fLogLevel >= 3 ) std::cout<<"ide.trackID: "<<ide.trackID<<std::endl;
         float energy = ide.energy;
         float numElectrons = ide.numElectrons;
+        if( fLogLevel >= 3 ) std::cout<<"ide.trackID: "<<ide.trackID<<std::endl;
+        //serparate by TrackID
+        TrackIDEnergyMap[ide.trackID] += energy;
+        TrackIDChargeMap[ide.trackID] += numElectrons;
+        if (ret[channel]) {
+          TrackIDEnergyMapROI[ide.trackID] += energy;
+          TrackIDChargeMapROI[ide.trackID] += numElectrons;
+        }
+
         energies+=energy;
         charges+=numElectrons;
         if (ret[channel]) {
@@ -316,8 +339,7 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
 void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, std::map<int,sim::IDE> MarleyChannels )
 /*
  * Fill ROI performance histograms:
- *   */
-
+*/
 {
   // data reduction rate estimation
   int n_channels_in_ROI = 0;
@@ -351,6 +373,22 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, st
   std::cout << "Marley signal energy fraction in ROI: " << MarleyEnergyROI/MarleyEnergyTot << std::endl;
   //std::cout << "Marley signal charge fraction in ROI: " << MarleyEnergyROI/MarleyEnergyTot << std::endl;
   MarleySignalSensitivity->Fill(MarleyEnergyROI/MarleyEnergyTot);
+
+  //populate MCROITree, with info per trackID
+  for ( size_t i = 0; i < fLabels.size(); i++){
+    for (const auto& [TrackID, MCPart] : Parts[i]){
+      PDGROITree =          MCPart.PdgCode();
+      TrackIDROITree =      TrackID;
+      Generator =           fLabels[i];
+      MCParticleEnergy =    MCPart.E();
+      TEnergyDeposited =    TrackIDEnergyMap[TrackID];
+      TChargeDeposited =    TrackIDChargeMap[TrackID];
+      TEnergyDepositedROI = TrackIDEnergyMapROI[TrackID];
+      TChargeDepositedROI = TrackIDChargeMapROI[TrackID];
+
+      fROITree -> Fill();
+    }
+  }
 }
 
 //......................................................
@@ -388,10 +426,10 @@ Fill MCInteraction Tree with information about the main interaction in the event
       StartVertex = {MCParticle.Vx(),MCParticle.Vy(),MCParticle.Vz()};
       EndVertex =   {MCParticle.EndX(),MCParticle.EndY(),MCParticle.EndZ()};
       
-      std::vector<int> DaughterList = {};
-      for (int i = 0; i < MCParticle.NumberDaughters(); i++){
-        DaughterList.push_back(MCParticle.Daughter(i));
-      }
+      //std::vector<int> DaughterList = {};
+      //for (int i = 0; i < MCParticle.NumberDaughters(); i++){
+      //  DaughterList.push_back(MCParticle.Daughter(i));
+      //}
       // Print nice output with all the main interaction info
       if( fLogLevel >= 3 ) {
         lheaderstr = PrintInColor(lheaderstr,"\nMain interacting particle for process "+mainiter->second.Process()+": ",GetColor("magenta"));
@@ -402,7 +440,7 @@ Fill MCInteraction Tree with information about the main interaction in the event
         lheaderstr = PrintInColor(lheaderstr,"\nEndVertex ->\t"   + std::to_string(EndVertex[0]) + " " + std::to_string(EndVertex[1]) + " " + std::to_string(EndVertex[2]),GetColor("cyan"));
       }
 
-      for ( std::map<int,simb::MCParticle>::iterator daughteriter = MCParticleListCopy.begin(); daughteriter != MCParticleListCopy.end(); daughteriter++ ){
+      /* for ( std::map<int,simb::MCParticle>::iterator daughteriter = MCParticleListCopy.begin(); daughteriter != MCParticleListCopy.end(); daughteriter++ ){
         for (size_t i = 0; i < DaughterList.size(); i++){
           if (daughteriter->first == MCParticle.Daughter(i)){
             DaughterPDG.push_back(daughteriter->second.PdgCode());
@@ -419,6 +457,7 @@ Fill MCInteraction Tree with information about the main interaction in the event
           } // If the particle is a daughter of the main interaction
         } // Loop over all daughters
       } // Loop over all particles in the map
+      */
       fInteractionTree -> Fill();
     } // Loop over all particles in the map
     if( fLogLevel >= 3 ) {

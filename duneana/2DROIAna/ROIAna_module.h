@@ -116,9 +116,11 @@ private:
   std::map<int, std::string> 
     trkid_to_label_map;
 
-  /////////////////////////////////////////////
   // Geometry services
   const geo::GeometryCore* geo; //= lar::providerFrom<geo::Geometry>();
+
+  /////////////////////////////////////////////
+  // Tree Variables
 
   int run;
   int subrun;
@@ -126,11 +128,26 @@ private:
   int MC;
   int flag;
 
+  // --- MC ROI Tree Variables
+  int PDGROITree;
+  int TrackIDROITree;
+  std::string Generator;
+  float MCParticleEnergy;
+  float TEnergyDeposited;
+  float TChargeDeposited;
+  float TEnergyDepositedROI;
+  float TChargeDepositedROI;
+  std::map<int,float> TrackIDEnergyMap;
+  std::map<int,float> TrackIDChargeMap;
+  std::map<int,float> TrackIDEnergyMapROI;
+  std::map<int,float> TrackIDChargeMapROI;
+
+  // --- MC Truth Tree Variables
   std::vector<int> TPart;
   std::vector<std::map<int,simb::MCParticle>> Parts = {};
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
-  // --- MC Interaction Variables
+  // --- MC Interaction Tree Variables
   std::string Interaction;
   int PDG;
   float Energy;
@@ -169,6 +186,7 @@ private:
   // Declare output data
   TTree *fTree;
   std::string fTreeName;
+  TTree* fROITree;
   TTree* fMCTruthTree;
   TTree* fInteractionTree;
 
