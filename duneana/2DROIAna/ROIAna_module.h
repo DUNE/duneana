@@ -151,9 +151,9 @@ private:
   std::string Interaction;
   int PDG;
   float Energy;
-  std::vector<int> DaughterPDG;
+  //std::vector<int> DaughterPDG;
   std::vector<double> Momentum,StartVertex,EndVertex;
-  std::vector<double> DaughterE,DaughterPx,DaughterPy,DaughterPz,DaughterStartVx,DaughterStartVy,DaughterStartVz,DaughterEndVx,DaughterEndVy,DaughterEndVz;
+  //std::vector<double> DaughterE,DaughterPx,DaughterPy,DaughterPz,DaughterStartVx,DaughterStartVy,DaughterStartVz,DaughterEndVx,DaughterEndVy,DaughterEndVz;
   
   /////////////////////////////////////////////
   // Private Functions

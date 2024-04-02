@@ -236,26 +236,17 @@ void roiana::ROIAna::beginJob() {
   //fInteractionTree -> Branch("DaughterEndVy",    &DaughterEndVy);              // Main interacting particle daughter end vertex Y [cm].
   //fInteractionTree -> Branch("DaughterEndVz",    &DaughterEndVz);              // Main interacting particle daughter end vertex Z [cm].
   
+  TrueEnergyDeposited = tfs->make<TH1F>( "TrueEnergyDeposited", "Energy; E (MeV)",100,0,fHistEnergyMax);
+  TrueEnergyDepositedInROI =  tfs->make<TH1F>( "TrueEnergyDepositedInROI", "Energy; E (MeV)",100,0,fHistEnergyMax);
+  TrueEnergyDepositedRatio =  tfs->make<TH1F>( "TrueEnergyDepositedRatio", "Energy; E (MeV)",100,0,fHistEnergyMax);
 
-  std::string name1 = Form("TrueEnergyDeposited_%s",fTreeName.c_str() );
-  std::string name2 = Form("TrueEnergyDepositedInROI_%s",fTreeName.c_str() );
-  std::string name3 = Form("TrueEnergyDepositedRatio_%s",fTreeName.c_str() );
-  TrueEnergyDeposited = tfs->make<TH1F>( name1.c_str(), "Energy; E (MeV)",100,0,fHistEnergyMax);
-  TrueEnergyDepositedInROI =  tfs->make<TH1F>( name2.c_str(), "Energy; E (MeV)",100,0,fHistEnergyMax);
-  TrueEnergyDepositedRatio =  tfs->make<TH1F>( name3.c_str(), "Energy; E (MeV)",100,0,fHistEnergyMax);
+  TrueChargeDeposited = tfs->make<TH1F>( "TrueChargeDeposited", "Charge; Number of ionization electrons",100,0,fHistChargeMax);
+  TrueChargeDepositedInROI =  tfs->make<TH1F>( "TrueChargeDepositedInROI", "Charge; Number of ionization electrons",100,0,fHistChargeMax);
+  TrueChargeDepositedRatio =  tfs->make<TH1F>( "TrueChargeDepositedRatio", "Charge; Number of ionization electrons",100,0,fHistChargeMax);
 
-  std::string name4 = Form("TrueChargeDeposited_%s",fTreeName.c_str() );
-  std::string name5 = Form("TrueChargeDepositedInROI_%s",fTreeName.c_str() );
-  std::string name6 = Form("TrueChargeDepositedRatio_%s",fTreeName.c_str() );
-  TrueChargeDeposited = tfs->make<TH1F>( name4.c_str(), "Charge; Number of ionization electrons",100,0,fHistChargeMax);
-  TrueChargeDepositedInROI =  tfs->make<TH1F>( name5.c_str(), "Charge; Number of ionization electrons",100,0,fHistChargeMax);
-  TrueChargeDepositedRatio =  tfs->make<TH1F>( name6.c_str(), "Charge; Number of ionization electrons",100,0,fHistChargeMax);
+  DataReductionRate = tfs->make<TH1F>( "DataReductionRate", "Data retention fraction; (channels in ROI)/(total channels)",100,0,1.02);
 
-  std::string name7 = Form("DataReductionRate_%s",fTreeName.c_str() );
-  DataReductionRate = tfs->make<TH1F>( name7.c_str(), "Data retention fraction; (channels in ROI)/(total channels)",100,0,1.02);
-
-  std::string name8 = Form("MarleySignalSensitivity_%s",fTreeName.c_str() );
-  MarleySignalSensitivity = tfs->make<TH1F>( name8.c_str(), "Marley event energy fraction in ROI; (energy in ROI)/(total energy)",100,0,1.02);
+  MarleySignalSensitivity = tfs->make<TH1F>( "SignalSensitivity", "Marley event energy fraction in ROI; (energy in ROI)/(total energy)",100,0,1.02);
 }
 
 void roiana::ROIAna::endJob()
