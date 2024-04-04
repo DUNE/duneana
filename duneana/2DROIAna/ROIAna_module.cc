@@ -280,46 +280,56 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
     auto channel = m.first;
     //auto rawdigit = m.second.first;
     auto sim = m.second.second;
-    for( auto &tdcide: sim->TDCIDEMap() )
-    //for( auto &tdcide: sim->TrackIDsAndEnergies(0, fNTicksPerWire) )
+    //for( auto &tdcide: sim->TDCIDEMap() )
+    //These energies and charges are per channel
+    float energies=fECMin;
+    float charges=fECMin;
+    float energies_roi=fECMin;
+    float charges_roi=fECMin;
+    
+    //loop over trackIDs for each channel
+    for( auto &trackide: sim->TrackIDsAndEnergies(0, fNTicksPerWire) )
     {
       //These energies and charges are per channel
-      float energies=fECMin;
-      float charges=fECMin;
-      float energies_roi=fECMin;
-      float charges_roi=fECMin;
+      //float energies=fECMin;
+      //float charges=fECMin;
+      //float energies_roi=fECMin;
+      //float charges_roi=fECMin;
       
-      for( auto &ide: tdcide.second )
-      {
-        float energy = ide.energy;
-        float numElectrons = ide.numElectrons;
-        if( fLogLevel >= 3 ) std::cout<<"ide.trackID: "<<ide.trackID<<std::endl;
-        //serparate by TrackID
-        TrackIDEnergyMap[ide.trackID] += energy;
-        TrackIDChargeMap[ide.trackID] += numElectrons;
-        if (ret[channel]) {
-          TrackIDEnergyMapROI[ide.trackID] += energy;
-          TrackIDChargeMapROI[ide.trackID] += numElectrons;
-        }
-
-        energies+=energy;
-        charges+=numElectrons;
-        if (ret[channel]) {
-          energies_roi+=energy;
-          charges_roi+=numElectrons;
-        }
-      }
-      
-      if( fLogLevel >= 3 ) std::cout<<"FillHistogram: begin"<<std::endl;
-      //Some function to fill histogram
-      TrueEnergyDeposited->Fill(energies);
-      TrueChargeDeposited->Fill(charges);
+      //for( auto &ide: tdcide.second )
+      //{
+      int TrackID = abs(trackide.trackID);
+      float energy = trackide.energy;
+      float numElectrons = trackide.numElectrons;
+      if( fLogLevel >= 3 ) std::cout<<"trackID: "<<TrackID<<std::endl;
+      //std::cout<<"trackID: "<<trackide.trackID<<std::endl;
+      if (trackide.trackID==41562) std::cout<<"found trackID 41562 "<<std::endl;
+      //serparate by TrackID
+      TrackIDEnergyMap[TrackID] += energy;
+      TrackIDChargeMap[TrackID] += numElectrons;
       if (ret[channel]) {
-        TrueEnergyDepositedInROI->Fill(energies_roi);
-        TrueChargeDepositedInROI->Fill(charges_roi);
+        TrackIDEnergyMapROI[TrackID] += energy;
+        TrackIDChargeMapROI[TrackID] += numElectrons;
       }
-      if( fLogLevel >= 3 ) std::cout<<"FillHistogram: end"<<std::endl;
+
+      energies+=energy;
+      charges+=numElectrons;
+      if (ret[channel]) {
+        energies_roi+=energy;
+        charges_roi+=numElectrons;
+      }
+      //}
+    }  
+    if( fLogLevel >= 3 ) std::cout<<"FillHistogram: begin"<<std::endl;
+    //Some function to fill histogram
+    TrueEnergyDeposited->Fill(energies);
+    TrueChargeDeposited->Fill(charges);
+    if (ret[channel]) {
+      TrueEnergyDepositedInROI->Fill(energies_roi);
+      TrueChargeDepositedInROI->Fill(charges_roi);
     }
+    if( fLogLevel >= 3 ) std::cout<<"FillHistogram: end"<<std::endl;
+    
   }
   // True energy & charge ratio in ROI
   TrueEnergyDepositedRatio->Divide(TrueEnergyDepositedInROI, TrueEnergyDeposited);
@@ -391,24 +401,24 @@ Fill MCInteraction Tree with information about the main interaction in the event
 - HeavDebug is a boolean to turn on/off debugging statements
 */
 { 
-  mf::LogInfo lheader("header");
-  std::string lheaderstr = "";
+  //mf::LogInfo lheader("header");
+  //std::string lheaderstr = "";
   // Make a copy of MCParticleList to be used for finding Daughter info
   std::map< int, simb::MCParticle> MCParticleListCopy = MCParticleList;
-  bool FoundInteraction;
+  //bool FoundInteraction;
 
   if (ProcessList.empty()){
-    lheaderstr = PrintInColor(lheaderstr,"\n-> No processes in the list!",GetColor("red"));
-    lheader << lheaderstr;
+    //lheaderstr = PrintInColor(lheaderstr,"\n-> No processes in the list!",GetColor("red"));
+    //lheader << lheaderstr;
     return;  
   }
   
   for (size_t j = 0; j < ProcessList.size(); j++){
-    FoundInteraction = false;    
+    //FoundInteraction = false;    
     for ( std::map<int,simb::MCParticle>::iterator mainiter = MCParticleList.begin(); mainiter != MCParticleList.end(); mainiter++ ){
       if ( mainiter->second.Process() != ProcessList[j] && mainiter->second.EndProcess() != ProcessList[j]){continue;}
-      if( fLogLevel >= 3 ) lheaderstr = lheaderstr+"\nFound a main interaction "+mainiter->second.EndProcess();
-      FoundInteraction = true;
+      //if( fLogLevel >= 3 ) lheaderstr = lheaderstr+"\nFound a main interaction "+mainiter->second.EndProcess();
+      //FoundInteraction = true;
       simb::MCParticle MCParticle = mainiter->second;
       Interaction =  MCParticle.EndProcess();
       PDG =          MCParticle.PdgCode();
@@ -422,14 +432,14 @@ Fill MCInteraction Tree with information about the main interaction in the event
       //  DaughterList.push_back(MCParticle.Daughter(i));
       //}
       // Print nice output with all the main interaction info
-      if( fLogLevel >= 3 ) {
+      /*if( fLogLevel >= 3 ) {
         lheaderstr = PrintInColor(lheaderstr,"\nMain interacting particle for process "+mainiter->second.Process()+": ",GetColor("magenta"));
         lheaderstr = PrintInColor(lheaderstr,"\nPDG ->\t"         + std::to_string(PDG),GetColor("cyan"));
         lheaderstr = PrintInColor(lheaderstr,"\nEnergy ->\t"      + std::to_string(Energy),GetColor("cyan"));
         lheaderstr = PrintInColor(lheaderstr,"\nMomentum ->\t"    + std::to_string(Momentum[0]) + " " + std::to_string(Momentum[1]) + " " + std::to_string(Momentum[2]),GetColor("cyan"));
         lheaderstr = PrintInColor(lheaderstr,"\nStartVertex ->\t" + std::to_string(StartVertex[0]) + " " + std::to_string(StartVertex[1]) + " " + std::to_string(StartVertex[2]),GetColor("cyan"));
         lheaderstr = PrintInColor(lheaderstr,"\nEndVertex ->\t"   + std::to_string(EndVertex[0]) + " " + std::to_string(EndVertex[1]) + " " + std::to_string(EndVertex[2]),GetColor("cyan"));
-      }
+      }*/
 
       /* for ( std::map<int,simb::MCParticle>::iterator daughteriter = MCParticleListCopy.begin(); daughteriter != MCParticleListCopy.end(); daughteriter++ ){
         for (size_t i = 0; i < DaughterList.size(); i++){
@@ -451,12 +461,12 @@ Fill MCInteraction Tree with information about the main interaction in the event
       */
       fInteractionTree -> Fill();
     } // Loop over all particles in the map
-    if( fLogLevel >= 3 ) {
+    /*if( fLogLevel >= 3 ) {
       if (!FoundInteraction) lheaderstr = PrintInColor(lheaderstr,"\n-> No main interaction found for process "+ProcessList[j]+"!",GetColor("yellow"));
       else lheaderstr = PrintInColor(lheaderstr,"\n-> Filled MCINteraction Tree for process "+ProcessList[j]+"!",GetColor("green"));
-    }
+    }*/
   } // Loop over all processes in the list
-  if( fLogLevel >= 3 ) { lheader << lheaderstr;}
+  //if( fLogLevel >= 3 ) { lheader << lheaderstr;}
   return;
 } // FillMCInteractionTree
 
