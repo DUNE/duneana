@@ -133,14 +133,30 @@ private:
   int TrackIDROITree;
   std::string Generator;
   float MCParticleEnergy;
-  float TEnergyDeposited;
-  float TChargeDeposited;
-  float TEnergyDepositedROI;
-  float TChargeDepositedROI;
-  std::map<int,float> TrackIDEnergyMap;
-  std::map<int,float> TrackIDChargeMap;
-  std::map<int,float> TrackIDEnergyMapROI;
-  std::map<int,float> TrackIDChargeMapROI;
+  float TEnergyDepositedU;
+  float TChargeDepositedU;
+  float TEnergyDepositedV;
+  float TChargeDepositedV;
+  float TEnergyDepositedX;
+  float TChargeDepositedX;
+  float TEnergyDepositedROIU;
+  float TChargeDepositedROIU;
+  float TEnergyDepositedROIV;
+  float TChargeDepositedROIV;
+  float TEnergyDepositedROIX;
+  float TChargeDepositedROIX;
+  std::map<int,float> TrackIDEnergyMapU;
+  std::map<int,float> TrackIDChargeMapU;
+  std::map<int,float> TrackIDEnergyMapV;
+  std::map<int,float> TrackIDChargeMapV;
+  std::map<int,float> TrackIDEnergyMapX;
+  std::map<int,float> TrackIDChargeMapX;
+  std::map<int,float> TrackIDEnergyMapROIU;
+  std::map<int,float> TrackIDChargeMapROIU;
+  std::map<int,float> TrackIDEnergyMapROIV;
+  std::map<int,float> TrackIDChargeMapROIV;
+  std::map<int,float> TrackIDEnergyMapROIX;
+  std::map<int,float> TrackIDChargeMapROIX;
 
   // --- MC Truth Tree Variables
   std::vector<int> TPart;

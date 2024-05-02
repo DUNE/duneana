@@ -207,10 +207,18 @@ void roiana::ROIAna::beginJob() {
   fROITree -> Branch("TrackID",                &TrackIDROITree);              // Energy depo per TrackID, TrackID
   fROITree -> Branch("Generator",              &Generator);                   // Energy depo per TrackID, generator
   fROITree -> Branch("MCPartEnergy",           &MCParticleEnergy,  "Energy/F");  // Energy depo per TrackID, MC particle energy
-  fROITree -> Branch("TrueEnergyDeposited",    &TEnergyDeposited);            // Energy depo per TrackID, energy deposited
-  fROITree -> Branch("TrueChargeDeposited",    &TChargeDeposited);            // Energy depo per TrackID, charge induced
-  fROITree -> Branch("TrueEnergyDepositedROI", &TEnergyDepositedROI);         // Energy depo per TrackID, energy in ROI 
-  fROITree -> Branch("TrueChargeDepositedROI", &TChargeDepositedROI);         // Energy depo per TrackID, charge in ROI
+  fROITree -> Branch("TrueEnergyDepositedU",    &TEnergyDepositedU);            // Energy depo per TrackID, energy deposited, u plane
+  fROITree -> Branch("TrueChargeDepositedU",    &TChargeDepositedU);            // Energy depo per TrackID, charge induced, u plane
+  fROITree -> Branch("TrueEnergyDepositedV",    &TEnergyDepositedV);            // Energy depo per TrackID, energy deposited, v plane
+  fROITree -> Branch("TrueChargeDepositedV",    &TChargeDepositedV);            // Energy depo per TrackID, charge induced, v plane
+  fROITree -> Branch("TrueEnergyDepositedX",    &TEnergyDepositedX);            // Energy depo per TrackID, energy deposited, x plane (collection)
+  fROITree -> Branch("TrueChargeDepositedX",    &TChargeDepositedX);            // Energy depo per TrackID, charge induced, x plane (collection)
+  fROITree -> Branch("TrueEnergyDepositedROIU", &TEnergyDepositedROIU);         // Energy depo per TrackID, energy in ROI, u plane
+  fROITree -> Branch("TrueChargeDepositedROIU", &TChargeDepositedROIU);         // Energy depo per TrackID, charge in ROI, u plane
+  fROITree -> Branch("TrueEnergyDepositedROIV", &TEnergyDepositedROIV);         // Energy depo per TrackID, energy in ROI, v plane
+  fROITree -> Branch("TrueChargeDepositedROIV", &TChargeDepositedROIV);         // Energy depo per TrackID, charge in ROI, v plane
+  fROITree -> Branch("TrueEnergyDepositedROIX", &TEnergyDepositedROIX);         // Energy depo per TrackID, energy in ROI, x plane (collection)
+  fROITree -> Branch("TrueChargeDepositedROIX", &TChargeDepositedROIX);         // Energy depo per TrackID, charge in ROI, x plane (collection)
 
   fMCTruthTree -> Branch("Event",                &event,          "Event/I");  // Event number.
   fMCTruthTree -> Branch("Flag",                 &flag,           "Flag/I");   // Flag used to match truth with reco tree entries.
@@ -278,6 +286,7 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
   for( auto m: ch_w_sc)
   {
     auto channel = m.first;
+    auto channel_reduced = channel%fNChanPerApa;
     //auto rawdigit = m.second.first;
     auto sim = m.second.second;
     //for( auto &tdcide: sim->TDCIDEMap() )
@@ -303,13 +312,38 @@ void roiana::ROIAna::ROIFilter( std::map<int,bool> ret )
       float numElectrons = trackide.numElectrons;
       if( fLogLevel >= 3 ) std::cout<<"trackID: "<<TrackID<<std::endl;
       //std::cout<<"trackID: "<<trackide.trackID<<std::endl;
-      if (trackide.trackID==41562) std::cout<<"found trackID 41562 "<<std::endl;
-      //serparate by TrackID
-      TrackIDEnergyMap[TrackID] += energy;
-      TrackIDChargeMap[TrackID] += numElectrons;
-      if (ret[channel]) {
-        TrackIDEnergyMapROI[TrackID] += energy;
-        TrackIDChargeMapROI[TrackID] += numElectrons;
+      //if (trackide.trackID==41562) std::cout<<"found trackID 41562 "<<std::endl;
+
+      //fill energy by TrackID and wire plane
+      //TrackIDEnergyMap[TrackID] += energy;
+      //TrackIDChargeMap[TrackID] += numElectrons;
+      //separate by wire plane TODO
+      if (channel_reduced <800) {
+        TrackIDEnergyMapU[TrackID] += energy;
+        TrackIDChargeMapU[TrackID] += numElectrons;
+      } 
+      else if (channel_reduced <1600) {
+        TrackIDEnergyMapV[TrackID] += energy;
+        TrackIDChargeMapV[TrackID] += numElectrons;
+      }
+      else if (channel_reduced <2560) {
+        TrackIDEnergyMapX[TrackID] += energy;
+        TrackIDChargeMapX[TrackID] += numElectrons;
+      }
+      else{std::cout<<"WARNING: channel number above 2560"<<std::endl;}
+
+      //fill ROI energies by TrackID and wire plane
+      if (ret[channel] && channel_reduced <800) {
+        TrackIDEnergyMapROIU[TrackID] += energy;
+        TrackIDChargeMapROIU[TrackID] += numElectrons;
+      }
+      else if (ret[channel] && channel_reduced <1600) {
+        TrackIDEnergyMapROIV[TrackID] += energy;
+        TrackIDChargeMapROIV[TrackID] += numElectrons;
+      }
+      else if (ret[channel]){
+        TrackIDEnergyMapROIX[TrackID] += energy;
+        TrackIDChargeMapROIX[TrackID] += numElectrons;
       }
 
       energies+=energy;
@@ -382,10 +416,18 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, st
       TrackIDROITree =      TrackID;
       Generator =           fLabels[i];
       MCParticleEnergy =    MCPart.E();
-      TEnergyDeposited =    TrackIDEnergyMap[TrackID];
-      TChargeDeposited =    TrackIDChargeMap[TrackID];
-      TEnergyDepositedROI = TrackIDEnergyMapROI[TrackID];
-      TChargeDepositedROI = TrackIDChargeMapROI[TrackID];
+      TEnergyDepositedU =    TrackIDEnergyMapU[TrackID];
+      TChargeDepositedU =    TrackIDChargeMapU[TrackID];
+      TEnergyDepositedV =    TrackIDEnergyMapV[TrackID];
+      TChargeDepositedV =    TrackIDChargeMapV[TrackID];
+      TEnergyDepositedX =    TrackIDEnergyMapX[TrackID];
+      TChargeDepositedX =    TrackIDChargeMapX[TrackID];
+      TEnergyDepositedROIU = TrackIDEnergyMapROIU[TrackID];
+      TChargeDepositedROIU = TrackIDChargeMapROIU[TrackID];
+      TEnergyDepositedROIV = TrackIDEnergyMapROIV[TrackID];
+      TChargeDepositedROIV = TrackIDChargeMapROIV[TrackID];
+      TEnergyDepositedROIX = TrackIDEnergyMapROIX[TrackID];
+      TChargeDepositedROIX = TrackIDChargeMapROIX[TrackID];
 
       fROITree -> Fill();
     }
