@@ -585,9 +585,19 @@ void TPStreamer::analyze(art::Event const & evt)
     //--- Ionization drift electrons (IDEs) associated with current hit
     std::vector<sim::TrackIDE> ThisHitIDE = bt_serv->ChannelToTrackIDEs(clockData, 
 									ThisHit.Channel(), 
-								        WindowStart,
+								  WindowStart,
 									WindowEnd);
 
+    // adding more gen truth information to the output file
+    float true_vertX = trkIDToPType[ThisHitIDE[0].trackID].Vx();
+    float true_vertY = trkIDToPType[ThisHitIDE[0].trackID].Vy();
+    float true_vertZ = trkIDToPType[ThisHitIDE[0].trackID].Vz();
+    float true_time = trkIDToPType[ThisHitIDE[0].trackID].T();
+    float trueE_lepton_marley = trkIDToPType[ThisHitIDE[0].trackID].E(); // how to get the one of the neutrino?
+    float true_Enu = trkIDToPType[ThisHitIDE[0].trackID].NuE(); // unsure
+    float true_px = trkIDToPType[ThisHitIDE[0].trackID].Px();
+    float true_py = trkIDToPType[ThisHitIDE[0].trackID].Py();
+    float true_pz = trkIDToPType[ThisHitIDE[0].trackID].Pz();
     
     //---Get the G4 track associated to the IDEs 
     double TopEFrac = -DBL_MAX;
@@ -601,13 +611,13 @@ void TPStreamer::analyze(art::Event const & evt)
         }
       }
     }
-    PType ThisPType = WhichParType( Hit_True_MainTrID.at(hit));
+    PType ThisPType = WhichParType( abs(Hit_True_MainTrID.at(hit))); // abs is needed considering how the sim pipeline is set up
     
     // add multiple catches? TODO
     std::vector<const sim::IDE*> ThisSimIDE = bt_serv->HitToSimIDEs_Ps(clockData, ThisHit);
     // there should be more conditions here...
 
-    double trueX = 0, trueY = 0, trueZ = 0, trueEnergy = 0, nElectrons = 0;
+    double trueX = 0, trueY = 0, trueZ = 0, trueE_lepton_geant = 0, nElectrons = 0;
     
     for(unsigned int i = 0; i < ThisSimIDE.size(); i++)
     {
@@ -616,7 +626,7 @@ void TPStreamer::analyze(art::Event const & evt)
         trueX = ThisSimIDE.at(i)->x;
         trueY = ThisSimIDE.at(i)->y;
         trueZ = ThisSimIDE.at(i)->z;
-        trueEnergy = ThisSimIDE.at(i)->energy;
+        trueE_lepton_geant = ThisSimIDE.at(i)->energy; // from geant, of lepton
         nElectrons = ThisSimIDE.at(i)->numElectrons;
         break;
       }
@@ -641,12 +651,21 @@ void TPStreamer::analyze(art::Event const & evt)
      << ThisPType << ' ' 
      << evt.event() << ' '
      << ThisHit.View() << ' '
-     << trueX << ' ' // trueX, to be implemented in BT
-     << trueY << ' ' // trueY, to be implemented in BT
-     << trueZ << ' ' // trueZ, to be implemented in BT
-     << trueEnergy << ' ' // energy, to be implemented in BT
+     << trueX << ' ' // trueX
+     << trueY << ' ' // trueY
+     << trueZ << ' ' // trueZ
+     << trueE_lepton_geant << ' ' // energy
      << nElectrons << ' ' // nElectrons, to be implemented in BT OR SOMETHING ELSE
-     << 0 << ' ' // trackId, to be implemented in BT OR SOMETHING ELSE
+     << trkIDToPType[Hit_True_MainTrID.at(hit)] << ' ' // trackId, just in case
+      << true_vertX << ' ' // true_vertX
+      << true_vertY << ' ' // true_vertY
+      << true_vertZ << ' ' // true_vertZ
+      << true_time << ' ' // true_time
+      << trueE_lepton_marley << ' ' // trueE_lepton_marley of electron
+      << true_px << ' ' // true_px of electron
+      << true_py << ' ' // true_py of electron
+      << true_pz << ' ' // true_pz of electron
+      << true_Enu << ' '
      <<  std::endl; 
 
   } // Loop over reco_hits.
