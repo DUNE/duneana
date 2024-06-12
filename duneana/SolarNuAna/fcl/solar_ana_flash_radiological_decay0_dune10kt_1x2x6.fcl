@@ -1,0 +1,16 @@
+# solar_ana_radiological_decay0_dune10kt_1x2x6.fcl
+# Specific configuration for signal+bkg events
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
+
+#include "solar_ana_dune10kt_1x2x6.fcl"
+
+physics.analyzers.solarnuana.ClusterPreselectionNHit: 2
+physics.analyzers.solarnuana.SaveSignalOpHits: true
+
+physics.analyzers.solarnuana.GenerateAdjOpFlash:      true        # Generate OpFlashes.
+physics.analyzers.solarnuana.OpFlashAlgoTime:         5           # Time window to look for adj. OpHits in [tick] units.
+physics.analyzers.solarnuana.OpFlashAlgoRad:          300         # Distance to look for adj. OpHits in [cm] units.
+physics.analyzers.solarnuana.OpFlashAlgoPE:           1.5         # PE threshold to look for adj. OpHits.
+physics.analyzers.solarnuana.OpFlashAlgoTriggerPE:    20          # PE threshold to trigger an OpFlash.
+physics.analyzers.solarnuana.OpFlashAlgoCentroid:     false       # Use the centroid computation of the flash based on a likelihood estimation.
+physics.analyzers.solarnuana.OpFlashAlgoDebug:        false       # Debug flag for the OpFlash algorithm.

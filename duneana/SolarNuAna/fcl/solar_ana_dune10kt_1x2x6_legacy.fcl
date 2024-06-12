@@ -1,6 +1,6 @@
-// solarnuana_hd_job.fcl
-//
-// Run SolarNuAna on the output of offline hit finders
+# solar_ana_dune10kt_1x2x6_legacy.fcl
+#
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
 #include "SolarNuAna.fcl"
 #include "services_dune.fcl"

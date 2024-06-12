@@ -1,6 +1,6 @@
-// solarnuana_job.fcl
-//
-// Run SolarNuAna on the output of offline hit finders
+# solar_ana_dunevd10kt_1x8x6_3view_30deg.fcl
+#
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
 #include "services_dune.fcl"
 #include "SolarNuAna.fcl"
@@ -56,5 +56,3 @@ services.Geometry.ROOT: "dunevd10kt_3view_30deg_v5_refactored_1x8x6ref.gdml"
 
 services.message.destinations.LogStandardOut.threshold: "INFO"
 services.message.destinations.LogStandardOut.type: "cout"
-
-# physics.analyzers.daqanafasth.HitLabel: "fasthit"	# string for the process that made the fast hits

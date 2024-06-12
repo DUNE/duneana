@@ -1,0 +1,8 @@
+# solar_ana_radiological_decay0_dune10kt_1x2x6.fcl
+# Specific configuration for signal+bkg events
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
+
+#include "solar_ana_dune10kt_1x2x6.fcl"
+
+physics.analyzers.solarnuana.ClusterPreselectionNHit: 2
+physics.analyzers.solarnuana.SaveMarleyEDep: false
