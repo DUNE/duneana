@@ -127,7 +127,7 @@ private:
   std::string m_NeutronGenInRockLabel;
 
   std::string m_GeantLabel; //g4
-  std::string m_HitLabel; // which hit finder to use 
+  // std::string m_HitLabel; // which hit finder to use 
 
   //Raw digits label
   std::string m_inputTag;
@@ -135,13 +135,6 @@ private:
   //--- time window around a hit for tagging (useful if filter algorithms elongate hit TOTs)
   raw::TDCtick_t m_HitWindow;  // in ticks 
   bool m_AbsRS; //needed for separate hit tagging to account for modified hit profile
-
-  
-  int m_thresh; // static threshold [ADC] 
-
-  //--- files where we dump our collection and induction TPs
-  std::string m_outputFilename;
-  std::ofstream m_outputFile; 
 
   std::map< int, simb::MCParticle> MarleyMap;
   //  I am not satisfied with this, but for the moment let's not change too much the structure
@@ -167,7 +160,16 @@ private:
   std::map< int, simb::MCParticle> U238ChainGenInAPAPMap;
   std::map< int, simb::MCParticle> Rn222ChainGenInPDSPMap;
   std::map< int, simb::MCParticle> NeutronGenInRockPMap;
+
+  //--- files where we dump our collection and induction TPs
+  std::string m_outputFilename;
+  std::ofstream m_outputFile; 
   
+  int m_thresh; // static threshold [ADC] 
+
+  // compilation complains about variable order in constructor in respect to class
+
+
   //Mapping from track ID to particle type, for use in WhichParType() 
   std::map<int, PType> trkIDToPType; 
   std::vector<int> Hit_True_MainTrID;
@@ -186,7 +188,6 @@ private:
 WaveformThreshDump::WaveformThreshDump(fhicl::ParameterSet const & p)
   :
   EDAnalyzer(p), 
-  m_inputTag(p.get<std::string>("InputTag", "daq")), // NEEDED
 
   // gen labels to retrieve MCtruth
   m_MarleyLabel(                      p.get<std::string>("GenLabels.MarleyLabel")),
@@ -213,12 +214,14 @@ WaveformThreshDump::WaveformThreshDump(fhicl::ParameterSet const & p)
   m_NeutronGenInRockLabel(            p.get<std::string>("GenLabels.NeutronGenInRockLabel")),
 
   m_GeantLabel(    p.get<std::string>("GEANT4Label")),
-  m_HitLabel(      p.get<std::string>("HitLabel")),
+  // m_HitLabel(      p.get<std::string>("HitLabel")),
+  m_inputTag(      p.get<std::string>("InputTag", "daq")), // NEEDED
+
   m_HitWindow(     p.get<raw::TDCtick_t>("HitWindow", 20)), 
   m_AbsRS(         p.get<bool>("AbsRSHits", false)),
   m_outputFilename(p.get<std::string>("OutputFile")), // TODO add here reading of threshold to compose filename
-  m_outputFile(m_outputFilename)
-  m_thresh(p.get<int>("Threshold", 30))
+  m_outputFile(m_outputFilename),
+  m_thresh(        p.get<int>("Threshold", 30))
 
 {
  // print to file the read labels
@@ -604,24 +607,24 @@ void WaveformThreshDump::analyze(art::Event const & evt)
 
   // --- Lift out the raw digits
   // auto reco_hits = evt.getValidHandle<std::vector<recob::Hit> >(m_HitLabel);
-  auto const digits_handle=e.getValidHandle<std::vector<raw::RawDigit>>(m_inputTag);
+  auto const digits_handle=evt.getValidHandle<std::vector<raw::RawDigit>>(m_inputTag);
 
   // auto& digits_in =*digits_handle;
 
   art::ServiceHandle<geo::Geometry> geo;
 
-  auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+  // auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   
   for(size_t hit = 0; hit < digits_handle->size(); ++hit) {
-    recob::Hit const& digit = digits_handle->at(hit);   // current hit 
+    raw::RawDigit const& digit = digits_handle->at(hit);   // current hit 
 
     //time window in which hits get mapped to IDEs
-    raw::TDCtick_t WindowStart = digit.StartTick() - m_HitWindow;
-    raw::TDCtick_t WindowEnd = digit.EndTick() + m_HitWindow;
+    // raw::TDCtick_t WindowStart = digit.StartTick() - m_HitWindow;
+    // raw::TDCtick_t WindowEnd = digit.EndTick() + m_HitWindow;
 
     //Use separate window for AbsRS induction hit to account for the hits being elongated/merged 
     //PeakT typically corresponds to inflexion point -- i.e. hit EndT for unfiltered hit. 
-    if ((digit.View() != 2) && (m_AbsRS==true)){ WindowEnd = digit.PeakTime() +m_HitWindow;  }
+    // if ((digit.View() != 2) && (m_AbsRS==true)){ WindowEnd = digit.PeakTime() +m_HitWindow;  }
     
     //--- Ionization drift electrons (IDEs) associated with current hit
     // std::vector<sim::TrackIDE> ThisHitIDE = bt_serv->ChannelToTrackIDEs(clockData, 
@@ -631,7 +634,7 @@ void WaveformThreshDump::analyze(art::Event const & evt)
 
     
     //---Get the G4 track associated to the IDEs 
-    double TopEFrac = -DBL_MAX;
+    // double TopEFrac = -DBL_MAX;
     Hit_True_MainTrID.push_back(-1);     //in the case of noise hit when there's no track associated with the hit 
 
     // if (ThisHitIDE.size()){
@@ -648,7 +651,7 @@ void WaveformThreshDump::analyze(art::Event const & evt)
     // std::vector<const sim::IDE*> ThisSimIDE = bt_serv->HitToSimIDEs_Ps(clockData, digit);
     // there should be more conditions here...
 
-    double trueX = 0, trueY = 0, trueZ = 0, trueEnergy = 0, nElectrons = 0;
+    // double trueX = 0, trueY = 0, trueZ = 0, trueEnergy = 0, nElectrons = 0;
     
     // for(unsigned int i = 0; i < ThisSimIDE.size(); i++)
     // {
@@ -674,9 +677,7 @@ void WaveformThreshDump::analyze(art::Event const & evt)
     if (geo->View(digit.Channel())==geo::kV){ planeID =1; }
     
     if ( aboveThresh(waveform, m_thresh) ) {
-      m_outputFile << e.event() << " "
-        << channel_numbers[ich] << " "
-        << plane[ich] << " ";
+      m_outputFile << evt.event() << " " << digit.Channel() << " " << planeID << " ";
 
       // add the MC truth label
       m_outputFile << ThisPType << " ";
