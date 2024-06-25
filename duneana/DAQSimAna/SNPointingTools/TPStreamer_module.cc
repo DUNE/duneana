@@ -19,6 +19,7 @@
 #include "lardataobj/Simulation/sim.h"
 #include "lardataobj/Simulation/SimChannel.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RawData/RawDigit.h"
 
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
@@ -152,6 +153,7 @@ private:
   
   //Mapping from track ID to particle type, for use in WhichParType() 
   std::map<int, PType> trkIDToPType; 
+  std::map< int, simb::MCParticle> trkIDToMCParticle;
   std::vector<int> Hit_True_MainTrID;
 
   // --- Declare our services
@@ -249,6 +251,7 @@ void TPStreamer::ResetVariables()
   Rn222ChainGenInPDSPMap.clear();
   NeutronGenInRockPMap.clear();
   trkIDToPType.clear(); 
+  trkIDToMCParticle.clear();
   Hit_True_MainTrID.clear();
 
 } // ResetVariables
@@ -318,6 +321,7 @@ void TPStreamer::analyze(art::Event const & evt)
       if (thisHandle){	
         art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
         FillMyMaps( MarleyMap, Assn, thisHandle); 
+        std::cout << "Size of Marley Map" << MarleyMap.size() << std::endl;
       }
     }
     if (thisGenLabel == m_Ar39GenInLArLabel){
@@ -325,7 +329,6 @@ void TPStreamer::analyze(art::Event const & evt)
       if (thisHandle){	
         art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
         FillMyMaps( Ar39GenInLArPMap, Assn, thisHandle); 
-        std::cout << "Filling map of ar39" << std::endl;
         MapSizes << "Size of Ar39 Map" << Ar39GenInLArPMap.size() << std::endl;
         std::cout << "Size of Ar39 Map" << Ar39GenInLArPMap.size() << std::endl;
       }
@@ -415,7 +418,6 @@ void TPStreamer::analyze(art::Event const & evt)
         FillMyMaps( K42From42ArGenInCPAPMap, Assn, thisHandle); 
       }
     }
-
     if (thisGenLabel == m_Rn222ChainPo218GenInCPALabel) {
       auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_Rn222ChainPo218GenInCPALabel);
       if (thisHandle) {
@@ -548,20 +550,20 @@ void TPStreamer::analyze(art::Event const & evt)
   
 
   //run over the particle assn map
-  for (auto const& it : PTypeToMap){
+  for (auto const& assnMap : PTypeToMap){
 
     //particle tag e.g. kGen
-    const PType p = it.first;
-    std::cout << "PType is " << p << std::endl;
+    const PType ptype = assnMap.first;
+    std::cout << "PType is " << ptype << std::endl;
     // gen-g4 mapping e.g. MarleyMap
-    auto const& m = it.second;
-    std::cout << "Size of map is " << m.size() << std::endl;
+    auto const& thisMap = assnMap.second;
+    std::cout << "Size of map is " << thisMap.size() << std::endl;
 
     //run over each row in e.g. MarleyMap
-    for (auto const& it2 : m){
+    for (auto const& thisHit : thisMap){
       //add a row to the trkIDToPType map consisting of [particle trk ID, kGen] 
       //trkIDToPType is now a 22xn matrix
-      trkIDToPType.insert( std::make_pair(it2.first, p));
+      trkIDToPType.insert( std::make_pair(thisHit.first, ptype));
     }
   }
 
@@ -589,15 +591,16 @@ void TPStreamer::analyze(art::Event const & evt)
 									WindowEnd);
 
     // adding more gen truth information to the output file
-    float true_vertX = trkIDToPType[ThisHitIDE[0].trackID].Vx();
-    float true_vertY = trkIDToPType[ThisHitIDE[0].trackID].Vy();
-    float true_vertZ = trkIDToPType[ThisHitIDE[0].trackID].Vz();
-    float true_time = trkIDToPType[ThisHitIDE[0].trackID].T();
-    float trueE_lepton_marley = trkIDToPType[ThisHitIDE[0].trackID].E(); // how to get the one of the neutrino?
-    float true_Enu = trkIDToPType[ThisHitIDE[0].trackID].NuE(); // unsure
-    float true_px = trkIDToPType[ThisHitIDE[0].trackID].Px();
-    float true_py = trkIDToPType[ThisHitIDE[0].trackID].Py();
-    float true_pz = trkIDToPType[ThisHitIDE[0].trackID].Pz();
+    float true_vertX = 0;
+    float true_vertY = 0;
+    float true_vertZ = 0;
+    float true_time = 0;
+    float trueE_lepton_marley = 0;
+    float true_Enu = 0;
+    float true_px = 0;
+    float true_py = 0;
+    float true_pz = 0;
+
     
     //---Get the G4 track associated to the IDEs 
     double TopEFrac = -DBL_MAX;
@@ -608,10 +611,38 @@ void TPStreamer::analyze(art::Event const & evt)
         if (ThisHitIDE[ideL].energyFrac > TopEFrac){
           TopEFrac = ThisHitIDE[ideL].energyFrac;
           Hit_True_MainTrID.at(hit) = std::abs( ThisHitIDE[ideL].trackID );
+          // true_vertX =  trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Vx();
+          // true_vertY = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Vy();
+          // true_vertZ = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Vz();
+          // true_time = trkIDToPType[Hit_True_MainTrID.at(hit)].GetNeutrino().Lepton().T();
+          // trueE_lepton_marley = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().E();
+          // true_Enu = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Nu().E();
+          // true_px = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Px();
+          // true_py = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Py();
+          // true_pz = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Pz();
         }
       }
     }
     PType ThisPType = WhichParType( abs(Hit_True_MainTrID.at(hit))); // abs is needed considering how the sim pipeline is set up
+
+    // now look into all the maps and find the trackId correspondent to it; from the MCParticle in the map
+    // get the true vertex, time, energy, etc.
+
+    for (auto const& it : PTypeToMap) {
+      if (it.second.find(Hit_True_MainTrID.at(hit)) != it.second.end()) {
+        true_vertX = it.second[Hit_True_MainTrID.at(hit)].Vx();
+        true_vertY = it.second[Hit_True_MainTrID.at(hit)].Vy();
+        true_vertZ = it.second[Hit_True_MainTrID.at(hit)].Vz();
+        true_time = it.second[Hit_True_MainTrID.at(hit)].T();
+        trueE_lepton_marley = it.second[Hit_True_MainTrID.at(hit)].E();
+        // true_Enu = it.second[Hit_True_MainTrID.at(hit)].E();
+        true_px = it.second[Hit_True_MainTrID.at(hit)].Px();
+        true_py = it.second[Hit_True_MainTrID.at(hit)].Py();
+        true_pz = it.second[Hit_True_MainTrID.at(hit)].Pz();
+        break;
+      }
+    }
+
     
     // add multiple catches? TODO
     std::vector<const sim::IDE*> ThisSimIDE = bt_serv->HitToSimIDEs_Ps(clockData, ThisHit);
@@ -667,6 +698,16 @@ void TPStreamer::analyze(art::Event const & evt)
       << true_pz << ' ' // true_pz of electron
       << true_Enu << ' '
      <<  std::endl; 
+
+    // print out waveforms with truth labels
+    std::ofstream waveformsFile("waveforms.txt", std::ios_base::app);
+    // print event, channel, plane, true label, waveform (from the digit in the recob::hit)
+    waveformsFile << evt.event() << ' ' << ThisHit.Channel() << ' ' << ThisHit.View() << ' ' << trkIDToPType[Hit_True_MainTrID.at(hit)] << ' ';
+    auto thisRawDigit = evt.getValidHandle<std::vector<raw::RawDigit>>("daq"); // get the correspondent raw digit.
+    for (auto const& adc : thisRawDigit->at(ThisHit.Channel()).ADCs()) {
+      waveformsFile << adc << ' ';
+    }
+    waveformsFile << std::endl;
 
   } // Loop over reco_hits.
 } // Analyze TPStreamer.
