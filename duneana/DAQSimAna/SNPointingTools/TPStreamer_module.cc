@@ -155,6 +155,11 @@ private:
   std::map<int, PType> trkIDToPType; 
   std::map< int, simb::MCParticle> trkIDToMCParticle;
   std::vector<int> Hit_True_MainTrID;
+  float true_lepton_energy;
+  float true_lepton_px;
+  float true_lepton_py;
+  float true_lepton_pz;
+  float true_neutrino_energy;
 
   // --- Declare our services
   art::ServiceHandle<geo::Geometry> geo;
@@ -254,6 +259,13 @@ void TPStreamer::ResetVariables()
   trkIDToMCParticle.clear();
   Hit_True_MainTrID.clear();
 
+  true_lepton_energy = 0;
+  true_lepton_px = 0;
+  true_lepton_py = 0;
+  true_lepton_pz = 0;
+  true_neutrino_energy = 0;
+
+
 } // ResetVariables
 
 void TPStreamer::FillMyMaps(std::map<int, simb::MCParticle> &MyMap,
@@ -270,7 +282,32 @@ void TPStreamer::FillMyMaps(std::map<int, simb::MCParticle> &MyMap,
       // AssnFile << Assn.provenance()->moduleLabel() << std::endl;
       const simb::MCParticle ThisParticle = (*Assn.at(L1).at(L2));
       MyMap[ThisParticle.TrackId()] = ThisParticle;
-      if(indexMap) indexMap->insert({ThisParticle.TrackId(), L1});
+      std::cout << "Info about this particle: " << ThisParticle << std::endl;
+
+      // If this is marley, if particle type is neutrino, store the energy
+      // written only for electron flavor
+      if (Handle.provenance()->moduleLabel() == m_MarleyLabel) {
+        if (ThisParticle.PdgCode() == 12 ) {
+          true_neutrino_energy = ThisParticle.E();
+          std::cout << "True neutrino energy: " << true_neutrino_energy << std::endl;
+        }
+        // select only the electron coming from the neutrino interaction
+        if (ThisParticle.PdgCode() == 11 && ThisParticle.Mother() == 0) {
+          true_lepton_energy = ThisParticle.E();
+          true_lepton_px = ThisParticle.Px();
+          true_lepton_py = ThisParticle.Py();
+          true_lepton_pz = ThisParticle.Pz();
+          std::cout << "True lepton energy: " << true_lepton_energy << std::endl;
+          std::cout << "True lepton px: " << true_lepton_px << std::endl;
+          std::cout << "True lepton py: " << true_lepton_py << std::endl;
+          std::cout << "True lepton pz: " << true_lepton_pz << std::endl;
+        }
+      }
+
+      if(indexMap) {
+        indexMap->insert({ThisParticle.TrackId(), L2});
+        std::cout << "Filling indexMap with " << ThisParticle.TrackId() << " " << L2 << std::endl;
+      }
     }
   }
   return;
@@ -301,6 +338,8 @@ void TPStreamer::analyze(art::Event const & evt)
   //--  Store the particles and their corresponding g4 track IDs in maps
 
   auto GenHandles = evt.getMany<std::vector<simb::MCTruth>>();
+
+  std::map <int, int> TrackIDToIndex = {};
   for (auto const& handle: GenHandles){
 
     //Get the gen module labels for signal + radiologicals
@@ -320,8 +359,8 @@ void TPStreamer::analyze(art::Event const & evt)
       auto thisHandle = evt.getHandle< std::vector<simb::MCTruth> >(m_MarleyLabel);
       if (thisHandle){	
         art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
-        FillMyMaps( MarleyMap, Assn, thisHandle); 
-        std::cout << "Size of Marley Map" << MarleyMap.size() << std::endl;
+        FillMyMaps( MarleyMap, Assn, thisHandle, &TrackIDToIndex); 
+        std::cout << "Size of Marley Map is " << MarleyMap.size() << std::endl;
       }
     }
     if (thisGenLabel == m_Ar39GenInLArLabel){
@@ -329,8 +368,8 @@ void TPStreamer::analyze(art::Event const & evt)
       if (thisHandle){	
         art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
         FillMyMaps( Ar39GenInLArPMap, Assn, thisHandle); 
-        MapSizes << "Size of Ar39 Map" << Ar39GenInLArPMap.size() << std::endl;
-        std::cout << "Size of Ar39 Map" << Ar39GenInLArPMap.size() << std::endl;
+        MapSizes << "Size of Ar39 Map " << Ar39GenInLArPMap.size() << std::endl;
+        std::cout << "Size of Ar39 Map " << Ar39GenInLArPMap.size() << std::endl;
       }
     }
     if (thisGenLabel == m_Kr85GenInLArLabel){
@@ -338,8 +377,8 @@ void TPStreamer::analyze(art::Event const & evt)
       if (thisHandle){	
         art::FindManyP<simb::MCParticle> Assn( thisHandle, evt, m_GeantLabel);
         FillMyMaps( Kr85GenInLArPMap, Assn, thisHandle); 
-        MapSizes << "Size of Kr85 Map" << Kr85GenInLArPMap.size() << std::endl;
-        std::cout << "Size of Kr85 Map" << Kr85GenInLArPMap.size() << std::endl;
+        MapSizes << "Size of Kr85 Map " << Kr85GenInLArPMap.size() << std::endl;
+        std::cout << "Size of Kr85 Map " << Kr85GenInLArPMap.size() << std::endl;
       }
     }
     if (thisGenLabel == m_Ar42GenInLArLabel){
@@ -484,6 +523,12 @@ void TPStreamer::analyze(art::Event const & evt)
     }
   }
 
+  // print out the trackidtoindex map
+  std::cout << "TrackIDToIndex map" << std::endl;
+  for (auto const& it : TrackIDToIndex) {
+    std::cout << it.first << " " << it.second << std::endl;
+  }
+ 
 
   // Get any G4 tracks that weren't matched to signal or radio gen
   // and add them to signal map if they were most likely daughter particles (e.g photons from EM shower)
@@ -574,6 +619,7 @@ void TPStreamer::analyze(art::Event const & evt)
 
   
   for(size_t hit = 0; hit < reco_hits->size(); ++hit) {
+
     recob::Hit const& ThisHit = reco_hits->at(hit);   // current hit 
 
     //time window in which hits get mapped to IDEs
@@ -591,12 +637,12 @@ void TPStreamer::analyze(art::Event const & evt)
 									WindowEnd);
 
     // adding more gen truth information to the output file
-    float true_vertX = 0;
-    float true_vertY = 0;
-    float true_vertZ = 0;
-    float true_time = 0;
-    float trueE_lepton_marley = 0;
-    float true_Enu = 0;
+    // float true_vertX = 0;
+    // float true_vertY = 0;
+    // float true_vertZ = 0;
+    // float true_time = 0;
+    float trueE_neutrino = 0;
+    // float true_Enu = 0;
     float true_px = 0;
     float true_py = 0;
     float true_pz = 0;
@@ -615,7 +661,7 @@ void TPStreamer::analyze(art::Event const & evt)
           // true_vertY = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Vy();
           // true_vertZ = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Vz();
           // true_time = trkIDToPType[Hit_True_MainTrID.at(hit)].GetNeutrino().Lepton().T();
-          // trueE_lepton_marley = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().E();
+          // trueE_neutrino = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().E();
           // true_Enu = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Nu().E();
           // true_px = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Px();
           // true_py = trkIDToPType[Hit_True_MainTrID.at(hit)].second.GetNeutrino().Lepton().Py();
@@ -628,28 +674,38 @@ void TPStreamer::analyze(art::Event const & evt)
     // now look into all the maps and find the trackId correspondent to it; from the MCParticle in the map
     // get the true vertex, time, energy, etc.
 
-    for (auto const& it : PTypeToMap) {
-      if (it.second.find(Hit_True_MainTrID.at(hit)) != it.second.end()) {
-        true_vertX = it.second[Hit_True_MainTrID.at(hit)].Vx();
-        true_vertY = it.second[Hit_True_MainTrID.at(hit)].Vy();
-        true_vertZ = it.second[Hit_True_MainTrID.at(hit)].Vz();
-        true_time = it.second[Hit_True_MainTrID.at(hit)].T();
-        trueE_lepton_marley = it.second[Hit_True_MainTrID.at(hit)].E();
-        // true_Enu = it.second[Hit_True_MainTrID.at(hit)].E();
-        true_px = it.second[Hit_True_MainTrID.at(hit)].Px();
-        true_py = it.second[Hit_True_MainTrID.at(hit)].Py();
-        true_pz = it.second[Hit_True_MainTrID.at(hit)].Pz();
-        break;
-      }
-    }
+    // for (auto const& it : PTypeToMap) {
+
+
+      // if (it.second.find(Hit_True_MainTrID.at(hit)) != it.second.end()) {
+      //   true_vertX = it.second[Hit_True_MainTrID.at(hit)].Vx();
+      //   true_vertY = it.second[Hit_True_MainTrID.at(hit)].Vy();
+      //   true_vertZ = it.second[Hit_True_MainTrID.at(hit)].Vz();
+      //   true_time = it.second[Hit_True_MainTrID.at(hit)].T();
+      //   trueE_neutrino = it.second[Hit_True_MainTrID.at(hit)].E();
+      //   // true_Enu = it.second[Hit_True_MainTrID.at(hit)].E();
+      //   true_px = it.second[Hit_True_MainTrID.at(hit)].Px();
+      //   true_py = it.second[Hit_True_MainTrID.at(hit)].Py();
+      //   true_pz = it.second[Hit_True_MainTrID.at(hit)].Pz();
+      //   break;
+      // }
+    // }
+
+    // take the trackid and get the MCParticle from the map, and extract the info 
+    // from the MCParticle, like vertex, time, energy, etc.
+    // if the trackid is not found in any map, then it is a noise hit, and we should not print it out
+    
+
+
 
     
     // add multiple catches? TODO
     std::vector<const sim::IDE*> ThisSimIDE = bt_serv->HitToSimIDEs_Ps(clockData, ThisHit);
     // there should be more conditions here...
 
-    double trueX = 0, trueY = 0, trueZ = 0, trueE_lepton_geant = 0, nElectrons = 0;
+    double trueX = 0, trueY = 0, trueZ = 0, trueE_lepton = 0, nElectrons = 0;
     
+    // in principle this should work only for marley tracks, not for bkg
     for(unsigned int i = 0; i < ThisSimIDE.size(); i++)
     {
       if(ThisSimIDE.at(i)->trackID==Hit_True_MainTrID.at(hit))
@@ -657,11 +713,55 @@ void TPStreamer::analyze(art::Event const & evt)
         trueX = ThisSimIDE.at(i)->x;
         trueY = ThisSimIDE.at(i)->y;
         trueZ = ThisSimIDE.at(i)->z;
-        trueE_lepton_geant = ThisSimIDE.at(i)->energy; // from geant, of lepton
         nElectrons = ThisSimIDE.at(i)->numElectrons;
+        // trueE_lepton = ThisSimIDE.at(i)->energy; // from geant, of lepton
+
+        // doing it here so that in principle it's done only for marley tracks
+        trueE_lepton = true_lepton_energy; // from marley, of lepton
+        trueE_neutrino = true_neutrino_energy; // from marley, of neutrino
+        true_px = true_lepton_px; // from marley, of lepton
+        true_py = true_lepton_py; // from marley, of lepton
+        true_pz = true_lepton_pz; // from marley, of lepton
+
         break;
       }
     }
+
+    // if ptype is marley, then take the true energy of the neutrino and the lepton
+    if (ThisPType == kMarley) {
+      std::cout << "This is a Marley track, storing in the TP the info about lepton and neutrino" << std::endl;
+      std::cout << "True neutrino energy: " << true_neutrino_energy << std::endl;
+      std::cout << "True lepton energy: " << true_lepton_energy << std::endl;
+      std::cout << "True lepton px: " << true_lepton_px << std::endl;
+      std::cout << "True lepton py: " << true_lepton_py << std::endl;
+      std::cout << "True lepton pz: " << true_lepton_pz << std::endl;
+
+      trueE_neutrino = true_neutrino_energy;
+      trueE_lepton = true_lepton_energy;
+      true_px = true_lepton_px;
+      true_py = true_lepton_py;
+      true_pz = true_lepton_pz;
+      std::cout << "written in variables:" << std::endl;
+      std::cout << "True neutrino energy: " << true_neutrino_energy << std::endl;
+      std::cout << "True lepton energy: " << true_lepton_energy << std::endl;
+      std::cout << "True lepton px: " << true_lepton_px << std::endl;
+      std::cout << "True lepton py: " << true_lepton_py << std::endl;
+      std::cout << "True lepton pz: " << true_lepton_pz << std::endl;
+
+
+    }
+
+
+    // take Trackidtoindex and retrieve the particle px py and pz
+    // for the electron
+
+    // if (TrackIDToIndex.find(Hit_True_MainTrID.at(hit)) != TrackIDToIndex.end()) {
+    //   true_px = MarleyMap.find(TrackIDToIndex.at(Hit_True_MainTrID.at(hit)))->second.Px();
+    //   true_py = MarleyMap.find(TrackIDToIndex.at(Hit_True_MainTrID.at(hit)))->second.Py();
+    //   true_pz = MarleyMap.find(TrackIDToIndex.at(Hit_True_MainTrID.at(hit)))->second.Pz();
+    // }
+
+    
 
     // I want numbers to be printed out always as integers, not floats
     m_outputFile << std::fixed << std::setprecision(0) << std::setw(0) << std::setfill('0'); // TODO alignment
@@ -678,31 +778,37 @@ void TPStreamer::analyze(art::Event const & evt)
      << 1 << ' ' // algorithm, currently kTPCDefault
      << 1 << ' ' // version
      << 0 << ' ' // flag
-     // now MC trith
+     // now MC truth
      << ThisPType << ' ' 
      << evt.event() << ' '
-     << ThisHit.View() << ' '
+     << ThisHit.View() << ' ' // 0,1,2
      << trueX << ' ' // trueX
      << trueY << ' ' // trueY
      << trueZ << ' ' // trueZ
-     << trueE_lepton_geant << ' ' // energy
      << nElectrons << ' ' // nElectrons, to be implemented in BT OR SOMETHING ELSE
      << trkIDToPType[Hit_True_MainTrID.at(hit)] << ' ' // trackId, just in case
-      << true_vertX << ' ' // true_vertX
-      << true_vertY << ' ' // true_vertY
-      << true_vertZ << ' ' // true_vertZ
-      << true_time << ' ' // true_time
-      << trueE_lepton_marley << ' ' // trueE_lepton_marley of electron
+     // these are decimals with several digits, since units are GeV
+     << std::fixed << std::setprecision(8) << std::setw(0) << std::setfill('0')
+     << trueE_neutrino << ' ' // energy after interaction
+      // << true_vertX << ' ' // true_vertX REMOVE?
+      // << true_vertY << ' ' // true_vertY REMOVE?
+      // << true_vertZ << ' ' // true_vertZ REMOVE?
+      // << true_time << ' ' // true_time REMOVE?
+      << trueE_lepton << ' ' // electron, after interaction
       << true_px << ' ' // true_px of electron
       << true_py << ' ' // true_py of electron
       << true_pz << ' ' // true_pz of electron
-      << true_Enu << ' '
      <<  std::endl; 
 
     // print out waveforms with truth labels
     std::ofstream waveformsFile("waveforms.txt", std::ios_base::app);
     // print event, channel, plane, true label, waveform (from the digit in the recob::hit)
-    waveformsFile << evt.event() << ' ' << ThisHit.Channel() << ' ' << ThisHit.View() << ' ' << trkIDToPType[Hit_True_MainTrID.at(hit)] << ' ';
+    waveformsFile 
+      << evt.event() << ' ' 
+      << ThisHit.Channel() << ' ' 
+      << ThisHit.View() << ' ' 
+      << trkIDToPType[Hit_True_MainTrID.at(hit)] << ' ';
+
     auto thisRawDigit = evt.getValidHandle<std::vector<raw::RawDigit>>("daq"); // get the correspondent raw digit.
     for (auto const& adc : thisRawDigit->at(ThisHit.Channel()).ADCs()) {
       waveformsFile << adc << ' ';
