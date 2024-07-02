@@ -1,0 +1,19 @@
+BEGIN_PROLOG
+
+RiseTimeThreshold:
+{
+    tool_type: RiseTimeThreshold
+    PeakRatio:         0.2
+}
+
+RiseTimeGaussFit:
+{
+    tool_type: RiseTimeGaussFit
+    MinAmp:         4.0 #minimal amplitude required to the peak to be considered a local maximum (prevents picking waving points at the signal rise)
+    InitSigma:      8.0 # of the gauss fit
+    Nbins:          3   # to use in the gauss fit, same Nbins left & right
+    Tolerance:      2   # |BinFit-BinMax|<tolerance, prevents bad fitting results 
+}
+
+
+END_PROLOG

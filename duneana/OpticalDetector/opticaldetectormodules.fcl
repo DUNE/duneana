@@ -1,0 +1,401 @@
+#include "trackfinderalgorithms.fcl"
+#include "calorimetry.fcl"
+
+BEGIN_PROLOG
+
+###################################################################
+# Added July-2013: These are the parameters/modules associated with
+# the MicroBooNE PMT ADC and FEMs.
+###################################################################
+
+standard_optdetdigitizer:
+{
+  module_type:            "OptDetDigitizer"  # The module we're trying to execute
+  InputModule:            "largeant"         # The name of the process that generated the photons
+  SimGainSpread:          true
+}
+
+###################################################################
+
+
+standard_beamflashcompat:
+{
+  module_type:            "BeamFlashCompatibilityCheck"
+  TrackModuleLabel:       "beziertracker"
+  FlashModuleLabel:       "opflash"
+  BezierResolution:       100
+  SingleChannelCut:       4
+  IntegralCut:            4
+}
+
+###################################################################
+
+
+standard_flashclustermatch:
+{
+  module_type:            "FlashClusterMatch"
+  ClusterModuleLabel:     "fuzzycluster"
+  FlashModuleLabel:       "opflash"
+  SingleChannelCut:       5
+  IntegralCut:            5
+  MinSptsForOverlap:      5
+  SpacePointAlg:          @local::standard_spacepointalg
+  CaloAlg:                @local::standard_calorimetryalgmc
+
+}
+
+###################################################################
+
+
+standard_fifohistana:
+{
+  module_type:            "FIFOHistogramAna"
+  InputModule:            "daq" 
+}
+
+###################################################################
+
+#
+# OpHit finding algorithms
+#
+
+standard_algo_sipm:
+{
+    Name:           "SiPM"
+    ADCThreshold:      13
+    MinWidth:          60
+    SecondThreshold:    1
+    Pedestal:        1500
+}
+
+standard_algo_threshold:
+{
+    Name:           "Threshold"
+    StartADCThreshold : 3
+    EndADCThreshold :   2
+    NSigmaThresholdStart : 5
+    NSigmaThresholdEnd : 3
+}
+
+standard_algo_fixedwindow:
+{ 
+    Name:      "FixedWindow"
+    StartIndex: 0
+    EndIndex:  20
+}
+
+standard_algo_slidingwindow:
+{
+    Name:           "SlidingWindow"
+    NumPreSample:    3
+    ADCThreshold:    4
+    NSigmaThreshold: 4
+    EndADCThreshold: 2
+    EndNSigmaThreshold: 1
+    Verbosity:       false
+}
+
+standard_algo_cfd:
+{
+   Name: "CFD"
+   # CFD fraction
+   Fraction: 0.9
+   # CFD number of samples delay
+   Delay: 2
+   # Number of samples to average before pulse
+   # to use as constant baseline under waveform
+   # BaselinePreSample: 5
+   # Threshold * mode_sigma used to determine if we inside a peak
+   # for CFD crossing
+   PeakThresh: 7.5
+   # Threshold * mode_sigma to determine ending of inside peak @ pulse start
+   StartThresh: 5.0
+   # Threshold * mode_sigma to determine pulse ending @ tail
+   EndThresh: 1.5 
+}
+
+###################################################################
+
+#
+# Pedestal algorithms
+#
+
+standard_algo_pedestal_edges:
+{
+    Name: "Edges"
+    NumSampleFront: 3
+    NumSampleTail:  3
+    Method:         0
+}
+
+standard_algo_pedestal_rollingmean:
+{
+    Name: "RollingMean"
+    SampleSize:      2
+    MaxSigma:        0.5
+    PedRangeMax:     2150
+    PedRangeMin:     100
+}
+
+standard_algo_pedestal_rmsslider:
+{
+    Name: "RmsSlider"
+    SampleSize:       7
+    Threshold:        0.6
+    MaxSigma:         0.5
+    PedRangeMax:      2150
+    PedRangeMin:      100 
+    Verbose:          false
+    NWaveformsToFile: 12
+}
+
+standard_algo_pedestal_ub:
+{
+    Name: "UB"
+    BeamGateSamples : 1500
+    # You need to include parameters fed to PedTruncatedMean since that
+    # algo is called for beam gate sample as well
+    # Sliding mean number of samples
+    SampleSize:      2
+    MaxSigma:        0.5
+    PedRangeMax:     2150
+    PedRangeMin:     100
+    
+    # RandomRange: 5
+    # RandomRangeDivisions: 4.0
+    Threshold: 4
+    # Number of ADC count to shift during random sampling
+    # RandomRangeShift: -0.5
+    # This parameter get's multiplied by mode_sigma to determine
+    # whether or not samples are close enough to be filled with random baseline
+    # between gaps
+    DiffBetweenGapsThreshold: 2
+    DiffADCCounts: 2
+    NPrePostSamples: 5
+}
+
+###################################################################
+
+standard_preco_manager:
+{
+    module_type: "PulseRecoManager"
+}
+
+###################################################################
+
+standard_ophit:
+{
+  module_type:    "OpHitFinder"
+  GenModule:      "generator"
+  InputModule:    "optreadout"
+  InputLabels:    [ "" ]
+  ChannelMasks:   []
+  HitThreshold:   0.2    # PE
+  UseCalibrator:  false  # If set to false, SPE parameters below
+                         # are used     
+  AreaToPE:       false  # Use area to calculate number of PEs
+  SPEArea:        1330   # If AreaToPE is true, this number is 
+                         # used as single PE area (in ADC counts)
+  SPEShift:       0      # Baseline offset in ADC->SPE conversion
+  reco_man:       @local::standard_preco_manager
+  HitAlgoPset:    @local::standard_algo_threshold
+  PedAlgoPset:    @local::standard_algo_pedestal_edges
+}
+
+###################################################################
+
+standard_opflash:
+{
+  module_type:   "OpFlashFinder"
+  InputModule:   "ophit"
+  BinWidth:       1   # us | Pulse finding parameters
+  FlashThreshold: 2   # PE
+  WidthTolerance: 0.5 # unitless 
+  TrigCoinc:      2.5 # in microseconds!
+}
+
+###################################################################
+
+standard_ledcalibrationana:
+{
+  module_type:            "LEDCalibrationAna"
+  InputModule:            "daq"
+  TriggerDelay:           0
+  CoincThreshold:         5
+  TriggerChannel:         32
+  AreaMin:                0
+  AreaMax:                30000
+  AreaDivs:               200
+  MaxTimeMean:            700
+  MaxTimeThresh:          50
+  MakeNonCoincTree:       true
+  reco_man:               @local::standard_preco_manager
+  algo_threshold:         @local::standard_algo_threshold
+}
+
+###################################################################
+
+standard_simphotoncounter:
+{
+  module_type:            "SimPhotonCounter"
+  Verbosity:               0 
+  InputModule:            "largeant" 
+  MakeAllPhotonsTree:      true
+  MakeDetectedPhotonsTree: true
+  MakeOpDetsTree:          true
+  MakeOpDetEventsTree:     true
+}
+
+
+standard_opdigiana:
+{
+  module_type:            "OpDigiAna"
+  InputModule:            "opdigi"
+  InstanceName:           "" 
+  ZeroSupThresh:           0.5
+
+  MakeBipolarHist:         true
+  MakeUnipolarHist:        true
+}
+
+standard_flashpurity:
+{
+  module_type:            "FlashPurityCheckAna"
+  GenieGenModuleLabel:    "generator"  
+  TrackModuleLabel:       "beziertracker"
+  MatchModuleLabel:       "beamflashcompat"
+  OpFlashModuleLabel:     "opflash" 		
+}
+
+
+standard_opflashtruth:
+{
+  module_type:            "OpFlashMCTruthAna"
+  TruthInputModule:       "nugenerator"  
+  FlashInputModule:       "opflash"  
+ 		
+}
+
+standard_opflashana:
+{
+  module_type:            "OpFlashAna"
+  OpFlashModuleLabel:     "opflash"  
+  OpHitModuleLabel:       "ophit"  
+  YMin:                    -50
+  YMax:                    50
+  ZMin:                    0
+  ZMax:                    1200
+	
+  MakeFlashTimeHist:       false
+  MakeFlashPosHist:        false
+  MakePerFlashHists:       false
+
+  MakePerFlashTree:        true
+  MakePerOpHitTree:        true
+  MakeFlashBreakdownTree:  true
+  MakeFlashHitMatchTree:   true
+  MakePerEventFlashTree:   false
+
+}
+
+standard_opdigi:
+{
+  module_type:		  "OpMCDigi"
+  InputModule:		  "largeant"
+  QE:                      0.01 
+  SaturationScale:         2000
+  DarkRate:                10000
+  CompressionType:    "none"        # 
+}
+
+standard_tracktimeassoc:
+{
+  module_type:            "TrackTimeAssoc"
+  TrackModuleLabel:       "beziertracker"
+  FlashModuleLabel:       "opflash"
+  BezierResolution:       100
+  PairingMode:            1
+  LengthCut:              20
+  PECut:                  20
+}
+
+
+standard_tracktimeassocana:
+{
+  module_type:            "TrackTimeAssocAna"
+  MatchModuleLabel:       "tracktimeassoc"
+}
+
+standard_bodataframeinput:
+{
+   module_type:          "BoDataFrameInput"
+   InputFile:            "rawdata.txt" 
+}
+
+standard_stitchpmtframes:
+{
+   module_type:          "StitchPMTFrames"
+   InputModule:          "bodataframeinput"
+   FrameSize:            2048
+   ADCOffset:            2048
+}
+
+standard_simphotoncounteralg:
+{
+  SimPhotonCounterParams:
+  [
+   { 
+     MinPromptTime: -9e9
+     MaxPromptTime: 100
+     MinLateTime:   100
+     MaxLateTime:   9e9
+     MinWavelength: 0
+     MaxWavelength: 1e6
+   }
+  ]
+}
+
+standard_flashhypothesisanaalg:
+{
+    SimPhotonCounterIndex: 0
+    dEdx: 2.1
+    XOffset: 0.0
+    SimPhotonCounterAlgParams: @local::standard_simphotoncounteralg
+}
+
+standard_flashhypothesisanamodule:
+{
+    module_type: "FlashHypothesisAna"
+    MCTrackLabel: "mctrack"
+    MCSimPhotonsLabel: "largeant"
+    FlashHypothesisAnaAlgParams: @local::standard_flashhypothesisanaalg
+}
+
+standard_opflashsimpleanamodule:
+{
+    module_type: "OpFlashSimpleAna"
+    OpFlashModuleLabel: "opflash"
+    OpHitModuleLabel:   "ophit"
+    MakeOpDetPEHist:    "true"
+}
+
+microboone_opdetreformatter:
+{
+   module_type: "OpticalRawDigitReformatter"
+   GenModule:       "generator"
+   InputModule:     "optreadout"
+}
+
+
+microboone_simphotoncounter: @local::standard_simphotoncounter
+microboone_opdigi:           @local::standard_opdigi
+microboone_tracktimeassoc:   @local::standard_tracktimeassoc
+microboone_opflashtruth:     @local::standard_opflashtruth
+
+microboone_opdigiana:        @local::standard_opdigiana
+microboone_opflashana:       @local::standard_opflashana
+
+#microboone_optdetdigitizer:  @local::standard_optdetdigitizer
+#microboone_optical_readout:  @local::standard_optical_readout
+
+END_PROLOG

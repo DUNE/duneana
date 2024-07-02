@@ -1,0 +1,17 @@
+BEGIN_PROLOG
+
+dune_ophitana_new:
+{
+     
+  module_type:           "OpHitAnaNew"
+  OpHitModuleLabel:      "ophit10ppm"  #ophitfinder module
+   
+  YMin:                    -1
+  YMax:                    1
+  ZMin:                    1
+  ZMax:                    1
+ 
+}
+
+
+END_PROLOG

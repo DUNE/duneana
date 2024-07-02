@@ -1,0 +1,33 @@
+add_subdirectory(RiseTimeTools)
+
+cet_make_library(SOURCE
+  AlgoCFD.cxx
+  AlgoFixedWindow.cxx
+  AlgoSiPM.cxx
+  AlgoSlidingWindow.cxx
+  AlgoThreshold.cxx
+  OpHitAlg.cxx
+  OpticalRecoException.cxx
+  PMTPedestalBase.cxx
+  PMTPulseRecoBase.cxx
+  PedAlgoEdges.cxx
+  PedAlgoRmsSlider.cxx
+  PedAlgoRollingMean.cxx
+  PedAlgoUB.cxx
+  PulseRecoManager.cxx
+  UtilFunc.cxx
+  LIBRARIES
+  PUBLIC
+  lardataobj::RawData
+  lardataobj::RecoBase
+  PRIVATE
+  larreco::PhotonCalibrator
+  lardataalg::DetectorInfo
+  larcorealg::Geometry
+  messagefacility::MF_MessageLogger
+  fhiclcpp::fhiclcpp
+  ROOT::Hist
+)
+
+install_headers()
+install_source()

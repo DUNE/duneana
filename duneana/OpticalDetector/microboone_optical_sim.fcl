@@ -1,0 +1,83 @@
+# microboone_optical_sim.fcl
+# Prepared July-2013 by William Seligman <seligman@nevis.columbia.edu>
+
+# This is an example job for running the MicroBooNE PMT ADC and FEM simulation.
+# The input file can come from any standard detector-simulation job
+# that includes a LArG4 (largeant) step. The output will include digitized,
+# discriminated, and triggered PMT ADC counts; see the OpticalDetectorData
+# package for the data products added to the event. 
+
+#include "services_microboone.fcl"
+#include "opticaldetectormodules.fcl"
+
+process_name: OpticalSimulation
+
+services:
+{
+  # Load the service that manages root files for histograms.
+  TFileService: { fileName: "opt_sim_hist.root" }
+  TimeTracker:  {}
+  RandomNumberGenerator: {} #ART native random number generator
+  message:      @local::standard_info
+#  message:      @local::standard_debug # If you turn this on, uncomment the debug lines below
+                @table::microboone_services 	     
+}
+
+# If I want to see all the LogDebug messages from this program.
+#services.message.destinations.debugmsg.filename: "debug-fem.log"
+#services.message.destinations.debugmsg.categories.default.limit:   10000
+#services.message.destinations.debugmsg.categories.default.reportEvery: 1
+
+# Needed for the OpDigiProperties service and other digitizer parameters
+# Pick the "Nwindows" version to match the detector simulation.
+services.OpDigiProperties: @local::microboone_opdigiproperties
+#services.OpDigiProperties: @local::microboone_opdigiproperties_3windows
+
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1        # Number of events to create
+  # Deliberately commented out, so you have to supply the input file
+  # with a "lar -c" option.
+  #  fileNames: [ "simulation.root" ]
+}
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics:
+{
+
+ producers:
+ {
+    optdigitizer: @local::microboone_optdetdigitizer
+    optreadout:   @local::microboone_optical_readout
+ }
+
+ simulate: [ optdigitizer, optreadout ] 
+
+ #define the output stream, there could be more than one if using filters 
+ stream1:  [ out1 ]
+
+ #trigger_paths is a keyword and contains the paths that modify the art::event, 
+ #ie filters and producers
+ trigger_paths: [ simulate ] 
+
+ #end_paths is a keyword and contains the paths that do not modify the art::Event, 
+ #ie analyzers and output streams.  these all run simultaneously
+ end_paths:     [ stream1 ]  
+}
+
+#block to define where the output goes.  if you defined a filter in the physics
+#block and put it in the trigger_paths then you need to put a SelectEvents: {SelectEvents: [XXX]}
+#entry in the output stream you want those to go to, where XXX is the label of the filter module(s)
+outputs:
+{
+ out1:
+ {
+   module_type: RootOutput
+   fileName:    "opt_sim.root" #default file name, can override from command line with -o or --output
+   dataTier:    "simulation"
+ }
+}
+

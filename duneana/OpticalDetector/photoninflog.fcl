@@ -1,0 +1,11 @@
+BEGIN_PROLOG
+
+standard_photoninflog:
+{
+    module_type:    "PhotonInf"
+    FillTree:        true
+    InputModules:    "largeant"
+    LogFileName:     "phinf.dat"
+}
+
+END_PROLOG 
