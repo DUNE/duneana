@@ -34,7 +34,6 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/FindMany.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -132,7 +131,7 @@ namespace solar
     TH2F *hDriftTime;
 
     // --- Declare our services
-    art::ServiceHandle<geo::Geometry> geo;
+    geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
     art::ServiceHandle<cheat::BackTrackerService> bt_serv;
     art::ServiceHandle<cheat::PhotonBackTrackerService> pbt;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
@@ -666,7 +665,7 @@ namespace solar
               ThisOphitPurity /= int(ThisOpHitTrackIds.size());
             } 
             OpFlashPur += ThisOphitPurity;
-            auto OpHitXYZ = geo->OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
+            auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
             SOpHitPur.push_back(ThisOphitPurity/int(ThisOpHitTrackIds.size()));
             SOpHitChannel.push_back(OpHit.OpChannel());
             SOpHitT.push_back(OpHit.PeakTime());
@@ -724,7 +723,7 @@ namespace solar
               ThisOphitPurity += 1;
             }
           } 
-          auto OpHitXYZ = geo->OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
+          auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
           TotalFlashPE += OpHit.PE();
           FlashTime += OpHit.PeakTime()*OpHit.PE();
           if (OpHit.PE() > fAdjOpFlashMinPECut/NMatchedHits){
@@ -866,7 +865,7 @@ namespace solar
           if (TPCHit.PeakTime() < 0)
             PrintInColor("Negative Cluster Time = " + str(TPCHit.PeakTime()), GetColor("red"));
           ncharge += TPCHit.Integral();
-          const geo::WireGeo *wire = geo->GeometryCore::WirePtr(TPCHit.WireID()); // Wire directions should be the same for all hits of the same view (can be used to check)
+          const geo::WireGeo *wire = wireReadout.WirePtr(TPCHit.WireID()); // Wire directions should be the same for all hits of the same view (can be used to check)
           double hitCharge;
 
           geo::Point_t hXYZ = wire->GetCenter();

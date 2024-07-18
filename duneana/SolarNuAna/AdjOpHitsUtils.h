@@ -22,11 +22,10 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "larcorealg/Geometry/GeometryCore.h"
 #include "lardataobj/RecoBase/OpHit.h"
 #include "lardataobj/RecoBase/OpFlash.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "fhiclcpp/ParameterSet.h"
 
 #include "TH1I.h"
@@ -61,7 +60,7 @@ namespace solar
             // Write a struct to store the flash information
         
         private:
-            art::ServiceHandle<geo::Geometry> geo;
+            geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
             // From fhicl configuration
             const float fOpFlashAlgoTime;
             const float fOpFlashAlgoRad;

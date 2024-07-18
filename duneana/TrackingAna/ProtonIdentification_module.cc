@@ -28,6 +28,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
@@ -143,6 +144,7 @@ private:
 
   // Handles
   art::ServiceHandle<geo::Geometry> geom;
+  geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
   
@@ -831,8 +833,7 @@ void ProtonIdentification::ProtonIdentification::MCTruthInformation (detinfo::De
       if (MCHit == 0 ) MCStartInTPC = true;
       if (MCHit == numberTrajectoryPoints-1 ) MCEndInTPC = true;
       // -- Check if hit is within drift window...
-      geo::TPCGeo      const& tpc  = geom->TPC(tpcid);
-      double XPlanePosition      = tpc.Plane(0).GetCenter().X();
+      double XPlanePosition      = wireReadout.Plane({tpcid, 0}).GetCenter().X();
       double DriftTimeCorrection = fabs( position.X() - XPlanePosition ) / XDriftVelocity;
       double TimeAtPlane         = particle->T() + DriftTimeCorrection;
       if ( TimeAtPlane < trigger_offset(clockData)

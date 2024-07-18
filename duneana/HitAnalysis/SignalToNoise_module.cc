@@ -30,7 +30,8 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "larcore/Geometry/AuxDetGeometry.h"
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "TH1D.h"
 #include "TH2D.h"
@@ -139,7 +140,7 @@ void dune::SignalToNoise::analyze(art::Event const & e)
   // * associations
   art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(trackListHandle, e, fTrackModuleLabel);
 
-  art::ServiceHandle<geo::Geometry> geom;
+  geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
   const lariov::ChannelStatusProvider* fCSP = &art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
 
   std::vector<int> c1;  //counter index
@@ -255,7 +256,7 @@ void dune::SignalToNoise::analyze(art::Event const & e)
             planehits[vhit[h]->WireID().planeID()].push_back(std::make_pair(vhit[h]->WireID().Wire, vhit[h]->PeakTime()));
             //now study the difference between hit time and prediction from counters
             double xyzStart[3], xyzEnd[3]; //wire ends
-            geom->WireEndPoints(vhit[h]->WireID(), xyzStart, xyzEnd);
+            wireReadout.WireEndPoints(vhit[h]->WireID(), xyzStart, xyzEnd);
             double xhit, yhit, zhit; //intersection between wire and counter line
             //std::cout<<"about to calculate intersection"<<std::endl;
             //std::cout<<xyzStart[1]<<" "<<xyzStart[2]<<" "<<xyzEnd[1]<<" "<<xyzEnd[2]<<" "<<cy[c1[0]]<<" "<<cz[c1[0]]<<" "<<cy[c2[0]]<<" "<<cz[c2[0]]<<std::endl;
@@ -288,14 +289,14 @@ void dune::SignalToNoise::analyze(art::Event const & e)
               std::map<raw::ChannelID_t, int> chused;
               for (int w = w0; w<=w1; ++w){
                 geo::WireID wid(plhits.first, w);
-                auto channel = geom->PlaneWireToChannel(wid);
+                auto channel = wireReadout.PlaneWireToChannel(wid);
                 if (fCSP->IsBad(channel)) continue;
                 if (chused.find(channel)==chused.end()){ //channel not looked at before
                   double tick = intcpt + slope*w;
                   double x = detProp.ConvertTicksToX(tick, wid);//raw x
                   x += (wid.TPC%2==1?-1:1)*ctime*0.5*0.1085; //correct for t0
                   double xyzStart[3], xyzEnd[3]; //wire ends
-                  geom->WireEndPoints(wid, xyzStart, xyzEnd);
+                  wireReadout.WireEndPoints(wid, xyzStart, xyzEnd);
                   x = std::abs(x-xyzStart[0]); //distance to wire plane
                   if (x<50){//hit is within 50 cm of wire plane
                     int besttime = -1;
@@ -324,7 +325,7 @@ void dune::SignalToNoise::analyze(art::Event const & e)
                         }
                         mean/=npts;
                         mean2/=npts;
-                        double angleToVert = geom->WireAngleToVertical(geom->View(wid), wid.asPlaneID().asTPCID()) - 0.5*::util::pi<>();
+                        double angleToVert = wireReadout.WireAngleToVertical(wireReadout.Plane(wid).View(), wid.asPlaneID().asTPCID()) - 0.5*::util::pi<>();
                         //std::cout<<vhit[h]->View()<<" "<<vhit[h]->WireID().TPC<<" "<<vhit[h]->WireID().Cryostat<<" "<<angleToVert<<std::endl;
                         const auto& dir = tracklist[i]->DirectionAtPoint(0);
                         double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
@@ -351,7 +352,7 @@ void dune::SignalToNoise::analyze(art::Event const & e)
                         }
                         mean/=npts;
                         mean2/=npts;
-                        double angleToVert = geom->WireAngleToVertical(geom->View(wid), wid.asPlaneID().asTPCID()) - 0.5*::util::pi<>();
+                        double angleToVert = wireReadout.WireAngleToVertical(wireReadout.Plane(wid).View(), wid.asPlaneID().asTPCID()) - 0.5*::util::pi<>();
                         //std::cout<<vhit[h]->View()<<" "<<vhit[h]->WireID().TPC<<" "<<vhit[h]->WireID().Cryostat<<" "<<angleToVert<<std::endl;
                         const auto& dir = tracklist[i]->DirectionAtPoint(0);
                         double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
@@ -369,9 +370,9 @@ void dune::SignalToNoise::analyze(art::Event const & e)
           }//loop over planes
         }//fmthm is valid
         if (hitmap.size()>=10){//found at least 10 hits in TPC5
-          for (auto const& wireID : geom->Iterate<geo::WireID>(geo::PlaneID{0, 5, 2})) {//plane 2, tpc 5, cstat 0
+          for (auto const& wireID : wireReadout.Iterate<geo::WireID>(geo::PlaneID{0, 5, 2})) {//plane 2, tpc 5, cstat 0
             std::size_t const h = wireID.Wire;
-            if (fCSP->IsBad(geom->PlaneWireToChannel(wireID))) continue;
+            if (fCSP->IsBad(wireReadout.PlaneWireToChannel(wireID))) continue;
             double pt = -1;
             double xpos = -1;
             if (hitmap.find(h)!=hitmap.end()){//found hit on track
@@ -403,7 +404,7 @@ void dune::SignalToNoise::analyze(art::Event const & e)
             if (pt>=0){
               double maxph = -1e10;
               for (size_t j = 0; j<rawlist.size(); ++j){
-                if (rawlist[j]->Channel() == geom->PlaneWireToChannel(wireID)){
+                if (rawlist[j]->Channel() == wireReadout.PlaneWireToChannel(wireID)){
                   double pedestal = rawlist[j]->GetPedestal();
                   for (size_t k = 0; k<rawlist[j]->NADC(); ++k){
                     if (float(k)>=pt&&float(k)<=pt+20){
@@ -414,19 +415,19 @@ void dune::SignalToNoise::analyze(art::Event const & e)
                   }
                 }
               }
-              double angleToVert = geom->WireAngleToVertical(hitmap.begin()->second->View(), hitmap.begin()->second->WireID().asPlaneID().asTPCID()) - 0.5*::util::pi<>();
+              double angleToVert = wireReadout.WireAngleToVertical(hitmap.begin()->second->View(), hitmap.begin()->second->WireID().asPlaneID().asTPCID()) - 0.5*::util::pi<>();
               //std::cout<<vhit[h]->View()<<" "<<vhit[h]->WireID().TPC<<" "<<vhit[h]->WireID().Cryostat<<" "<<angleToVert<<std::endl;
               //const TVector3& dir = tracklist[i]->DirectionAtPoint(indexmap.begin()->second);
               const auto& dir = tracklist[i]->VertexDirection();
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
-              hphx->Fill(xpos,maxph*cosgamma/geom->WirePitch(hitmap.begin()->second->View()));
+              hphx->Fill(xpos,maxph*cosgamma/wireReadout.Plane({0, 0, hitmap.begin()->second->View()}).WirePitch());
               tpc = 5;
               wire = h;
               trackid = i;
               x = xpos;
-              dqdx = maxph*cosgamma/geom->WirePitch(hitmap.begin()->second->View());
+              dqdx = maxph*cosgamma/wireReadout.Plane({0, 0, hitmap.begin()->second->View()}).WirePitch();
               ftree->Fill();
-              //std::cout<<h<<" "<<pt<<" "<<xpos<<" "<<maxph*cosgamma/geom->WirePitch(hitmap.begin()->second->View())<<std::endl;
+              //std::cout<<h<<" "<<pt<<" "<<xpos<<" "<<maxph*cosgamma/wireReadout.WirePitch(hitmap.begin()->second->View())<<std::endl;
             }
           }
         }
@@ -489,9 +490,9 @@ void dune::SignalToNoise::beginJob()
     in.close();
   }
   else{
-    art::ServiceHandle<geo::Geometry> geom;
-    for (size_t i = 0; i<geom->NAuxDets(); ++i){
-      auto& auxdet = geom->AuxDet(i);
+    auto const& auxDetGeom = art::ServiceHandle<geo::AuxDetGeometry>()->GetProvider();
+    for (size_t i = 0; i<auxDetGeom.NAuxDets(); ++i){
+      auto& auxdet = auxDetGeom.AuxDet(i);
       //std::cout<<i<<" "<<auxdet.GetCenter().X()<<" "<<auxdet.GetCenter().Y()<<" "<<auxdet.GetCenter().Z()<<std::endl;
       cx[i] = auxdet.GetCenter().X();
       cy[i] = auxdet.GetCenter().Y();

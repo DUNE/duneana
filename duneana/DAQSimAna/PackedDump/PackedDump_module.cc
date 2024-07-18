@@ -43,7 +43,7 @@ public:
 
 private:
 
-    art::ServiceHandle<dune::PdspChannelMapService> m_channelMap;
+    art::ServiceHandle<dune::PdspChannelMapService> m_wireReadout;
     std::string m_outputFilename;
     std::ofstream m_outputFile;
 };
@@ -115,7 +115,7 @@ void PackedDump::analyze(art::Event const & e)
                         unsigned short samples[8];
                         for(int i=0; i<8; ++i){
                             // args are: unsigned int crate, unsigned int slot, unsigned int fiber, unsigned int fembchannel
-                            unsigned int offlineChan=m_channelMap->GetOfflineNumberFromDetectorElements(crate, slot, fiber, fembChannel+i, dune::PdspChannelMapService::kRCE);
+                            unsigned int offlineChan=m_wireReadout->GetOfflineNumberFromDetectorElements(crate, slot, fiber, fembChannel+i, dune::PdspChannelMapService::kRCE);
                             // std::cout << "Fiber " << fiber << " FEMB channel " << (fembChannel+8) << " maps to offline " << offlineChan << std::endl;
                             samples[i]=channelToDigit[offlineChan]->ADC(tdc);
                         }

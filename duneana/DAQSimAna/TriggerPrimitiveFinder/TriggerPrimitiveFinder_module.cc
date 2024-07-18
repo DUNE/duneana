@@ -18,7 +18,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 
 #include "duneana/DAQSimAna/TriggerPrimitiveFinder/TriggerPrimitiveFinderTool.h"
@@ -64,13 +64,13 @@ void TriggerPrimitiveFinder::produce(art::Event & e)
     auto const& digits_handle=e.getValidHandle<std::vector<raw::RawDigit>>(m_inputTag);
     auto& digits_in =*digits_handle;
 
-    art::ServiceHandle<geo::Geometry> geo;
+    auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
     std::vector<std::vector<short>> collection_samples;
     std::vector<unsigned int> channel_numbers;
     std::map<raw::ChannelID_t, const raw::RawDigit*> chanToDigit;
     for(auto&& digit: digits_in){
         // Select just the collection channels for the primitive-finding algorithm
-        const geo::SigType_t sigType = geo->SignalType(digit.Channel());
+        const geo::SigType_t sigType = wireReadout.SignalType(digit.Channel());
         if(sigType==geo::kCollection){
             chanToDigit[digit.Channel()]=&digit;
             channel_numbers.push_back(digit.Channel());
@@ -88,7 +88,7 @@ void TriggerPrimitiveFinder::produce(art::Event & e)
         if(!digit){
             std::cout << "No digit with channel " << hit.channel << " found. Did you set the channel correctly?" << std::endl;
         }
-        std::vector<geo::WireID> wids = geo->ChannelToWire(hit.channel);
+        std::vector<geo::WireID> wids = wireReadout.ChannelToWire(hit.channel);
         geo::WireID wid = wids[0];
 
         recob::HitCreator lar_hit(*digit,                           //RAW DIGIT REFERENCE.

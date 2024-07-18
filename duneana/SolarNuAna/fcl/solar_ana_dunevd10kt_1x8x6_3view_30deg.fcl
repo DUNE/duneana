@@ -51,8 +51,7 @@ outputs:
 
 # services.Geometry: @local::dunevd10kt_1x8x6_3view_30deg_geo
 services.Geometry.GDML: "dunevd10kt_3view_30deg_v5_refactored_1x8x6ref.gdml"
-services.Geometry.Name: "dunevd10kt_3view_30deg_v5_refactored_1x8x6ref"
-services.Geometry.ROOT: "dunevd10kt_3view_30deg_v5_refactored_1x8x6ref.gdml"
+services.AuxDetGeometry.GDML: @local::services.Geometry.GDML
 
 services.message.destinations.LogStandardOut.threshold: "INFO"
 services.message.destinations.LogStandardOut.type: "cout"

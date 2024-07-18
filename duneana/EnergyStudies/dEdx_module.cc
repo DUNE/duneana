@@ -4,7 +4,7 @@
 // LArSoft includes
 #include "lardataobj/Simulation/SimChannel.h"
 #include "larsim/Simulation/LArG4Parameters.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -67,7 +67,7 @@ namespace AnalysisExample
   private:
 
     art::ServiceHandle<art::TFileService> tfs;
-    art::ServiceHandle<geo::Geometry> fGeom;
+    geo::WireReadoutGeom const& fWireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
     std::string fSimulationProducerLabel;
 
     // dE/dx "cheated" information
@@ -190,7 +190,7 @@ namespace AnalysisExample
       fStartEdepHist->Fill(xi,yi,zi);
       for(auto const& channel : (*simChanHandle))
       {
-	if(fGeom->SignalType(channel.Channel()) == geo::kCollection)
+        if(fWireReadoutGeom.SignalType(channel.Channel()) == geo::kCollection)
 	{
 	  auto const& timeSlices = channel.TDCIDEMap();
 	  for(auto const& t : timeSlices)
@@ -252,7 +252,7 @@ namespace AnalysisExample
     std::cout << "Finding Deposition Vertex... " << std::endl;
     for(auto const& channel : SCHandle)
     {
-      if(fGeom->SignalType(channel.Channel()) == geo::kCollection)
+      if(fWireReadoutGeom.SignalType(channel.Channel()) == geo::kCollection)
       {
 	auto const& timeSlices = channel.TDCIDEMap();
 	for(auto const& t : timeSlices)
@@ -279,7 +279,7 @@ namespace AnalysisExample
     double track = 0;
     for(auto const& channel : SCHandle)
     {
-      if(fGeom->SignalType(channel.Channel()) == geo::kCollection)
+      if(fWireReadoutGeom.SignalType(channel.Channel()) == geo::kCollection)
       {
 	auto const& timeSlices = channel.TDCIDEMap();
 	for(auto const& t : timeSlices)

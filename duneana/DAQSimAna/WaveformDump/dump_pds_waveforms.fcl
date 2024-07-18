@@ -32,8 +32,9 @@ services:
    RandomNumberGenerator: {} #ART native random number generator
    FileCatalogMetadata:  @local::art_file_catalog_mc
                          @table::dunefd_reco_services
-   Geometry:              @local::dune10kt_1x2x6_geo
-   NuRandomService:       @local::per_event_NuRandomService  # seedservice.fcl
+   AuxDetGeometry:       @local::dune10kt_1x2x6_auxdet_geo
+   Geometry:             @local::dune10kt_1x2x6_geo
+   NuRandomService:      @local::per_event_NuRandomService  # seedservice.fcl
 }
 
 physics:
@@ -41,10 +42,10 @@ physics:
    analyzers: {
       waveformdump: @local::waveformpdsdump
    }
-   
+
    ana: [ waveformdump]
-   end_paths: [ ana ] 
-   
+   end_paths: [ ana ]
+
 }
 
 source:

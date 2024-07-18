@@ -1,5 +1,7 @@
 #include "AdjOpHitsUtils.h"
 
+#include "larcorealg/Geometry/OpDetGeo.h"
+
 namespace solar
 {
   AdjOpHitsUtils::AdjOpHitsUtils(fhicl::ParameterSet const &p)
@@ -45,7 +47,7 @@ namespace solar
           MaxPE = PDSHit->PE();
         PEperOpDet.push_back(PDSHit->PE());
         TimeSum += PDSHit->PeakTime() * PDSHit->PE();
-        auto OpHitXYZ = geo->OpDetGeoFromOpChannel(PDSHit->OpChannel()).GetCenter();
+        auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(PDSHit->OpChannel()).GetCenter();
         XSum += OpHitXYZ.X() * PDSHit->PE();
         YSum += OpHitXYZ.Y() * PDSHit->PE();
         ZSum += OpHitXYZ.Z() * PDSHit->PE();
@@ -62,7 +64,7 @@ namespace solar
 
       for (art::Ptr<recob::OpHit> PDSHit : ClusterCopy)
       {
-        auto OpHitXYZ = geo->OpDetGeoFromOpChannel(PDSHit->OpChannel()).GetCenter();
+        auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(PDSHit->OpChannel()).GetCenter();
         TimeWidth += (PDSHit->PeakTime() - Time) * (PDSHit->PeakTime() - Time);
         YWidth += (OpHitXYZ.Y() - Y) * (OpHitXYZ.Y() - Y);
         ZWidth += (OpHitXYZ.Z() - Z) * (OpHitXYZ.Z() - Z);
@@ -109,7 +111,7 @@ namespace solar
       int opChannel = hit->OpChannel();
       if (opDetCenters.find(opChannel) == opDetCenters.end())
       {
-        auto opDetXYZ = geo->OpDetGeoFromOpChannel(opChannel).GetCenter();
+        auto opDetXYZ = wireReadout.OpDetGeoFromOpChannel(opChannel).GetCenter();
         opDetCenters[opChannel] = TVector3(opDetXYZ.X(), opDetXYZ.Y(), opDetXYZ.Z());
       }
     }
@@ -206,7 +208,7 @@ namespace solar
       int opChannel = hit->OpChannel();
       if (opDetCenters.find(opChannel) == opDetCenters.end())
       {
-        auto opDetXYZ = geo->OpDetGeoFromOpChannel(opChannel).GetCenter();
+        auto opDetXYZ = wireReadout.OpDetGeoFromOpChannel(opChannel).GetCenter();
         opDetCenters[opChannel] = TVector3(opDetXYZ.X(), opDetXYZ.Y(), opDetXYZ.Z());
       }
     }
@@ -354,9 +356,9 @@ namespace solar
     double bestZ = 0.0;
 
     // Loop over possible x positions
-    double firstHitX = geo->OpDetGeoFromOpChannel(Hits[0]->OpChannel()).GetCenter().X();
-    double firstHitY = geo->OpDetGeoFromOpChannel(Hits[0]->OpChannel()).GetCenter().Y();
-    double firstHitZ = geo->OpDetGeoFromOpChannel(Hits[0]->OpChannel()).GetCenter().Z();
+    double firstHitX = wireReadout.OpDetGeoFromOpChannel(Hits[0]->OpChannel()).GetCenter().X();
+    double firstHitY = wireReadout.OpDetGeoFromOpChannel(Hits[0]->OpChannel()).GetCenter().Y();
+    double firstHitZ = wireReadout.OpDetGeoFromOpChannel(Hits[0]->OpChannel()).GetCenter().Z();
 
     for (double yPos = firstHitY - fOpFlashAlgoRad; yPos <= firstHitY + fOpFlashAlgoRad; yPos += 5)
     {
@@ -373,8 +375,8 @@ namespace solar
         // Loop over hits
         for (const auto &hit : Hits)
         {
-          double hitYPos = geo->OpDetGeoFromOpChannel(hit->OpChannel()).GetCenter().Y();
-          double hitZPos = geo->OpDetGeoFromOpChannel(hit->OpChannel()).GetCenter().Z();
+          double hitYPos = wireReadout.OpDetGeoFromOpChannel(hit->OpChannel()).GetCenter().Y();
+          double hitZPos = wireReadout.OpDetGeoFromOpChannel(hit->OpChannel()).GetCenter().Z();
 
           // Calculate the likelihood for the hit
           double hitLikelihood = GaussianPDF(hitYPos, yPos, sigma) * GaussianPDF(hitZPos, zPos, sigma);

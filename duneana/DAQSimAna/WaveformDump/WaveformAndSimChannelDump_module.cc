@@ -15,7 +15,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/Simulation/SimChannel.h"
 #include "lardataobj/RawData/OpDetWaveform.h"
@@ -67,14 +67,14 @@ WaveformAndSimChannelDump::WaveformAndSimChannelDump(fhicl::ParameterSet const &
 
 void WaveformAndSimChannelDump::analyze(art::Event const& e)
 {
-  art::ServiceHandle<geo::Geometry> geo;
+  auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
 
   // TPC Waveforms
   size_t n_ticks_tpc = 0;
   auto const& digits_handle_tpc=e.getValidHandle<std::vector<raw::RawDigit>>(m_inputTagTPC);
   auto& digits_tpc_in =*digits_handle_tpc;
   for (auto&& digit: digits_tpc_in) {
-    bool isCollection=geo->SignalType(digit.Channel())==geo::kCollection;
+    bool isCollection=wireReadout.SignalType(digit.Channel())==geo::kCollection;
     if (digit.Channel() >= m_max_channel) continue;
     m_outputFile_tpc << e.event() << " "
                      << digit.Channel() << " "
@@ -90,7 +90,7 @@ void WaveformAndSimChannelDump::analyze(art::Event const& e)
   auto const& truth_handle_tpc=e.getValidHandle<std::vector<sim::SimChannel>>(m_inputTagGEANT);
   auto& truth_tpc_in =*truth_handle_tpc;
   for (auto&& truth: truth_tpc_in) {
-    bool isCollection=geo->SignalType(truth.Channel())==geo::kCollection;
+    bool isCollection=wireReadout.SignalType(truth.Channel())==geo::kCollection;
     if (truth.Channel() >= m_max_channel) continue;
     m_outputFile_true_tpc << e.event() << " "
                            << truth.Channel() <<" "

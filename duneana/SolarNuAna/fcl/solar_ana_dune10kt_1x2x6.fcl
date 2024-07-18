@@ -55,4 +55,3 @@ services.message.destinations.LogStandardOut.type: "cout"
 
 # services.Geometry.GDML: "dune10kt_v4_1x2x6.gdml"
 # services.Geometry.Name: "dune10kt_v4_1x2x6"
-# services.Geometry.ROOT: "dune10kt_v4_1x2x6.gdml"

@@ -24,7 +24,7 @@
 #include <fcntl.h>
 
 // Framework includes (not all might be necessary)
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "lardataobj/RawData/OpDetWaveform.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -213,7 +213,7 @@ private:
   TH1I* hAdjHits; 
   TH1F* hAdjHitsADCInt; 
   // --- Declare our services
-  art::ServiceHandle<geo::Geometry> geo;
+  geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
   art::ServiceHandle<cheat::PhotonBackTrackerService> pbt;
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
@@ -876,7 +876,7 @@ void LowEAna::FillClusterHitVectors(std::vector<recob::Hit> Cluster,
     TPC.push_back(ThisHit.WireID().TPC);
     Time.push_back(ThisHit.PeakTime());
     Charge.push_back(ThisHit.Integral());
-    const geo::WireGeo* ThisWire = geo->GeometryCore::WirePtr(ThisHit.WireID());
+    const geo::WireGeo* ThisWire = wireReadout.WirePtr(ThisHit.WireID());
     geo::Point_t hXYZ = ThisWire->GetCenter();
     geo::Point_t sXYZ = ThisWire->GetStart();
     geo::Point_t eXYZ = ThisWire->GetEnd();

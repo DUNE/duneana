@@ -15,7 +15,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/RawData/RawDigit.h"
 
 #include <memory>
@@ -60,9 +60,9 @@ void WaveformDump::analyze(art::Event const& e)
     auto const& digits_handle=e.getValidHandle<std::vector<raw::RawDigit>>(m_inputTag);
     auto& digits_in =*digits_handle;
 
-    art::ServiceHandle<geo::Geometry> geo;
+    auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
     for(auto&& digit: digits_in){
-        bool isCollection=geo->SignalType(digit.Channel())==geo::kCollection;
+        bool isCollection=wireReadout.SignalType(digit.Channel())==geo::kCollection;
         m_outputFile << e.event() << " "
                      << digit.Channel() << " "
                      << isCollection << " ";

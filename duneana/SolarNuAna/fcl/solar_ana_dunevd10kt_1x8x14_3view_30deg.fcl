@@ -23,13 +23,13 @@ services:
 #services.PhotonBackTrackerService:	@erase
 
 physics:
-{ 
+{
   analyzers:
   {
     solarnuana:     @local::solar_nu_ana_vd
   }
   ana: [ solarnuana ]
-  end_paths: [ ana ] 
+  end_paths: [ ana ]
 }
 
 source:
@@ -51,8 +51,8 @@ outputs:
 
 # services.Geometry: @local::dunevd10kt_1x8x14_3view_30deg_geo
 # services.Geometry.GDML: "dunevd10kt_3view_30deg_v4_refactored_1x8x14ref.gdml"
-# services.Geometry.Name: "dunevd10kt_3view_30deg_v4_refactored_1x8x14ref"
-# services.Geometry.ROOT: "dunevd10kt_3view_30deg_v4_refactored_1x8x14ref.gdml"
+# services.AuxDetGeometry: @local::dunevd10kt_1x8x14_3view_30deg_auxdet_geo
+# services.AuxDetGeometry.GDML: @local::services.Geometry.GDML
 
 services.message.destinations.LogStandardOut.threshold: "INFO"
 services.message.destinations.LogStandardOut.type: "cout"

@@ -43,7 +43,7 @@ physics: {
          RawDigitInputLabel: "daq"
       }
 
-      ophit:              @local::dune35t_ophit 
+      ophit:              @local::dune35t_ophit
 
       # You can add any number of trigger primitive finders here. Make
       # sure each one has a distinct name, and has a corresponding
@@ -54,7 +54,7 @@ physics: {
       trigprim14: @local::trigprimpass1
       trigprim15: @local::trigprimpass1
       trigprim16: @local::trigprimpass1
-      
+
       trigprim30sig: @local::trigprimpass2
       trigprim40sig: @local::trigprimpass2
       trigprim45sig: @local::trigprimpass2
@@ -64,7 +64,7 @@ physics: {
 
       rns:            { module_type: "RandomNumberSaver" }
    }
-   
+
    analyzers: {
       # Create an SNAna for each trigger primitive finders. Make
       # sure to add each one to the "ana" list below
@@ -73,7 +73,7 @@ physics: {
       snanatrigprim14:    @local::trigprim_snana
       snanatrigprim15:    @local::trigprim_snana
       snanatrigprim16:    @local::trigprim_snana
-      
+
       snanatrigprim30sig: @local::trigprim_snana
       snanatrigprim40sig: @local::trigprim_snana
       snanatrigprim45sig: @local::trigprim_snana
@@ -87,9 +87,9 @@ physics: {
               trigprim30sig,      trigprim40sig,      trigprim45sig,      trigprim50sig,      trigprim55sig,      trigprim60sig]
    ana     : [snanatrigprim12,    snanatrigprim13,    snanatrigprim14,    snanatrigprim15,    snanatrigprim16,
               snanatrigprim30sig, snanatrigprim40sig, snanatrigprim45sig, snanatrigprim50sig, snanatrigprim55sig, snanatrigprim60sig]
-   
-   trigger_paths: [ simulate ] 
-   end_paths: [ ana ] 
+
+   trigger_paths: [ simulate ]
+   end_paths: [ ana ]
 
 }
 
