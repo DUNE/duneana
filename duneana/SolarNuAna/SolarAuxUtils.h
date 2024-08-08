@@ -33,6 +33,7 @@ namespace solar
         static void resume_stdout(int fd);
         static int supress_stdout();
         static std::string str(int MyInt);
+        static std::string str(bool MyBool);
         static std::string str(float MyFloat, int MyPrecision = 2);
         static std::string str(double MyDouble, int MyPrecision = 2);
         static std::string str(std::vector<int> MyVec);

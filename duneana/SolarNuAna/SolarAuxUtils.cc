@@ -98,6 +98,17 @@ namespace solar
         ss << i;
         return ss.str();
     }
+    std::string SolarAuxUtils::str(bool i)
+    {
+        std::string j = "";
+        if (i)
+            j = "true";
+        else
+            j = "false";
+        std::stringstream ss;
+        ss << j;
+        return ss.str();
+    }
     std::string SolarAuxUtils::str(double i, int prec)
     {
         // Use prec to define the precision of the output in terms of number of decimal places

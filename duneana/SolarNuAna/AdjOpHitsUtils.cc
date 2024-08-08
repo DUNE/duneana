@@ -10,13 +10,13 @@ namespace solar
         fOpFlashAlgoRad(p.get<float>("OpFlashAlgoRad")),
         fOpFlashAlgoPE(p.get<float>("OpFlashAlgoPE")),
         fOpFlashAlgoTriggerPE(p.get<float>("OpFlashAlgoTriggerPE")),
-        fDetectorSizeX(p.get<double>("DetectorSizeX")), // Changed type to double
-        fOpFlashAlgoCentroid(p.get<bool>("OpFlashAlgoCentroid"))
+        fDetectorSizeX(p.get<double>("DetectorSizeX")) // Changed type to double
+                                                       // fOpFlashAlgoCentroid(p.get<bool>("OpFlashAlgoCentroid"))
   {
   }
-  void AdjOpHitsUtils::MakeFlashVector(std::vector<FlashInfo> &FlashVec, std::vector<std::vector<art::Ptr<recob::OpHit>>> &Clusters, art::Event const &evt)
+  void AdjOpHitsUtils::MakeFlashVector(std::vector<FlashInfo> &FlashVec, std::vector<std::vector<art::Ptr<recob::OpHit>>> &OpHitClusters, art::Event const &evt)
   {
-    for (std::vector<art::Ptr<recob::OpHit>> Cluster : Clusters)
+    for (std::vector<art::Ptr<recob::OpHit>> Cluster : OpHitClusters)
     {
       if (!Cluster.empty())
       {
@@ -118,52 +118,52 @@ namespace solar
     return;
   }
 
-  void AdjOpHitsUtils::CalcAdjOpHits(const std::vector<art::Ptr<recob::OpHit>> &Vec, std::vector<std::vector<art::Ptr<recob::OpHit>>> &Clusters, std::vector<std::vector<int>> &Idx)
+  void AdjOpHitsUtils::CalcAdjOpHits(const std::vector<art::Ptr<recob::OpHit>> &OpHitVector, std::vector<std::vector<art::Ptr<recob::OpHit>>> &OpHitClusters, std::vector<std::vector<int>> &OpHitClusterIdx)
   {
-    // Define MyVec as a copy of the input vector but only with hits with PE > MinPE
-    std::vector<art::Ptr<recob::OpHit>> MyVec;
-    // Don't need cluster all the hits, only those with PE > MinPE that are close to a big hit
-    for (auto &hit : Vec)
-    {
-      if (hit->PE() >= fOpFlashAlgoPE)
-      {
-        MyVec.push_back(hit);
-      }
-    }
-    std::string sDebugInfo = "Selected ophits " + SolarAuxUtils::str(int(MyVec.size())) + " from " + SolarAuxUtils::str(int(Vec.size())) + "\n";
+    // Initialize the vector of OpHitClusters and the vector of indices
+    OpHitClusters.clear();
+    OpHitClusterIdx.clear();
 
-    // Sort hits according to time
-    std::stable_sort(MyVec.begin(), MyVec.end(), [](art::Ptr<recob::OpHit> a, art::Ptr<recob::OpHit> b)
-                     { return a->PeakTime() < b->PeakTime(); });
+    // Create a sorting index based on the input vector
+    std::vector<int> sortingIndex(OpHitVector.size());
+    std::iota(sortingIndex.begin(), sortingIndex.end(), 0);
+    std::stable_sort(sortingIndex.begin(), sortingIndex.end(), [&](int a, int b)
+                     { return OpHitVector[a]->PeakTime() < OpHitVector[b]->PeakTime(); });
 
-    // Create a vector of bools to track if a hit has been clustered or not
-    std::vector<bool> ClusteredHits(MyVec.size(), false);
+    // Create a vector to track if a hit has been clustered or not
+    std::vector<bool> ClusteredHits(OpHitVector.size(), false);
 
-    SolarAuxUtils::PrintInColor(sDebugInfo, SolarAuxUtils::GetColor("yellow"), "Debug");
-    for (auto it = MyVec.begin(); it != MyVec.end(); ++it)
+    for (auto it = sortingIndex.begin(); it != sortingIndex.end(); ++it)
     {
       std::string sOpHitClustering = "";
-      const auto &hit = *it;
+      std::vector<art::Ptr<recob::OpHit>> AdjHitVec = {};
+      std::vector<int> AdjHitIdx = {};
+
+      const auto &hit = OpHitVector[*it];
       if (hit->PE() < fOpFlashAlgoTriggerPE)
         continue;
 
       bool main_hit = true;
 
       // If a trigger hit is found, start a new cluster with the hits around it that are within the time and radius range
-      std::vector<art::Ptr<recob::OpHit>> AdjHitVec = {};
+      ClusteredHits[*it] = true;
       AdjHitVec.push_back(hit);
+      AdjHitIdx.push_back(*it);
       sOpHitClustering += "Trigger hit found: PE " + SolarAuxUtils::str(hit->PE()) + " CH " + SolarAuxUtils::str(hit->OpChannel()) + " Time " + SolarAuxUtils::str(hit->PeakTime()) + "\n";
 
       // Make use of the fact that the hits are sorted in time to only consider the hits that are adjacent in the vector up to a certain time range
-      for (auto it2 = it + 1; it2 != MyVec.end(); ++it2)
+      for (auto it2 = it + 1; it2 != sortingIndex.end(); ++it2)
       {
         // make sure we don't go out of bounds and the pointer is valid
-        if (it2 == MyVec.end())
+        if (it2 == sortingIndex.end())
           break;
 
-        auto &adjHit = *it2; // Update adjHit here
+        auto &adjHit = OpHitVector[*it2]; // Update adjHit here
+
         if (std::abs(adjHit->PeakTime() - hit->PeakTime()) > fOpFlashAlgoTime)
           break;
+        if (adjHit->PE() < fOpFlashAlgoPE)
+          continue;
 
         int refHit1 = hit->OpChannel();
         int refHit2 = adjHit->OpChannel();
@@ -179,7 +179,7 @@ namespace solar
         }
         else if (fGeometry == "VD")
         {
-          // Only use cothode hits in VD for now
+          // Only use cathode hits in VD for now
           if (ref1.X() > -fDetectorSizeX || ref2.X() > -fDetectorSizeX)
             continue;
         }
@@ -189,7 +189,7 @@ namespace solar
           continue;
         }
         // If hit has already been clustered, skip
-        if (ClusteredHits[std::distance(MyVec.begin(), it2)])
+        if (ClusteredHits[*it2])
           continue;
 
         auto ref4 = TVector3(ref1.X(), ref1.Y(), ref1.Z()) - TVector3(ref2.X(), ref2.Y(), ref2.Z());
@@ -201,28 +201,30 @@ namespace solar
             sOpHitClustering += "Hit with PE > TriggerPE found: PE " + SolarAuxUtils::str(adjHit->PE()) + " CH " + SolarAuxUtils::str(adjHit->OpChannel()) + " Time " + SolarAuxUtils::str(adjHit->PeakTime()) + "\n";
 
             // Reset the ClusteredHits values for the hits that have been added to the cluster
-            for (auto it3 = AdjHitVec.begin(); it3 != AdjHitVec.end(); ++it3)
+            for (auto it3 = AdjHitIdx.begin(); it3 != AdjHitIdx.end(); ++it3)
             {
-              sOpHitClustering += "Removing hit: CH " + SolarAuxUtils::str((*it3)->OpChannel()) + " Time " + SolarAuxUtils::str((*it3)->PeakTime()) + "\n";
-              ClusteredHits[std::distance(MyVec.begin(), it3)] = false;
+              ClusteredHits[*it3] = false;
+              sOpHitClustering += "Removing hit: CH " + SolarAuxUtils::str(OpHitVector[*it3]->OpChannel()) + " Time " + SolarAuxUtils::str(OpHitVector[*it3]->PeakTime()) + "\n";
             }
             break;
           }
           AdjHitVec.push_back(adjHit);
-          ClusteredHits[std::distance(MyVec.begin(), it2)] = true;
+          ClusteredHits[*it2] = true;
           sOpHitClustering += "Adding hit: PE " + SolarAuxUtils::str(adjHit->PE()) + " CH " + SolarAuxUtils::str(adjHit->OpChannel()) + " Time " + SolarAuxUtils::str(adjHit->PeakTime()) + "\n";
         }
       }
 
-      for (auto it3 = it - 1; it3 != MyVec.begin() - 1; --it3)
+      for (auto it4 = it - 1; it4 != sortingIndex.begin(); --it4)
       {
         // make sure we don't go out of bounds and the pointer is valid
-        if (it3 == MyVec.begin())
+        if (it4 == sortingIndex.begin())
           break;
-        auto &adjHit = *it3;
+        auto &adjHit = OpHitVector[*it4];
 
         if (std::abs(adjHit->PeakTime() - hit->PeakTime()) > fOpFlashAlgoTime)
           break;
+        if (adjHit->PE() < fOpFlashAlgoPE)
+          continue;
 
         int refHit1 = hit->OpChannel();
         int refHit2 = adjHit->OpChannel();
@@ -247,7 +249,7 @@ namespace solar
         }
 
         // if hit has already been clustered, skip
-        if (ClusteredHits[std::distance(MyVec.begin(), it3)])
+        if (ClusteredHits[*it4])
           continue;
 
         auto ref4 = TVector3(ref1.X(), ref1.Y(), ref1.Z()) - TVector3(ref2.X(), ref2.Y(), ref2.Z());
@@ -257,33 +259,28 @@ namespace solar
           {
             main_hit = false;
             sOpHitClustering += "*** Hit with PE > TriggerPE found: PE " + SolarAuxUtils::str(adjHit->PE()) + " CH " + SolarAuxUtils::str(adjHit->OpChannel()) + " Time " + SolarAuxUtils::str(adjHit->PeakTime()) + "\n";
-            for (auto it4 = AdjHitVec.begin(); it4 != AdjHitVec.end(); ++it4)
+
+            // Reset the ClusteredHits values for the hits that have been added to the cluster
+            for (auto it5 = AdjHitIdx.begin(); it5 != AdjHitIdx.end(); ++it5)
             {
-              ClusteredHits[std::distance(MyVec.begin(), it4)] = false;
-              sOpHitClustering += "Removing hit: CH " + SolarAuxUtils::str((*it4)->OpChannel()) + " Time " + SolarAuxUtils::str((*it4)->PeakTime()) + "\n";
+              ClusteredHits[*it5] = false;
+              sOpHitClustering += "Removing hit: CH " + SolarAuxUtils::str(OpHitVector[*it5]->OpChannel()) + " Time " + SolarAuxUtils::str(OpHitVector[*it5]->PeakTime()) + "\n";
             }
             break;
           }
           AdjHitVec.push_back(adjHit);
-          ClusteredHits[std::distance(MyVec.begin(), it3)] = true;
+          ClusteredHits[*it4] = true;
           sOpHitClustering += "Adding hit: PE " + SolarAuxUtils::str(adjHit->PE()) + " CH " + SolarAuxUtils::str(adjHit->OpChannel()) + " Time " + SolarAuxUtils::str(adjHit->PeakTime()) + "\n";
         }
       }
 
       if (main_hit && int(AdjHitVec.size()) >= fOpFlashAlgoNHit)
       {
-        Clusters.push_back(std::move(AdjHitVec));
-        sOpHitClustering += "Cluster size: " + SolarAuxUtils::str(int(Clusters.back().size())) + "\n";
-        SolarAuxUtils::PrintInColor(sOpHitClustering, SolarAuxUtils::GetColor("green"), "Debug");
-
         // Store the original indices of the clustered hits
-        std::vector<int> clusterIdx;
-        for (const auto &hit : Clusters.back())
-        {
-          int idx = std::distance(Vec.begin(), std::find(Vec.begin(), Vec.end(), hit));
-          clusterIdx.push_back(idx);
-        }
-        Idx.push_back(clusterIdx);
+        OpHitClusterIdx.push_back(AdjHitIdx);
+        OpHitClusters.push_back(std::move(AdjHitVec));
+        sOpHitClustering += "Cluster size: " + SolarAuxUtils::str(int(OpHitClusters.back().size())) + "\n";
+        SolarAuxUtils::PrintInColor(sOpHitClustering, SolarAuxUtils::GetColor("green"), "Debug");
       }
       else
       {
@@ -299,18 +296,26 @@ namespace solar
     Residual = 0;
     float PE = 0;
 
+    // Find index of the hit with the highest PE
+    int maxPEIdx = 0;
+    for (unsigned int i = 0; i < Hits.size(); i++)
+    {
+      if (Hits[i]->PE() > Hits[maxPEIdx]->PE())
+        maxPEIdx = i;
+    }
+
     // Start with the first hit in the flash as reference point
-    double firstHitY = geo->OpDetGeoFromOpChannel(Hits[0]->OpChannel()).GetCenter().Y();
-    double firstHitZ = geo->OpDetGeoFromOpChannel(Hits[0]->OpChannel()).GetCenter().Z();
+    double firstHitY = geo->OpDetGeoFromOpChannel(Hits[maxPEIdx]->OpChannel()).GetCenter().Y();
+    double firstHitZ = geo->OpDetGeoFromOpChannel(Hits[maxPEIdx]->OpChannel()).GetCenter().Z();
 
     // Get the first hit PE and calculate the squared distance and angle to the reference point
-    float firstHitPE = Hits[0]->PE();
+    float firstHitPE = Hits[maxPEIdx]->PE();
     float firstHitDistSq = pow(firstHitY - y, 2) + pow(firstHitZ - z, 2);
     float firstHitAngle = atan2(sqrt(firstHitDistSq), x);
 
     // Calculate the expected PE value for the reference point based on the first hit PE and the squared distance + angle
-    // float refHitPE = firstHitPE * (pow(x, 2) + firstHitDistSq) / pow(x, 2) / cos(firstHitAngle);
-    float refHitPE = firstHitPE * (pow(x, 2) + firstHitDistSq) / pow(x, 2);
+    float refHitPE = firstHitPE * (pow(x, 2) + firstHitDistSq) / pow(x, 2) / cos(firstHitAngle);
+    // float refHitPE = firstHitPE * (pow(x, 2) + firstHitDistSq) / pow(x, 2);
 
     // Loop over all OpHits in the flash and compute the squared distance to the reference point
     for (const auto &hit : Hits)
@@ -320,21 +325,22 @@ namespace solar
 
       // Make a residual calculation of the PE distribution in the OpHits of the flash wrt the charge deposition in the TPC.
       float hitDistSq = pow(hitY - y, 2) + pow(hitZ - z, 2);
-      // float hitAngle = atan2(sqrt(hitDistSq), x);
+      float hitAngle = atan2(sqrt(hitDistSq), x);
 
       // The expected distribution of PE corresponds to a decrease of 1/r² with the distance from the flash center. Between adjacent OpHits, the expected decrease in charge has the form r²/(r²+d²)
-      // float predPE = refHitPE * cos(hitAngle) * pow(x, 2) / (pow(x, 2) + hitDistSq);
-      float predPE = refHitPE * pow(x, 2) / (pow(x, 2) + hitDistSq);
+      float predPE = refHitPE * cos(hitAngle) * pow(x, 2) / (pow(x, 2) + hitDistSq);
+      // float predPE = refHitPE * pow(x, 2) / (pow(x, 2) + hitDistSq);
       Residual += pow(hit->PE() - predPE, 2);
       PE += hit->PE();
     }
 
-    if (!Hits.empty())
-      Residual /= Hits.size();
+    Residual /= PE;
+    Residual /= float(Hits.size());
 
     std::string debug = "PE: " + SolarAuxUtils::str(PE) +
                         " FisrtPE: " + SolarAuxUtils::str(firstHitPE) +
                         " RefPE: " + SolarAuxUtils::str(refHitPE) +
+                        " NHits: " + SolarAuxUtils::str(int(Hits.size())) +
                         " X: " + SolarAuxUtils::str(x) +
                         " Dist: " + SolarAuxUtils::str(sqrt(firstHitDistSq)) +
                         " Angle: " + SolarAuxUtils::str(firstHitAngle) +

@@ -11,6 +11,7 @@
 #define AdjOpHitsTool_h
 
 #include <cmath>
+#include <numeric>
 #include <iostream>
 #include <vector>
 #include <fcntl.h>
@@ -53,8 +54,8 @@ namespace solar
             double STD;
         };
         explicit AdjOpHitsUtils(fhicl::ParameterSet const &p);
-        void CalcAdjOpHits(const std::vector<art::Ptr<recob::OpHit>> &Vec, std::vector<std::vector<art::Ptr<recob::OpHit>>> &Clusters, std::vector<std::vector<int>> &Idx);
-        void MakeFlashVector(std::vector<FlashInfo> &FlashVec, std::vector<std::vector<art::Ptr<recob::OpHit>>> &Clusters, art::Event const &evt);
+        void CalcAdjOpHits(const std::vector<art::Ptr<recob::OpHit>> &OpHitVector, std::vector<std::vector<art::Ptr<recob::OpHit>>> &OpHitClusters, std::vector<std::vector<int>> &OpHitClusterIdx);
+        void MakeFlashVector(std::vector<FlashInfo> &FlashVec, std::vector<std::vector<art::Ptr<recob::OpHit>>> &OpHitClusters, art::Event const &evt);
         void FlashMatchResidual(float &Residual, std::vector<art::Ptr<recob::OpHit>> Hits, double x, double y, double z);
         // void CalcCentroid(std::vector<art::Ptr<recob::OpHit>> Hits, double x, double y, double z);
         // double GaussianPDF(double x, double mean, double sigma);
@@ -69,7 +70,7 @@ namespace solar
         const float fOpFlashAlgoPE;
         const float fOpFlashAlgoTriggerPE;
         const double fDetectorSizeX;
-        const bool fOpFlashAlgoCentroid;
+        // const bool fOpFlashAlgoCentroid;
     };
 }
 #endif

@@ -39,21 +39,22 @@ BEGIN_PROLOG
     AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
 
     GenerateAdjOpFlash:         false        # Generate OpFlashes.
-    OpFlashAlgoNHit:            5            # Min number of hits to consider a flash.
-    OpFlashAlgoTime:            3            # Time window to look for adj. OpHits in [tick] units.
-    OpFlashAlgoRad:             500          # Distance to look for adj. OpHits in [cm] units.
+    OpFlashAlgoNHit:            3            # Min number of hits to consider a flash.
+    OpFlashAlgoTime:            5            # Time window to look for adj. OpHits in [tick] units.
+    OpFlashAlgoRad:             300          # Distance to look for adj. OpHits in [cm] units.
     OpFlashAlgoPE:              1.5          # PE threshold to look for adj. OpHits.
     OpFlashAlgoTriggerPE:       20           # PE threshold to trigger an OpFlash.
     # OpFlashAlgoCentroid:        false        # Use the centroid computation of the flash based on a likelihood estimation.
 
     AdjOpFlashTime:             4500         # Time window to look for adjacent flashes in [tick] units should be one full drift length.
-    AdjOpFlashY:                100.         # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashZ:                100.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashY:                50.          # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashZ:                50.          # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE.
 
     SaveMarleyEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
+    SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
