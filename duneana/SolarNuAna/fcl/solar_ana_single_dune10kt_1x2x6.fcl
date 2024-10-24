@@ -3,4 +3,4 @@
 
 #include "solar_ana_dune10kt_1x2x6.fcl"
 
-physics.analyzers.solarnuana.SaveSignalEDep: true
+physics.analyzers.solarnuana.ParticleLabelVector: @local::single_generator_dune10kt_1x2x6

@@ -12,7 +12,7 @@ BEGIN_PROLOG
     OpFlashLabel:        "solarflash"   # The label for the process which ran the OpFlash
 
     #====================================================================================#
-    # Vector with generator labels for the particles included in the event. IMPORTANT: Keep MARLEY label in the first position!!!
+    # Vector with generator labels for the particles included in the event. IMPORTANT: Keep SIGNAL label in the first position!!!
     ParticleLabelVector: @local::generator_dune10kt_1x2x6
 
     Geometry:                   "HD"
@@ -52,7 +52,7 @@ BEGIN_PROLOG
     AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE.
 
-    SaveMarleyEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
+    SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster
   }

@@ -95,7 +95,7 @@ namespace solar
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels;
     float fOpFlashAlgoTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
-    bool fClusterPreselectionTrack, fClusterPreselectionPrimary, fGenerateAdjOpFlash, fSaveMarleyEDep, fSaveSignalOpHits, fSaveOpFlashInfo;
+    bool fClusterPreselectionTrack, fClusterPreselectionPrimary, fGenerateAdjOpFlash, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo;
     // bool fOpFlashAlgoCentroid;
 
     // --- Our TTrees, and its associated variables.
@@ -107,14 +107,14 @@ namespace solar
     int Event, Flag, MNHit, MGen, MTPC, MInd0TPC, MInd1TPC, MInd0NHits, MInd1NHits, MMainID, MMainPDG, MMainParentPDG, TrackNum, OpHitNum, OpFlashNum, MTrackNPoints;
     float TNuE, TNuX, TNuY, TNuZ, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
     float MInd0dT, MInd1dT, MInd0RecoY, MInd1RecoY, MRecX, MRecY, MRecZ, MPur, MGenPur, MMainE, MMainP, MMainK, MMainT, MMainParentE, MMainParentP, MMainParentK, MMainParentT, MTrackChi2;
-    std::vector<int> MAdjClGen, MAdjClMainID, TPart, MarleyPDGList, MarleyPDGDepList, MarleyIDList, MarleyMotherList, MarleyIDDepList, MAdjClMainPDG, HitNum, ClusterNum, MarleyElectronDepList;
-    std::vector<float> MarleyEDepList, MarleyXDepList, MarleyYDepList, MarleyZDepList;
+    std::vector<int> MAdjClGen, MAdjClMainID, TPart, SignalPDGList, SignalPDGDepList, SignalIDList, SignalMotherList, SignalIDDepList, MAdjClMainPDG, HitNum, ClusterNum, SignalElectronDepList;
+    std::vector<float> SignalEDepList, SignalXDepList, SignalYDepList, SignalZDepList;
     std::vector<float> SOpHitPur, SOpHitPE, SOpHitX, SOpHitY, SOpHitZ, SOpHitT, SOpHitChannel, SOpHitFlashID;
     std::vector<float> MAdjClTime, MAdjClCharge, MAdjClInd0Charge, MAdjClInd1Charge, MAdjClMaxCharge, MAdjClInd0MaxCharge, MAdjClInd1MaxCharge;
     std::vector<float> MAdjClNHit, MAdjClInd0NHit, MAdjClInd1NHit, MAdjClRecoY, MAdjClRecoZ, MAdjClR, MAdjClPur, MAdjClGenPur, MAdjClMainE, MAdjClMainK;
-    std::vector<float> MAdjClMainX, MAdjClMainY, MAdjClMainZ, MAdjClEndX, MAdjClEndY, MAdjClEndZ, MMarleyFrac, MGenFrac;
+    std::vector<float> MAdjClMainX, MAdjClMainY, MAdjClMainZ, MAdjClEndX, MAdjClEndY, MAdjClEndZ, MSignalFrac, MGenFrac;
     std::vector<float> MAdjFlashTime, MAdjFlashResidual, MAdjFlashPE, MAdjFlashNHit, MAdjFlashMaxPE, MAdjFlashRecoX, MAdjFlashRecoY, MAdjFlashRecoZ, MAdjFlashR, MAdjFlashPur, MAdjFlashSTD, MAdjFlashFast;
-    std::vector<float> MarleyEList, MarleyPList, MarleyKList, MarleyTList, MarleyEndXList, MarleyEndYList, MarleyEndZList, MarleyMaxEDepList, MarleyMaxEDepXList, MarleyMaxEDepYList, MarleyMaxEDepZList;
+    std::vector<float> SignalEList, SignalPList, SignalKList, SignalTList, SignalEndXList, SignalEndYList, SignalEndZList, SignalMaxEDepList, SignalMaxEDepXList, SignalMaxEDepYList, SignalMaxEDepZList;
     std::vector<double> MMainVertex, MEndVertex, MMainParentVertex;
     std::vector<double> MTrackStart, MTrackEnd;
     bool MPrimary;
@@ -138,7 +138,7 @@ namespace solar
     TH2F *hDriftTime;
 
     // --- Declare our services
-    geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
+    geo::WireReadoutGeom const &wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
     art::ServiceHandle<cheat::BackTrackerService> bt_serv;
     art::ServiceHandle<cheat::PhotonBackTrackerService> pbt;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
@@ -196,7 +196,7 @@ namespace solar
     fAdjOpFlashZ = p.get<float>("AdjOpFlashZ");
     fAdjOpFlashMaxPERatioCut = p.get<float>("AdjOpFlashMaxPERatioCut");
     fAdjOpFlashMinPECut = p.get<float>("AdjOpFlashMinPECut");
-    fSaveMarleyEDep = p.get<bool>("SaveMarleyEDep");
+    fSaveSignalEDep = p.get<bool>("SaveSignalEDep");
     fSaveSignalOpHits = p.get<bool>("SaveSignalOpHits");
     fSaveOpFlashInfo = p.get<bool>("SaveOpFlashInfo");
   } // Reconfigure
@@ -245,7 +245,7 @@ namespace solar
     fConfigTree->Branch("AdjOpFlashZ", &fAdjOpFlashZ);
     fConfigTree->Branch("AdjOpFlashMaxPERatioCut", &fAdjOpFlashMaxPERatioCut);
     fConfigTree->Branch("AdjOpFlashMinPECut", &fAdjOpFlashMinPECut);
-    fConfigTree->Branch("SaveMarleyEDep", &fSaveMarleyEDep);
+    fConfigTree->Branch("SaveSignalEDep", &fSaveSignalEDep);
     fConfigTree->Branch("SaveSignalOpHits", &fSaveSignalOpHits);
     fConfigTree->Branch("SaveOpFlashInfo", &fSaveOpFlashInfo);
 
@@ -258,34 +258,34 @@ namespace solar
     fMCTruthTree->Branch("TNuX", &TNuX, "TruthNuX/F");               // True neutrino X [cm]
     fMCTruthTree->Branch("TNuY", &TNuY, "TruthNuY/F");               // True neutrino Y [cm]
     fMCTruthTree->Branch("TNuZ", &TNuZ, "TruthNuZ/F");               // True neutrino Z [cm]
-    fMCTruthTree->Branch("TMarleyPDG", &MarleyPDGList);              // PDG of marley marticles
-    fMCTruthTree->Branch("TMarleyE", &MarleyEList);                  // Energy of marley particles [MeV]
-    fMCTruthTree->Branch("TMarleyP", &MarleyPList);                  // Momentum of marley particles [MeV]
-    fMCTruthTree->Branch("TMarleyK", &MarleyKList);                  // Kinetik Energy of marley particles [MeV]
-    fMCTruthTree->Branch("TMarleyT", &MarleyTList);                  // Time of marley particles [ticks]
-    fMCTruthTree->Branch("TMarleyEndX", &MarleyEndXList);            // X of marley particles [cm]
-    fMCTruthTree->Branch("TMarleyEndY", &MarleyEndYList);            // Y of marley particles [cm]
-    fMCTruthTree->Branch("TMarleyEndZ", &MarleyEndZList);            // Z of marley particles [cm]
-    fMCTruthTree->Branch("TMarleyMaxEDep", &MarleyMaxEDepList);      // Energy of marley particles [MeV]
-    fMCTruthTree->Branch("TMarleyX", &MarleyMaxEDepXList);           // X of marley particles [cm]
-    fMCTruthTree->Branch("TMarleyY", &MarleyMaxEDepYList);           // Y of marley particles [cm]
-    fMCTruthTree->Branch("TMarleyZ", &MarleyMaxEDepZList);           // Z of marley particles [cm]
-    fMCTruthTree->Branch("TMarleyID", &MarleyIDList);                // TrackID of marley particles
-    fMCTruthTree->Branch("TMarleyMother", &MarleyMotherList);        // TrackID of marley mother
+    fMCTruthTree->Branch("TSignalPDG", &SignalPDGList);              // PDG of Signal marticles
+    fMCTruthTree->Branch("TSignalE", &SignalEList);                  // Energy of Signal particles [MeV]
+    fMCTruthTree->Branch("TSignalP", &SignalPList);                  // Momentum of Signal particles [MeV]
+    fMCTruthTree->Branch("TSignalK", &SignalKList);                  // Kinetik Energy of Signal particles [MeV]
+    fMCTruthTree->Branch("TSignalT", &SignalTList);                  // Time of Signal particles [ticks]
+    fMCTruthTree->Branch("TSignalEndX", &SignalEndXList);            // X of Signal particles [cm]
+    fMCTruthTree->Branch("TSignalEndY", &SignalEndYList);            // Y of Signal particles [cm]
+    fMCTruthTree->Branch("TSignalEndZ", &SignalEndZList);            // Z of Signal particles [cm]
+    fMCTruthTree->Branch("TSignalMaxEDep", &SignalMaxEDepList);      // Energy of Signal particles [MeV]
+    fMCTruthTree->Branch("TSignalX", &SignalMaxEDepXList);           // X of Signal particles [cm]
+    fMCTruthTree->Branch("TSignalY", &SignalMaxEDepYList);           // Y of Signal particles [cm]
+    fMCTruthTree->Branch("TSignalZ", &SignalMaxEDepZList);           // Z of Signal particles [cm]
+    fMCTruthTree->Branch("TSignalID", &SignalIDList);                // TrackID of Signal particles
+    fMCTruthTree->Branch("TSignalMother", &SignalMotherList);        // TrackID of Signal mother
     fMCTruthTree->Branch("TrackNum", &TrackNum, "TrackNum/I");       // Number of PMTracks
     fMCTruthTree->Branch("OpHitNum", &OpHitNum, "OpHitNum/I");       // Number of OpHits
     fMCTruthTree->Branch("OpFlashNum", &OpFlashNum, "OpFlashNum/I"); // Number of OpFlashes
     fMCTruthTree->Branch("HitNum", &HitNum);                         // Number of hits in each TPC plane
     fMCTruthTree->Branch("ClusterNum", &ClusterNum);                 // Number of clusters in each TPC plane
-    if (fSaveMarleyEDep)
+    if (fSaveSignalEDep)
     {
-      fMCTruthTree->Branch("TMarleyPDGDepList", &MarleyPDGDepList);           // PDG for Energy deposited of marley particles
-      fMCTruthTree->Branch("TMarleyEDepList", &MarleyEDepList);               // Energy deposited of marley particles [MeV]
-      fMCTruthTree->Branch("TMarleyXDepList", &MarleyXDepList);               // X deposited of marley particles [cm]
-      fMCTruthTree->Branch("TMarleyYDepList", &MarleyYDepList);               // Y deposited of marley particles [cm]
-      fMCTruthTree->Branch("TMarleyZDepList", &MarleyZDepList);               // Z deposited of marley particles [cm]
-      fMCTruthTree->Branch("TMarleyIDDepList", &MarleyIDDepList);             // ParentID of marley particles
-      fMCTruthTree->Branch("TMarleyElectronDepList", &MarleyElectronDepList); // Number of electrons in the marley particles
+      fMCTruthTree->Branch("TSignalPDGDepList", &SignalPDGDepList);           // PDG for Energy deposited of Signal particles
+      fMCTruthTree->Branch("TSignalEDepList", &SignalEDepList);               // Energy deposited of Signal particles [MeV]
+      fMCTruthTree->Branch("TSignalXDepList", &SignalXDepList);               // X deposited of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalYDepList", &SignalYDepList);               // Y deposited of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalZDepList", &SignalZDepList);               // Z deposited of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalIDDepList", &SignalIDDepList);             // ParentID of Signal particles
+      fMCTruthTree->Branch("TSignalElectronDepList", &SignalElectronDepList); // Number of electrons in the Signal particles
     }
     if (fSaveSignalOpHits)
     {
@@ -321,18 +321,18 @@ namespace solar
     fSolarNuAnaTree->Branch("TNuX", &TNuX, "TruthNuX/F");          // True neutrino X
     fSolarNuAnaTree->Branch("TNuY", &TNuY, "TruthNuY/F");          // True neutrino Y
     fSolarNuAnaTree->Branch("TNuZ", &TNuZ, "TruthNuZ/F");          // True neutrino Z
-    fSolarNuAnaTree->Branch("TMarleyPDG", &MarleyPDGList);         // PDG of marley particles
-    fSolarNuAnaTree->Branch("TMarleyE", &MarleyEList);             // Energy of marley particles
-    fSolarNuAnaTree->Branch("TMarleyK", &MarleyKList);             // Kinetik Energy of marley particles
-    fSolarNuAnaTree->Branch("TMarleyEndX", &MarleyEndXList);       // X of marley particles
-    fSolarNuAnaTree->Branch("TMarleyEndY", &MarleyEndYList);       // Y of marley particles
-    fSolarNuAnaTree->Branch("TMarleyEndZ", &MarleyEndZList);       // Z of marley particles
-    fSolarNuAnaTree->Branch("TMarleyMaxEDep", &MarleyMaxEDepList); // Max Energy Deposition of marley particles
-    fSolarNuAnaTree->Branch("TMarleyX", &MarleyMaxEDepXList);      // Max Energy Deposition X of marley particles
-    fSolarNuAnaTree->Branch("TMarleyY", &MarleyMaxEDepYList);      // Max Energy Deposition Y of marley particles
-    fSolarNuAnaTree->Branch("TMarleyZ", &MarleyMaxEDepZList);      // Max Energy Deposition Z of marley particles
-    fSolarNuAnaTree->Branch("TMarleyID", &MarleyIDList);           // TrackID of marley particles")
-    fSolarNuAnaTree->Branch("TMarleyMother", &MarleyMotherList);   // TrackID of marley particles")
+    fSolarNuAnaTree->Branch("TSignalPDG", &SignalPDGList);         // PDG of Signal particles
+    fSolarNuAnaTree->Branch("TSignalE", &SignalEList);             // Energy of Signal particles
+    fSolarNuAnaTree->Branch("TSignalK", &SignalKList);             // Kinetik Energy of Signal particles
+    fSolarNuAnaTree->Branch("TSignalEndX", &SignalEndXList);       // X of Signal particles
+    fSolarNuAnaTree->Branch("TSignalEndY", &SignalEndYList);       // Y of Signal particles
+    fSolarNuAnaTree->Branch("TSignalEndZ", &SignalEndZList);       // Z of Signal particles
+    fSolarNuAnaTree->Branch("TSignalMaxEDep", &SignalMaxEDepList); // Max Energy Deposition of Signal particles
+    fSolarNuAnaTree->Branch("TSignalX", &SignalMaxEDepXList);      // Max Energy Deposition X of Signal particles
+    fSolarNuAnaTree->Branch("TSignalY", &SignalMaxEDepYList);      // Max Energy Deposition Y of Signal particles
+    fSolarNuAnaTree->Branch("TSignalZ", &SignalMaxEDepZList);      // Max Energy Deposition Z of Signal particles
+    fSolarNuAnaTree->Branch("TSignalID", &SignalIDList);           // TrackID of Signal particles")
+    fSolarNuAnaTree->Branch("TSignalMother", &SignalMotherList);   // TrackID of Signal particles")
 
     // Main Cluster info.
     fSolarNuAnaTree->Branch("Primary", &MPrimary);                                // Cluster hasn't any adjcl with AdjClCharge > MCharge (bool)
@@ -374,7 +374,7 @@ namespace solar
     fSolarNuAnaTree->Branch("EndVertex", &MEndVertex);                            // Main cluster end particle vertex [cm]
     fSolarNuAnaTree->Branch("MainParentVertex", &MMainParentVertex);              // Main cluster parent particle vertex [cm]
     fSolarNuAnaTree->Branch("GenFrac", &MGenFrac);                                // Main cluster reco purity complete
-    fSolarNuAnaTree->Branch("MarleyFrac", &MMarleyFrac);                          // Main cluster particle contribution (electron, gamma, neutron)
+    fSolarNuAnaTree->Branch("SignalFrac", &MSignalFrac);                          // Main cluster particle contribution (electron, gamma, neutron)
 
     // Track info.
     fSolarNuAnaTree->Branch("MTrackNPoints", &MTrackNPoints, "TrackNPoints/I"); // Track #points
@@ -541,120 +541,144 @@ namespace solar
     std::set<int> SignalTrackIDs;                                    // Signal TrackIDs to be used in OpFlash matching
     std::vector<std::vector<int>> ClPartTrackIDs = {{}, {}, {}, {}}; // Track IDs corresponding to each kind of MCTruth particle  {11,22,2112,else}
     art::Handle<std::vector<simb::MCTruth>> ThisHandle;
-    std::string sNuTruth = "";
+    std::string sSignalTruth = "";
     evt.getByLabel(fLabels[0], ThisHandle);
     if (ThisHandle)
     {
-      auto Marley = evt.getValidHandle<std::vector<simb::MCTruth>>(fLabels[0]); // Get handle for MARLEY MCTruths
+      auto Signal = evt.getValidHandle<std::vector<simb::MCTruth>>(fLabels[0]); // Get handle for SIGNAL MCTruths
       // --- Loop over all neutrinos in the event ---
-      for (auto const &MarleyTruth : *Marley)
+      for (auto const &SignalTruth : *Signal)
       {
-        const simb::MCNeutrino &nue = MarleyTruth.GetNeutrino();
-        TNuInteraction = SolarAuxUtils::str(nue.InteractionType());
-        TNuE = 1e3 * nue.Nu().E();
-        TNuX = nue.Nu().Vx();
-        TNuY = nue.Nu().Vy();
-        TNuZ = nue.Nu().Vz();
-        int N = MarleyTruth.NParticles();
-        sNuTruth = sNuTruth + "\nNeutrino Interaction: " + TNuInteraction;
-        sNuTruth = sNuTruth + "\nNumber of Producer Particles: " + SolarAuxUtils::str(N);
-        sNuTruth = sNuTruth + "\nNeutrino energy: " + SolarAuxUtils::str(TNuE) + " MeV";
-        sNuTruth = sNuTruth + "\nPosition (" + SolarAuxUtils::str(TNuX) + ", " + SolarAuxUtils::str(TNuY) + ", " + SolarAuxUtils::str(TNuZ) + ") cm";
-      }
-      art::FindManyP<simb::MCParticle> MarlAssn(Marley, evt, fGEANTLabel);
-      sNuTruth = sNuTruth + "\nGen.\tPdgCode\t\tEnergy\t\tEndPosition\t\tMother";
-      sNuTruth = sNuTruth + "\n--------------------------------------------------------------------";
-
-      for (size_t i = 0; i < MarlAssn.size(); i++)
-      {
-        auto MarleyParticles = MarlAssn.at(i);
-        for (auto MarleyParticle = MarleyParticles.begin(); MarleyParticle != MarleyParticles.end(); MarleyParticle++)
+        int NSignalParticles = SignalTruth.NParticles();
+        sSignalTruth = sSignalTruth + "\nNumber of Signal Particles: " + SolarAuxUtils::str(NSignalParticles);
+        if (fLabels[0] == "marley")
         {
-          MarleyPDGList.push_back((*MarleyParticle)->PdgCode());
-          MarleyEList.push_back(1e3 * (*MarleyParticle)->E());
-          MarleyPList.push_back(1e3 * (*MarleyParticle)->P());
-          MarleyKList.push_back(1e3 * (*MarleyParticle)->E() - 1e3 * (*MarleyParticle)->Mass());
-          MarleyTList.push_back((*MarleyParticle)->T());
-          MarleyEndXList.push_back((*MarleyParticle)->EndX());
-          MarleyEndYList.push_back((*MarleyParticle)->EndY());
-          MarleyEndZList.push_back((*MarleyParticle)->EndZ());
-          MarleyIDList.push_back((*MarleyParticle)->TrackId());
-          MarleyMotherList.push_back((*MarleyParticle)->Mother());
-          std::map<int, float> MarleyMaxEDepMap, MarleyMaxEDepXMap, MarleyMaxEDepYMap, MarleyMaxEDepZMap;
-          std::vector<const sim::IDE *> ides = bt_serv->TrackIdToSimIDEs_Ps((*MarleyParticle)->TrackId());
+          const simb::MCNeutrino &nue = SignalTruth.GetNeutrino();
+          TNuInteraction = SolarAuxUtils::str(nue.InteractionType());
+          TNuE = 1e3 * nue.Nu().E();
+          TNuX = nue.Nu().Vx();
+          TNuY = nue.Nu().Vy();
+          TNuZ = nue.Nu().Vz();
+          sSignalTruth = sSignalTruth + "\nNeutrino Interaction: " + TNuInteraction;
+          sSignalTruth = sSignalTruth + "\nNeutrino Energy: " + SolarAuxUtils::str(TNuE) + " MeV";
+          sSignalTruth = sSignalTruth + "\nPosition (" + SolarAuxUtils::str(TNuX) + ", " + SolarAuxUtils::str(TNuY) + ", " + SolarAuxUtils::str(TNuZ) + ") cm";
+        }
+        else
+        {
+          sSignalTruth = sSignalTruth + "\nMarley generator label not found in first position generator list! Defaulting to general truth information.";
+          for (int i = 0; i < NSignalParticles; i++)
+          {
+            const simb::MCParticle &signalparticle = SignalTruth.GetParticle(i);
+            float SignalParticleE = 1e3 * signalparticle.E();
+            int SignalParticlePDG = signalparticle.PdgCode();
+            float SignalParticleX = signalparticle.Vx();
+            float SignalParticleY = signalparticle.Vy();
+            float SignalParticleZ = signalparticle.Vz();
+            sSignalTruth = sSignalTruth + "\nSignal PDG: " + SolarAuxUtils::str(SignalParticlePDG);
+            sSignalTruth = sSignalTruth + "\nEnergy: " + SolarAuxUtils::str(SignalParticleE) + " MeV";
+            sSignalTruth = sSignalTruth + "\nPosition (" + SolarAuxUtils::str(SignalParticleX) + ", " + SolarAuxUtils::str(SignalParticleY) + ", " + SolarAuxUtils::str(SignalParticleZ) + ") cm";
+          }
+        }
+      }
+      art::FindManyP<simb::MCParticle> SignalAssn(Signal, evt, fGEANTLabel);
+      sSignalTruth = sSignalTruth + "\n\tGen.\tPdgCode\t\tEnergy\t\tEndPosition\t\tMother";
+      sSignalTruth = sSignalTruth + "\n------------------------------------------------------------------------";
+
+      for (size_t i = 0; i < SignalAssn.size(); i++)
+      {
+        auto SignalParticles = SignalAssn.at(i);
+        for (auto SignalParticle = SignalParticles.begin(); SignalParticle != SignalParticles.end(); SignalParticle++)
+        {
+          SignalPDGList.push_back((*SignalParticle)->PdgCode());
+          SignalEList.push_back(1e3 * (*SignalParticle)->E());
+          SignalPList.push_back(1e3 * (*SignalParticle)->P());
+          SignalKList.push_back(1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass());
+          SignalTList.push_back((*SignalParticle)->T());
+          SignalEndXList.push_back((*SignalParticle)->EndX());
+          SignalEndYList.push_back((*SignalParticle)->EndY());
+          SignalEndZList.push_back((*SignalParticle)->EndZ());
+          SignalIDList.push_back((*SignalParticle)->TrackId());
+          SignalMotherList.push_back((*SignalParticle)->Mother());
+          std::map<int, float> SignalMaxEDepMap, SignalMaxEDepXMap, SignalMaxEDepYMap, SignalMaxEDepZMap;
+          std::vector<const sim::IDE *> ides = bt_serv->TrackIdToSimIDEs_Ps((*SignalParticle)->TrackId());
           for (auto const &ide : ides)
           {
             if (ide->numElectrons > 1e-6 && ide->energy > 1e-6 && abs(ide->x) > 1e-6 && abs(ide->y) > 1e-6 && abs(ide->z) > 1e-6)
             {
-              if (InMyMap((*MarleyParticle)->TrackId(), MarleyMaxEDepMap) == false)
+              if (InMyMap((*SignalParticle)->TrackId(), SignalMaxEDepMap) == false)
               {
-                MarleyMaxEDepMap[(*MarleyParticle)->TrackId()] = ide->energy;
-                MarleyMaxEDepXMap[(*MarleyParticle)->TrackId()] = ide->x;
-                MarleyMaxEDepYMap[(*MarleyParticle)->TrackId()] = ide->y;
-                MarleyMaxEDepZMap[(*MarleyParticle)->TrackId()] = ide->z;
+                SignalMaxEDepMap[(*SignalParticle)->TrackId()] = ide->energy;
+                SignalMaxEDepXMap[(*SignalParticle)->TrackId()] = ide->x;
+                SignalMaxEDepYMap[(*SignalParticle)->TrackId()] = ide->y;
+                SignalMaxEDepZMap[(*SignalParticle)->TrackId()] = ide->z;
               }
-              if (ide->energy > MarleyMaxEDepMap[(*MarleyParticle)->TrackId()])
+              if (ide->energy > SignalMaxEDepMap[(*SignalParticle)->TrackId()])
               {
-                MarleyMaxEDepMap[(*MarleyParticle)->TrackId()] = ide->energy;
-                MarleyMaxEDepXMap[(*MarleyParticle)->TrackId()] = ide->x;
-                MarleyMaxEDepYMap[(*MarleyParticle)->TrackId()] = ide->y;
-                MarleyMaxEDepZMap[(*MarleyParticle)->TrackId()] = ide->z;
+                SignalMaxEDepMap[(*SignalParticle)->TrackId()] = ide->energy;
+                SignalMaxEDepXMap[(*SignalParticle)->TrackId()] = ide->x;
+                SignalMaxEDepYMap[(*SignalParticle)->TrackId()] = ide->y;
+                SignalMaxEDepZMap[(*SignalParticle)->TrackId()] = ide->z;
               }
-              if (abs((*MarleyParticle)->PdgCode()) == 11 || abs((*MarleyParticle)->PdgCode()) == 22 || abs((*MarleyParticle)->PdgCode()) == 2112)
+              if (abs((*SignalParticle)->PdgCode()) == 11 || abs((*SignalParticle)->PdgCode()) == 22 || abs((*SignalParticle)->PdgCode()) == 2112)
               {
-                MarleyIDDepList.push_back((*MarleyParticle)->TrackId());
-                MarleyEDepList.push_back(ide->energy);
-                MarleyPDGDepList.push_back((*MarleyParticle)->PdgCode());
-                MarleyXDepList.push_back(ide->x);
-                MarleyYDepList.push_back(ide->y);
-                MarleyZDepList.push_back(ide->z);
-                MarleyElectronDepList.push_back(ide->numElectrons);
+                SignalIDDepList.push_back((*SignalParticle)->TrackId());
+                SignalEDepList.push_back(ide->energy);
+                SignalPDGDepList.push_back((*SignalParticle)->PdgCode());
+                SignalXDepList.push_back(ide->x);
+                SignalYDepList.push_back(ide->y);
+                SignalZDepList.push_back(ide->z);
+                SignalElectronDepList.push_back(ide->numElectrons);
               }
             }
           }
-          MarleyMaxEDepList.push_back(MarleyMaxEDepMap[(*MarleyParticle)->TrackId()]);
-          MarleyMaxEDepXList.push_back(MarleyMaxEDepXMap[(*MarleyParticle)->TrackId()]);
-          MarleyMaxEDepYList.push_back(MarleyMaxEDepYMap[(*MarleyParticle)->TrackId()]);
-          MarleyMaxEDepZList.push_back(MarleyMaxEDepZMap[(*MarleyParticle)->TrackId()]);
-          SignalTrackIDs.emplace((*MarleyParticle)->TrackId());
+          SignalMaxEDepList.push_back(SignalMaxEDepMap[(*SignalParticle)->TrackId()]);
+          SignalMaxEDepXList.push_back(SignalMaxEDepXMap[(*SignalParticle)->TrackId()]);
+          SignalMaxEDepYList.push_back(SignalMaxEDepYMap[(*SignalParticle)->TrackId()]);
+          SignalMaxEDepZList.push_back(SignalMaxEDepZMap[(*SignalParticle)->TrackId()]);
+          SignalTrackIDs.emplace((*SignalParticle)->TrackId());
 
-          if ((*MarleyParticle)->PdgCode() < 1000000)
+          if ((*SignalParticle)->PdgCode() < 1000000)
           {
-            sNuTruth = sNuTruth + "\n" + fLabels[0] + "\t" + SolarAuxUtils::str((*MarleyParticle)->PdgCode()) + "\t\t" + SolarAuxUtils::str(1e3 * (*MarleyParticle)->E()) + "\t (" + SolarAuxUtils::str((*MarleyParticle)->EndX()) + ", " + SolarAuxUtils::str((*MarleyParticle)->EndY()) + ", " + SolarAuxUtils::str((*MarleyParticle)->EndZ()) + ")\t" + SolarAuxUtils::str((*MarleyParticle)->Mother());
+            sSignalTruth = sSignalTruth + "\n" + fLabels[0] + "\t" + SolarAuxUtils::str((*SignalParticle)->PdgCode()) + "\t\t" + SolarAuxUtils::str(1e3 * (*SignalParticle)->E()) + "\t (" + SolarAuxUtils::str((*SignalParticle)->EndX()) + ", " + SolarAuxUtils::str((*SignalParticle)->EndY()) + ", " + SolarAuxUtils::str((*SignalParticle)->EndZ()) + ")\t" + SolarAuxUtils::str((*SignalParticle)->Mother());
           }
           else
           {
-            sNuTruth = sNuTruth + "\n" + fLabels[0] + "\t" + SolarAuxUtils::str((*MarleyParticle)->PdgCode()) + "\t" + SolarAuxUtils::str(1e3 * (*MarleyParticle)->E()) + " (" + SolarAuxUtils::str((*MarleyParticle)->EndX()) + ", " + SolarAuxUtils::str((*MarleyParticle)->EndY()) + ", " + SolarAuxUtils::str((*MarleyParticle)->EndZ()) + ")\t" + SolarAuxUtils::str((*MarleyParticle)->Mother());
+            sSignalTruth = sSignalTruth + "\n" + fLabels[0] + "\t" + SolarAuxUtils::str((*SignalParticle)->PdgCode()) + "\t" + SolarAuxUtils::str(1e3 * (*SignalParticle)->E()) + " (" + SolarAuxUtils::str((*SignalParticle)->EndX()) + ", " + SolarAuxUtils::str((*SignalParticle)->EndY()) + ", " + SolarAuxUtils::str((*SignalParticle)->EndZ()) + ")\t" + SolarAuxUtils::str((*SignalParticle)->Mother());
           }
 
-          if ((*MarleyParticle)->PdgCode() == 11) // Electrons
+          if ((*SignalParticle)->PdgCode() == 11) // Electrons
           {
-            const TLorentzVector &MainElectronEndPoint = (*MarleyParticle)->EndPosition();
+            const TLorentzVector &MainElectronEndPoint = (*SignalParticle)->EndPosition();
             MainElectronEndPointX = MainElectronEndPoint.X();
-            ClPartTrackIDs[0].push_back((*MarleyParticle)->TrackId());
+            ClPartTrackIDs[0].push_back((*SignalParticle)->TrackId());
             mf::LogDebug("SolarNuAna") << "\nMC Electron truth position x = " << MainElectronEndPoint.X() << ", y = " << MainElectronEndPoint.Y() << ", z = " << MainElectronEndPoint.Z();
-            mf::LogDebug("SolarNuAna") << "Initial KE " << 1e3 * (*MarleyParticle)->E() - 1e3 * (*MarleyParticle)->Mass();
+            mf::LogDebug("SolarNuAna") << "Initial KE " << 1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass();
           }
-          if ((*MarleyParticle)->PdgCode() == 22) // Gammas
+          if ((*SignalParticle)->PdgCode() == 22) // Gammas
           {
-            ClPartTrackIDs[1].push_back((*MarleyParticle)->TrackId());
+            ClPartTrackIDs[1].push_back((*SignalParticle)->TrackId());
           }
-          if ((*MarleyParticle)->PdgCode() == 2112) // Neutrons
+          if ((*SignalParticle)->PdgCode() == 2112) // Neutrons
           {
-            ClPartTrackIDs[2].push_back((*MarleyParticle)->TrackId());
+            ClPartTrackIDs[2].push_back((*SignalParticle)->TrackId());
           }
-          if ((*MarleyParticle)->PdgCode() != 11 && (*MarleyParticle)->PdgCode() != 22 && (*MarleyParticle)->PdgCode() != 2112) // Others
+          if ((*SignalParticle)->PdgCode() != 11 && (*SignalParticle)->PdgCode() != 22 && (*SignalParticle)->PdgCode() != 2112) // Others
           {
-            ClPartTrackIDs[3].push_back((*MarleyParticle)->TrackId());
+            ClPartTrackIDs[3].push_back((*SignalParticle)->TrackId());
           }
         }
       }
     }
     else
     {
-      mf::LogWarning("SolarNuAna") << "No MARLEY MCTruths found.";
+      mf::LogWarning("SolarNuAna") << "No SIGNAL MCTruths found.";
     }
-    solaraux->PrintInColor(sNuTruth, SolarAuxUtils::GetColor("yellow"));
+    sSignalTruth += "\nSignal Track IDs: ";
+    for (auto const &SignalTrackID : SignalTrackIDs)
+    {
+      sSignalTruth += SolarAuxUtils::str(SignalTrackID) + "; ";
+    }
+    solaraux->PrintInColor(sSignalTruth, SolarAuxUtils::GetColor("yellow"));
 
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //---------------------------------------------------------------------- PMTrack Analysis -----------------------------------------------------------------------//
@@ -747,7 +771,7 @@ namespace solar
         OpFlashPur.push_back(ThisOpFlashPur);
         if (abs(TheFlash.Time) < 10)
         {
-          mf::LogDebug("SolarNuAna") << "Marley OpFlash PE (fast/ratio/tot/STD) " << TheFlash.FastToTotal << "/" << TheFlash.MaxPE / TheFlash.PE << "/" << TheFlash.PE << "/" << TheFlash.STD << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time;
+          mf::LogDebug("SolarNuAna") << "Signal OpFlash PE (fast/ratio/tot/STD) " << TheFlash.FastToTotal << "/" << TheFlash.MaxPE / TheFlash.PE << "/" << TheFlash.PE << "/" << TheFlash.STD << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time;
           sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.PE) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time) + " vertex (" + SolarAuxUtils::str(TheFlash.X) + ", " + SolarAuxUtils::str(TheFlash.Y) + ", " + SolarAuxUtils::str(TheFlash.Z) + ")\n";
           sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + SolarAuxUtils::str(TheFlash.MaxPE / TheFlash.PE) + " <= " + SolarAuxUtils::str(fAdjOpFlashMaxPERatioCut) + " && Total PE " + SolarAuxUtils::str(TheFlash.PE) + " >= " + SolarAuxUtils::str(fAdjOpFlashMinPECut) + "\n";
           sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + SolarAuxUtils::str(int(OpHitVec[i].size())) + " >= " + SolarAuxUtils::str(TheFlash.NHit) + "\n";
@@ -786,7 +810,7 @@ namespace solar
             {
               ThisOphitPurity += 1;
             }
-          } 
+          }
           auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
           TotalFlashPE += OpHit.PE();
           varY += pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2) * OpHit.PE();
@@ -821,7 +845,7 @@ namespace solar
         SolarAuxUtils::resume_stdout(TerminalOutput);
         mf::LogDebug("SolarNuAna") << "PE of this OpFlash " << TotalFlashPE << " OpFlash time " << FlashTime;
 
-        // Calculate the flash purity, only for the Marley events
+        // Calculate the flash purity, only for the Signal events
         if (MaxOpHitPE / TotalFlashPE < fAdjOpFlashMaxPERatioCut && TotalFlashPE > fAdjOpFlashMinPECut)
         {
           OpFlashID.push_back(i);
@@ -927,14 +951,15 @@ namespace solar
       // --- Loop over the clusters
       for (int i = 0; i < int(Clusters.size()); i++)
       {
-        int MainTrID = 0;
+        int MainTrID;
         int MainGenerator = 0;
         float Pur = 0;
         std::vector<float> thisdzdy = {};
 
         nhit = Clusters[i].size();
         ncharge = maxHit = clustT = FracE = FracGa = FracNe = FracRest = clustX = clustY = clustZ = clustTPC = dzdy = 0;
-        std::vector<float> VecGenPur(fLabels.size(), 0);
+        // Define a vector of floats with size equal to the number of generators + 1
+        std::vector<float> VecGenPur(fLabels.size() + 1, 0);
 
         for (recob::Hit TPCHit : Clusters[i])
         {
@@ -964,7 +989,7 @@ namespace solar
           } // Look for maxHit inside cluster
 
           MainTrID = 0;
-          double TopEFrac = -DBL_MAX;
+          double TopEFrac = 0;
           std::vector<sim::TrackIDE> ThisHitIDE = bt_serv->HitToTrackIDEs(clockData, TPCHit);
 
           for (size_t ideL = 0; ideL < ThisHitIDE.size(); ++ideL)
@@ -972,7 +997,7 @@ namespace solar
             if (ThisHitIDE[ideL].energyFrac > TopEFrac)
             {
               TopEFrac = ThisHitIDE[ideL].energyFrac;
-              MainTrID = ThisHitIDE[ideL].trackID;
+              MainTrID = abs(ThisHitIDE[ideL].trackID);
               mf::LogDebug("SolarNuAna") << "This TPCHit's IDE is: " << MainTrID;
             }
           }
@@ -981,7 +1006,7 @@ namespace solar
           {
             for (int trck = 0; trck < int(ClPartTrackIDs[frac].size()); ++trck)
             {
-              if (abs(MainTrID) == ClPartTrackIDs[frac][trck])
+              if (MainTrID == ClPartTrackIDs[frac][trck])
               {
                 if (frac == 0)
                 {
@@ -1003,16 +1028,17 @@ namespace solar
             }
           }
 
-          long unsigned int GeneratorType = WhichGeneratorType(abs(MainTrID));
+          long unsigned int GeneratorType = WhichGeneratorType(MainTrID);
           VecGenPur[int(GeneratorType)] = VecGenPur[int(GeneratorType)] + TPCHit.Integral();
           mf::LogDebug("SolarNuAna") << "\nThis particle type " << GeneratorType << "\nThis cluster's main track ID " << MainTrID;
-          if (GeneratorType == 1)
+          if (SignalTrackIDs.find(MainTrID) != SignalTrackIDs.end())
           {
             hitCharge = TPCHit.Integral();
             Pur = Pur + hitCharge;
           }
         }
-
+        // std::cout << SolarAuxUtils::str(VecGenPur) << "\n"
+        //           << std::endl;
         float MainGenPurity = 0;
         for (size_t genpur = 0; genpur < VecGenPur.size(); genpur++)
         {
@@ -1041,6 +1067,7 @@ namespace solar
         clustY /= ncharge;
         clustZ /= ncharge;
         clustT /= ncharge;
+        Pur /= ncharge;
         mf::LogDebug("SolarNuAna") << "\ndzdy " << dzdy << " for cluster "
                                    << " (" << clustY << ", " << clustZ << ") with track ID " << MainTrID << " in plane " << idx;
         if (clustT < 0)
@@ -1058,7 +1085,7 @@ namespace solar
         ClFracGa[idx].push_back(FracGa);
         ClFracNe[idx].push_back(FracNe);
         ClFracRest[idx].push_back(FracRest);
-        ClPur[idx].push_back(Pur / ncharge);
+        ClPur[idx].push_back(Pur);
         ClGen[idx].push_back(MainGenerator);
         ClGenPur[idx].push_back(MainGenPurity);
         Cldzdy[idx].push_back(dzdy);
@@ -1066,13 +1093,14 @@ namespace solar
         ClVecGenPur[idx].push_back(VecGenPur);
 
         mf::LogDebug("SolarNuAna") << "\nCluster " << i << " in plane " << idx << " has #hits" << nhit << " charge, " << ncharge << " time, " << clustT;
-        mf::LogDebug("SolarNuAna") << " and position (" << clustY << ", " << clustZ << ") with main track ID " << MainTrID << " and purity " << Pur / ncharge;
+        mf::LogDebug("SolarNuAna") << " and position (" << clustY << ", " << clustZ << ") with main track ID " << MainTrID << " and purity " << Pur;
       }
     } // Finished first cluster processing
 
     //-------------------------------------------------------------------- Cluster Matching -------------------------------------------------------------------------//
     std::vector<std::vector<float>> MVecGenFrac = {};
-    std::vector<int> MVecNHit = {}, MVecGen = {}, MVecInd0NHits = {}, MVecInd1NHits = {}, MVecMainID = {}, MVecTPC = {}, MVecInd0TPC = {}, MVecInd1TPC = {};
+    std::vector<unsigned int> MVecGen = {};
+    std::vector<int> MVecNHit = {}, MVecInd0NHits = {}, MVecInd1NHits = {}, MVecMainID = {}, MVecTPC = {}, MVecInd0TPC = {}, MVecInd1TPC = {};
     std::vector<float> MVecTime = {}, MVecCharge = {}, MVecMaxCharge = {}, MVecInd0Charge = {}, MVecInd1Charge = {}, MVecInd0MaxCharge = {}, MVecInd1MaxCharge = {}, MVecInd0dT = {}, MVecInd1dT = {};
     std::vector<float> MVecInd0RecoY = {}, MVecInd1RecoY = {}, MVecRecY = {}, MVecRecZ = {};
     std::vector<float> MVecFracE = {}, MVecFracGa = {}, MVecFracNe = {}, MVecFracRest = {}, MVecPur = {}, MVecGenPur = {};
@@ -1169,12 +1197,12 @@ namespace solar
         MVecInd1RecoY.push_back(ind1clustY);
         // Cluster RecoZ
         MVecRecZ.push_back(ClZ[2][ii]);
-        // Cluster Marley Fractions
+        // Cluster Signal Fractions
         MVecFracE.push_back(ClFracE[2][ii]);
         MVecFracGa.push_back(ClFracGa[2][ii]);
         MVecFracNe.push_back(ClFracNe[2][ii]);
         MVecFracRest.push_back(ClFracRest[2][ii]);
-        // Cluster Marley Purity
+        // Cluster Signal Purity
         MVecPur.push_back(ClPur[2][ii]);
         // Cluster Gen and GenFraction
         MVecMainID.push_back(ClMainID[2][ii]);
@@ -1204,7 +1232,7 @@ namespace solar
           MVecRecY.push_back((ind0clustY + ind1clustY) / 2);
           if (ClGen[2][ii] == 1)
           {
-            mf::LogWarning("SolarNuAna") << "Marley cluster reconstructed outside of detector volume! RecoY = " << SolarAuxUtils::str((ind0clustY + ind1clustY) / 2);
+            mf::LogWarning("SolarNuAna") << "Signal cluster reconstructed outside of detector volume! RecoY = " << SolarAuxUtils::str((ind0clustY + ind1clustY) / 2);
           }
         }
 
@@ -1348,15 +1376,25 @@ namespace solar
         }
 
         sResultColor = "yellow";
-        if (sqrt(pow(MVecRecY[i] - TNuY, 2) + pow(MVecRecZ[i] - TNuZ, 2)) < 20)
+        if (MVecPur[i] > 0.7)
         {
           sResultColor = "green";
         }
 
-        sClusterReco += "*** Matched preselection cluster: \n - Primary " + SolarAuxUtils::str(MPrimary) + " Gen " + SolarAuxUtils::str(MVecGen[i]) + " Purity " + SolarAuxUtils::str(MVecGenPur[i]) + " Hits " + SolarAuxUtils::str(MVecNHit[i]) + "\n - RecoY, RecoZ (" + SolarAuxUtils::str(MVecRecY[i]) + ", " + SolarAuxUtils::str(MVecRecZ[i]) + ") Time " + SolarAuxUtils::str(MVecTime[i]) + "\n";
-
         if (MPrimary)
         {
+          sClusterReco += "*** Matched preselection cluster: \n";
+          sClusterReco += " - MainTrackID " + SolarAuxUtils::str(MVecMainID[i]) + "\n";
+          sClusterReco += " - Purity " + SolarAuxUtils::str(MVecGenPur[i]) + " Hits " + SolarAuxUtils::str(MVecNHit[i]) + "\n";
+          if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1))
+          {
+            sClusterReco += " - Gen " + SolarAuxUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1] + "\n";
+          }
+          else
+          {
+            sClusterReco += " - Gen ?? -> Unknown\n";
+          }
+          sClusterReco += " - RecoY, RecoZ (" + SolarAuxUtils::str(MVecRecY[i]) + ", " + SolarAuxUtils::str(MVecRecZ[i]) + ") Time " + SolarAuxUtils::str(MVecTime[i]) + "\n\n";
           TVector3 ThisClVertex = {0, MVecRecY[i], MVecRecZ[i]};
           float MaxVertexDistance = 10; // if track is further away from ThisClVertex than
           for (int i = 0; i < TrackNum; i++)
@@ -1448,7 +1486,7 @@ namespace solar
         MGen = MVecGen[i];
         MGenPur = MVecGenPur[i];
         MGenFrac = MVecGenFrac[i];
-        MMarleyFrac = {MVecFracE[i], MVecFracGa[i], MVecFracNe[i], MVecFracRest[i]};
+        MSignalFrac = {MVecFracE[i], MVecFracGa[i], MVecFracNe[i], MVecFracRest[i]};
         // Cluster TPC
         MTPC = MVecTPC[i];
         MInd0TPC = MVecInd0TPC[i];
@@ -1588,14 +1626,14 @@ namespace solar
     MFlashRecoZ = -1e6;
     MFlashResidual = -1e6;
     MFlashCorrect = false;
-    MarleyElectronDepList = {};
-    MarleyPDGList = {};
-    MarleyPDGDepList = {};
-    MarleyIDList = {}, MarleyIDDepList = {};
-    MarleyMotherList = {};
-    MarleyEList = {}, MarleyPList = {}, MarleyKList = {}, MarleyTList = {}, MarleyEndXList = {}, MarleyEndYList = {}, MarleyEndZList = {};
-    MarleyEDepList = {}, MarleyXDepList = {}, MarleyYDepList = {}, MarleyZDepList = {};
-    MarleyMaxEDepList = {}, MarleyMaxEDepXList = {}, MarleyMaxEDepYList = {}, MarleyMaxEDepZList = {};
+    SignalElectronDepList = {};
+    SignalPDGList = {};
+    SignalPDGDepList = {};
+    SignalIDList = {}, SignalIDDepList = {};
+    SignalMotherList = {};
+    SignalEList = {}, SignalPList = {}, SignalKList = {}, SignalTList = {}, SignalEndXList = {}, SignalEndYList = {}, SignalEndZList = {};
+    SignalEDepList = {}, SignalXDepList = {}, SignalYDepList = {}, SignalZDepList = {};
+    SignalMaxEDepList = {}, SignalMaxEDepXList = {}, SignalMaxEDepYList = {}, SignalMaxEDepZList = {};
     SOpHitChannel = {}, SOpHitPur = {}, SOpHitPE = {}, SOpHitX = {}, SOpHitY = {}, SOpHitZ = {}, SOpHitT = {}, SOpHitFlashID = {};
     TPart = {}, GeneratorParticles = {};
     HitNum = {};
@@ -1637,8 +1675,7 @@ namespace solar
       for (size_t L2 = 0; L2 < Assn.at(L1).size(); ++L2)
       {
         const simb::MCParticle ThisPar = (*Assn.at(L1).at(L2));
-        MyMap[ThisPar.TrackId()] = ThisPar;
-        mf::LogDebug("SolarNuAna") << ThisPar.PdgCode() << " " << ThisPar.E();
+        MyMap[abs(ThisPar.TrackId())] = ThisPar;
       }
     }
     return;

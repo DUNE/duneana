@@ -1,4 +1,4 @@
-# IMPORTANT: place the signal generators first, then the background generators
+# IMPORTANT: place the signal label first, then the background labels
 
 BEGIN_PROLOG
 
@@ -139,6 +139,11 @@ BEGIN_PROLOG
     "CavernwallNeutronsAtLAr1x8x6",
     "CryostatNGammasAtLAr1x8x6",
     "CavernNGammasAtLAr1x8x6"
+  ]
+
+  single_generator_dune10kt_1x2x6:
+  [
+    "generator"
   ]
 
 END_PROLOG
