@@ -1,0 +1,57 @@
+#include "services_dune.fcl"
+#include "dune_calibanatree.fcl"
+#include "tools_dune.fcl" 
+
+process_name: CalibAna
+
+services:
+{
+  TFileService:                   { fileName: "calibanatree_out.root" }
+
+  TimeTracker:                  @local::dune_time_tracker
+  MemoryTracker:                @local::dune_memory_tracker
+  RandomNumberGenerator:        {} #ART native random number generator
+
+  FileCatalogMetadata:          @local::art_file_catalog_data
+  ChannelStatusService:         @local::dunefd_channel_status
+
+
+  Geometry:                     @local::protodunehdv6_geo
+  DetectorClocksService:        @local::protodunehd_detectorclocks
+  DetectorPropertiesService:    @local::protodunehd_detproperties
+  LArPropertiesService:         @local::dunefd_properties
+  LArFFT:                       @local::dunefd_larfft
+  DatabaseUtil:                 @local::dunefd_database
+  BackTrackerService:           @local::pdsp_backtrackerservice
+  ParticleInventoryService:     @local::dunefd_particleinventoryservice
+  PhotonBackTrackerService:     @local::dunefd_photonbacktrackerservice_legacy
+  SpaceCharge:                  @local::pdhd_spacecharge
+
+  WireReadout:                    @local::dune_wire_readout
+}
+
+services.AuxDetGeometry.GDML: "protodunehd_v6_refactored.gdml"
+services.AuxDetGeometry.Name: "protodunehdv6"
+
+source:
+{
+  module_type: RootInput
+  maxEvents:   -1        # Number of events to create
+}
+outputs:
+{}
+
+physics:
+{
+  analyzers:
+  {
+    calibana: @local::dune_calibanatree_cluster
+  }
+
+  filters: {}
+
+  ana: [calibana]
+  end_paths:     [ana]
+}
+physics.analyzers.calibana.IsPDHD:   true
+physics.analyzers.calibana.Verbose:  true

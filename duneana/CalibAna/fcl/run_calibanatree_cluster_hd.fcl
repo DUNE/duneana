@@ -1,0 +1,38 @@
+#include "services_dune.fcl"
+#include "dune_calibanatree.fcl"
+
+process_name: CalibAna
+
+services:
+{
+  TFileService:                   { fileName: "calibanatree_out.root" }
+                                  @table::dunefd_simulation_services
+  BackTrackerService:             @local::standard_backtrackerservice
+  ParticleInventoryService:       @local::standard_particleinventoryservice
+  WireReadout:                    @local::dune_wire_readout
+}
+
+services.Geometry:                @local::protodunehdv6_geo
+
+source:
+{
+  module_type: RootInput
+  maxEvents:   -1        # Number of events to create
+}
+outputs:
+{}
+
+physics:
+{
+  analyzers:
+  {
+    calibana: @local::dune_calibanatree_cluster
+  }
+
+  filters: {}
+
+  ana: [calibana]
+  end_paths:     [ana]
+}
+physics.analyzers.calibana.IsPDHD:   true
+physics.analyzers.calibana.Verbose:  true
