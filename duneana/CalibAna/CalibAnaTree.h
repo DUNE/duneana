@@ -479,9 +479,8 @@ private:
   float fgeoZmax =-1e6;
 
   // Output
-  TTree *fTree;
-  TBranch* btrk;
-  TBranch* bLowEnergyCluster;
+  TTree *fTree_track;
+  TTree *fTree_LE;
   TrackInfo *fTrack;
   ClusterInfo *fCluster;
 

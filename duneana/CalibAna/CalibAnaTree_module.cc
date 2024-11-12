@@ -168,11 +168,10 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
   fCluster = new dune::ClusterInfo();
 
   art::ServiceHandle<art::TFileService> tfs;
-  fTree = tfs->make<TTree>("CalibAnaTree", "CalibAna Tree");
-  //if (fTrackAnalysis)            
-  btrk              = fTree->Branch("trk", &fTrack);
-  //if (fLowEnergyClusterAnalysis)
-  bLowEnergyCluster = fTree->Branch("LowEnergyClusters", &fCluster);
+  fTree_track = tfs->make<TTree>("CalibAnaTree_Tracks", "CalibAna Tree Tracks");
+  if (fTrackAnalysis)             fTree_track->Branch("trk", &fTrack);
+  fTree_LE    = tfs->make<TTree>("CalibAnaTree_LowEClusters", "CalibAna Tree LowE Clusters"); 
+  if (fLowEnergyClusterAnalysis)  fTree_LE->Branch("LowEnergyClusters", &fCluster);
 }
 
 void dune::CalibAnaTree::analyze(art::Event const& e)
@@ -292,8 +291,7 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
       {
 	fCluster = vCluster[i];
 	fCluster->meta = fMeta;
-	if(fVerbose) std::cout << "y = " << fCluster->y << "  z = " << fCluster->z << " charge = " << fCluster->ChargeCollection << std::endl;
-        bLowEnergyCluster->Fill();
+        fTree_LE->Fill();
       }
     }
 
@@ -495,7 +493,7 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
     // Save!
     if (select) {
       if (fVerbose) std::cout << "Track Selected! By tool: " << i_select << std::endl;
-      btrk->Fill();
+      fTree_track->Fill();
     }
   }
 }
