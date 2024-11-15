@@ -83,8 +83,8 @@ private:
   unsigned int fRunID;
   unsigned int fSubRunID;
 
-  unsigned int fNMCParticles;
-  unsigned int fNPFParticles;
+  //unsigned int fNMCParticles;
+  //unsigned int fNPFParticles;
 
   double fTrueVtx_x;
   double fTrueVtx_y;
