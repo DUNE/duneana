@@ -1,0 +1,25 @@
+BEGIN_PROLOG
+
+atmoAnalysis:
+{
+   module_type:		          "AtmoAnalysis"
+   PandoraNuVertexModuleLabel: "pandora"
+   DirectionRecoLabelNuMu:     "anglereconumu"
+   DirectionRecoLabelNuE:      "anglereconue"
+   DirectionRecoLabelNuMuPfps: "anglereconumupfps"
+   DirectionRecoLabelNuEPfps:  "anglereconuepfps"
+   DirectionRecoLabelHits:     "anglerecohits"
+   EnergyRecoNuELabel:         "energyrecnue"
+   EnergyRecoNuMuLabel:        "energyrecnumu"
+   EnergyRecoNuMuMCSLabel:     "energyrecnumumcs"
+   EnergyRecoNuMuRangeLabel:   "energyrecnumurange"
+   EnergyRecoNCLabel:          "energyrecnc"
+   CVNLabel:	                "cvneva:cvnresult"
+   EdepLabel:                  "largeant:LArG4DetectorServicevolTPCActiveInner"
+   SpacePointLabel:            "spsolve"
+   SpacePointLabelPandora:     "pandora"
+   PFPLabel:                   "pandora"
+   MCTruthLabel:	             "generator"
+}
+
+END_PROLOG
