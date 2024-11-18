@@ -14,7 +14,7 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "TTree.h"
+#include <TTree.h>
 #include "TFitter.h"
 
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -125,6 +125,7 @@ private:
     }
   };
 
+  /*
   typedef struct //!< 2D point for clustering : - group (number of the associated cluster)
                  //!<                           - index (index to retreive the info like energy to the associated hit)
   {
@@ -154,7 +155,7 @@ private:
           return std::get<0>(key) * 73856093 ^ std::get<1>(key) * 19349663 ^ std::get<2>(key) * 83492791;
       }
   };
-
+*/
 
   // Fill vars
   void FillTrack(const recob::Track &track,
@@ -206,6 +207,7 @@ private:
   void DoTailFit();
 
   //single hit fct
+  /*
   bool AllSame(std::vector<int> v);
 
   std::vector<std::string> GetGeneratorTag(art::Event const& e,
@@ -389,7 +391,7 @@ private:
     float fgeoZmax,
     float fElectronVelocity,
     float fTickTimeInMus);
-
+*/
   // declare truth utils, ported from CAFana in SBNCode
   std::map<int, std::vector<std::pair<geo::WireID, const sim::IDE*>>>
   PrepSimChannels(const std::vector<art::Ptr<sim::SimChannel>> &simchannels,
