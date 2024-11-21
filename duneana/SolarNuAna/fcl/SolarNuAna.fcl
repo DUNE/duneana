@@ -24,7 +24,7 @@ BEGIN_PROLOG
     ClusterAlgoTime:            25           # Time window to look for plane clusters in [tick] units.
     ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
-    ClusterMatchNHit:           1.5          # DAQ Clusters min. hit requirement.
+    ClusterMatchNHit:           2            # DAQ Clusters min. hit requirement.
     ClusterMatchCharge:         0.6          # Charge fraction to match clusters.
     ClusterMatchTime:           20.0         # Time window to look for ind. plane clusters in [tick] units.
     ClusterInd0MatchTime:       0.00         # Wirecell seems to have made this obsolete.
