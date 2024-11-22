@@ -421,7 +421,7 @@ private:
 
   float fRadiusInt;
   float fRadiusExt;
-  float fElectronVelocity;
+  //float fElectronVelocity;
   float fCoincidenceWd1_left;
   float fCoincidenceWd1_right;
   float fCoincidenceWd2_left;
