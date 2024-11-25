@@ -1409,7 +1409,12 @@ namespace solar
 
         for (int j = 0; j < int(OpFlashPE.size()); j++)
         {
-          if ((MVecTime[i] - OpFlashT[j]) < 0 || (MVecTime[i] - OpFlashT[j]) > fAdjOpFlashTime || abs(MVecRecY[i] - OpFlashY[j]) > fAdjOpFlashY || abs(MVecRecZ[i] - OpFlashZ[j]) > fAdjOpFlashZ)
+          if ((MVecTime[i] - OpFlashT[j]) < 0 || (MVecTime[i] - OpFlashT[j]) > fAdjOpFlashTime)
+          {
+            continue;
+          }
+          // Make an eliptical cut on the flash position
+          if (pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
           {
             continue;
           }
