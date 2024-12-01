@@ -84,7 +84,7 @@ namespace solar
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels;
     float fOpFlashAlgoTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
-    bool fClusterPreselectionTrack, fClusterPreselectionPrimary, fGenerateAdjOpFlash, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo;
+    bool fClusterPreselectionTrack, fClusterPreselectionPrimary, fGenerateAdjOpFlash, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fFlashMatchByResidual;
     // bool fOpFlashAlgoCentroid;
 
     // --- Our TTrees, and its associated variables.
@@ -185,6 +185,7 @@ namespace solar
     fAdjOpFlashZ = p.get<float>("AdjOpFlashZ");
     fAdjOpFlashMaxPERatioCut = p.get<float>("AdjOpFlashMaxPERatioCut");
     fAdjOpFlashMinPECut = p.get<float>("AdjOpFlashMinPECut");
+    fFlashMatchByResidual = p.get<bool>("FlashMatchByResidual");
     fSaveSignalEDep = p.get<bool>("SaveSignalEDep");
     fSaveSignalOpHits = p.get<bool>("SaveSignalOpHits");
     fSaveOpFlashInfo = p.get<bool>("SaveOpFlashInfo");
@@ -234,6 +235,7 @@ namespace solar
     fConfigTree->Branch("AdjOpFlashZ", &fAdjOpFlashZ);
     fConfigTree->Branch("AdjOpFlashMaxPERatioCut", &fAdjOpFlashMaxPERatioCut);
     fConfigTree->Branch("AdjOpFlashMinPECut", &fAdjOpFlashMinPECut);
+    fConfigTree->Branch("FlashMatchByResidual", &fFlashMatchByResidual);
     fConfigTree->Branch("SaveSignalEDep", &fSaveSignalEDep);
     fConfigTree->Branch("SaveSignalOpHits", &fSaveSignalOpHits);
     fConfigTree->Branch("SaveOpFlashInfo", &fSaveOpFlashInfo);
@@ -1246,6 +1248,7 @@ namespace solar
       std::string sClusterReco = "";
       std::string sResultColor = "white";
       float OpFlashResidual = 0;
+      float MatchedOpFlashPE = -1e6;
       float MatchedOpFlashResidual = 1e6;
       float MatchedOpFlashX = -1e6;
 
@@ -1438,7 +1441,7 @@ namespace solar
           double MAdjFlashX = 0;
           solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashT[j]);
           // For HD 1x2x6 (only 1 APA) the x coordinate is determined by the sign of the flash x coordinate
-          if (OpFlashX[j] < 0)
+          if (MVecTPC[i]%2 == 0)
           {
             MAdjFlashX = -MAdjFlashX;
           }
@@ -1447,7 +1450,7 @@ namespace solar
           solaraux->PrintInColor(sFlashMatching, SolarAuxUtils::GetColor(sResultColor), "Debug");
           adjophits->FlashMatchResidual(OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecY[i]), double(MVecRecZ[i]));
           // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash
-          if (OpFlashResidual < MatchedOpFlashResidual)
+          if ((fFlashMatchByResidual && OpFlashResidual < MatchedOpFlashResidual) || (!fFlashMatchByResidual && OpFlashPE[j] > MatchedOpFlashPE))
           {
             MFlashR = OpFlashR;
             MFlashPE = OpFlashPE[j];
@@ -1474,6 +1477,7 @@ namespace solar
 
             MatchedOpFlashX = MAdjFlashX;
             MatchedOpFlashResidual = OpFlashResidual;
+            MatchedOpFlashPE = MFlashPE;
           }
           MAdjFlashResidual.push_back(OpFlashResidual);
         }

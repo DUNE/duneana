@@ -52,6 +52,7 @@ BEGIN_PROLOG
     AdjOpFlashZ:                150.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE. From average bkg rate of ~20 PE per tick.
+    FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
