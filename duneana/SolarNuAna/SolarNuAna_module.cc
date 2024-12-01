@@ -703,6 +703,10 @@ namespace solar
       OpFlashNum = int(FlashVec.size());
       for (int i = 0; i < int(FlashVec.size()); i++)
       {
+        if (FlashVec[i].PE < fAdjOpFlashMinPECut)
+        {
+          continue;
+        }
         AdjOpHitsUtils::FlashInfo TheFlash = FlashVec[i];
         double ThisOpFlashPur = 0;
         OpFlashMaxPE.push_back(TheFlash.MaxPE);
@@ -758,11 +762,11 @@ namespace solar
           ThisOpFlashPur /= TheFlash.PE;
         }
         OpFlashPur.push_back(ThisOpFlashPur);
-        if (abs(TheFlash.Time) < 10)
+        if (abs(TheFlash.Time) < 5)
         {
           mf::LogDebug("SolarNuAna") << "Signal OpFlash PE (fast/ratio/tot/STD) " << TheFlash.FastToTotal << "/" << TheFlash.MaxPE / TheFlash.PE << "/" << TheFlash.PE << "/" << TheFlash.STD << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time;
           sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.PE) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time) + " vertex (" + SolarAuxUtils::str(TheFlash.X) + ", " + SolarAuxUtils::str(TheFlash.Y) + ", " + SolarAuxUtils::str(TheFlash.Z) + ")\n";
-          sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + SolarAuxUtils::str(TheFlash.MaxPE / TheFlash.PE) + " <= " + SolarAuxUtils::str(fAdjOpFlashMaxPERatioCut) + " && Total PE " + SolarAuxUtils::str(TheFlash.PE) + " >= " + SolarAuxUtils::str(fAdjOpFlashMinPECut) + "\n";
+          sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + SolarAuxUtils::str(TheFlash.MaxPE / TheFlash.PE) + " <= " + SolarAuxUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
           sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + SolarAuxUtils::str(int(OpHitVec[i].size())) + " >= " + SolarAuxUtils::str(TheFlash.NHit) + "\n";
         }
       }
@@ -850,11 +854,11 @@ namespace solar
           OpFlashDeltaT.push_back(TheFlash.TimeWidth());
           OpFlashNHit.push_back(MatchedHits.size());
         }
-        if (abs(TheFlash.Time()) < 10)
+        if (abs(TheFlash.Time()) < 5)
         {
           mf::LogDebug("SolarNuAna") << "OpFlash PE " << TheFlash.TotalPE() << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time();
           sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.TotalPE()) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time()) + " vertex (" + SolarAuxUtils::str(TheFlash.YCenter()) + ", " + SolarAuxUtils::str(TheFlash.ZCenter()) + ")\n";
-          sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + SolarAuxUtils::str(MaxOpHitPE / TotalFlashPE) + " <= " + SolarAuxUtils::str(fAdjOpFlashMaxPERatioCut) + " && Total PE " + SolarAuxUtils::str(TotalFlashPE) + " >= " + SolarAuxUtils::str(fAdjOpFlashMinPECut) + "\n";
+          sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + SolarAuxUtils::str(MaxOpHitPE / TotalFlashPE) + " <= " + SolarAuxUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
           sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + SolarAuxUtils::str(int(NMatchedHits)) + " >= " + SolarAuxUtils::str(int(TheFlash.PEs().size())) + "\n";
         }
       }
@@ -1460,13 +1464,13 @@ namespace solar
 
             // Create an output string with the flash information
             sFlashReco = "*** Matched flash: \n - Purity " + SolarAuxUtils::str(OpFlashPur[j]) +
-                         " #Hits " + SolarAuxUtils::str(OpFlashNHit[j]) +
-                         " PE " + SolarAuxUtils::str(OpFlashPE[j]) +
-                         " MaxPE " + SolarAuxUtils::str(OpFlashMaxPE[j]) + "\n" +
-                         " Reco X,Y,Z (" + SolarAuxUtils::str(MAdjFlashX) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + ")" + "\n" +
-                         " Time " + SolarAuxUtils::str(OpFlashT[j]) +
-                         " Fast " + SolarAuxUtils::str(OpFlashFast[j]) +
-                         " Residual " + SolarAuxUtils::str(OpFlashResidual) + "\n";
+              " #Hits " + SolarAuxUtils::str(OpFlashNHit[j]) +
+              " PE " + SolarAuxUtils::str(OpFlashPE[j]) +
+              " MaxPE " + SolarAuxUtils::str(OpFlashMaxPE[j]) + "\n" +
+              " Reco X,Y,Z (" + SolarAuxUtils::str(MAdjFlashX) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + ")" + "\n" +
+              " Time " + SolarAuxUtils::str(OpFlashT[j]) +
+              " Fast " + SolarAuxUtils::str(OpFlashFast[j]) +
+              " Residual " + SolarAuxUtils::str(OpFlashResidual) + "\n";
 
             MatchedOpFlashX = MAdjFlashX;
             MatchedOpFlashResidual = OpFlashResidual;
@@ -1591,7 +1595,7 @@ namespace solar
   }
 
   // ########################################################################################################################################//
-  //_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_//
+  // _FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_//
   // ########################################################################################################################################//
 
   //......................................................
