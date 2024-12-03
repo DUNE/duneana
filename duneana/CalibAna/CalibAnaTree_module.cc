@@ -18,6 +18,8 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 
+#include "LEClustersFunctions.h"
+
 // Global functions / data for fitting
 const size_t MAX_N_FIT_DATA = 30;
 
@@ -54,6 +56,8 @@ void ExpResiduals(int &npar, double *g, double &result, double *par, int flag) {
 
 dune::CalibAnaTree::~CalibAnaTree() {
   delete fTrack;
+  delete fCluster;
+
 }
 
 dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
@@ -62,21 +66,57 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
     fFitConst(1)
 {
   // Grab config
-  fPFPproducer  = p.get< art::InputTag > ("PFPproducer","pandoraGausCryo0");
-  fT0producers   = p.get< std::vector<art::InputTag> > ("T0producers", {"pandoraGausCryo0"} );
-  fCALOproducer = p.get< art::InputTag > ("CALOproducer");
-  fTRKproducer  = p.get< art::InputTag > ("TRKproducer" );
-  fTRKHMproducer= p.get< art::InputTag   > ("TRKHMproducer", "");
-  fHITproducer  = p.get< art::InputTag > ("HITproducer" );
-  fG4producer  = p.get< std::string > ("G4producer" );
-  fSimChannelproducer  = p.get< std::string > ("SimChannelproducer" );
-  fRequireT0 = p.get<bool>("RequireT0", false);
-  fDoTailFit = p.get<bool>("DoTailFit", true);
-  fVerbose = p.get<bool>("Verbose", false);
-  fSilenceMissingDataProducts = p.get<bool>("SilenceMissingDataProducts", false);
+  fLowEnergyClusterAnalysis     = p.get<bool>("LowEnergyClusterAnalysis", true);
+  fRDTLabel                     = p.get<std::string>("RDTLabel","tpcrawdecoder:daq");
+
+  fRadiusInt                    = p.get<float>("RadiusInt");
+  fRadiusExt                    = p.get<float>("RadiusExt");
+
+  fCoincidenceWd1_left          = p.get<float>("CoincidenceWindow1_left"  ,3); //in mus,
+  fCoincidenceWd1_right         = p.get<float>("CoincidenceWindow1_right",3); //in mus,
+  fCoincidenceWd2_left          = p.get<float>("CoincidenceWindow2_left"  ,3); //in mus,
+  fCoincidenceWd2_right         = p.get<float>("CoincidenceWindow2_right",3); //in mus,
+
+  fPitch                        = p.get<float>("Pitch",0.5); //cm
+  fPitchMultiplier              = p.get<float>("PitchMultiplier",1.2); // 20% error    
+
+  bIs3ViewsCoincidence          = p.get<bool>("Is3ViewsCoincidence");
+  bIsPDVD                       = p.get<bool>("IsPDVD",false);
+  bIsPDHD                       = p.get<bool>("IsPDHD",false);
+
+  fNumberInitClusters           = p.get<int>("NumberInitClusters",25);
+  fMaxSizeCluster               = p.get<float>("MaxSizeCluster",0);
+  fMinSizeCluster               = p.get<float>("MinSizeCluster",0);
+
+  if (fMaxSizeCluster == 0) fMaxSizeCluster = fRadiusInt*1.75;
+  if (fMinSizeCluster == 0) fMinSizeCluster = fRadiusInt;
+  
+  fClusterSizeMulti             = p.get<float>("ClusterSizeMulti",1.2);
+  fNumberConvStep               = p.get<int>("NumberConvStep",300);
+  fCovering                     = p.get<float>("Covering",0.99);
+
+  fTrackAnalysis                = p.get<bool>("TrackAnalysis" , true);
+  fPFPproducer                  = p.get< art::InputTag > ("PFPproducer","pandoraGausCryo0");
+  fT0producers                  = p.get< std::vector<art::InputTag> > ("T0producers", {"pandoraGausCryo0"} );
+  fCALOproducer                 = p.get< art::InputTag > ("CALOproducer");
+  fTRKproducer                  = p.get< art::InputTag > ("TRKproducer" );
+  fTRKHMproducer                = p.get< art::InputTag > ("TRKHMproducer", "");
+  fHITproducer                  = p.get< art::InputTag > ("HITproducer" );
+  fG4producer                   = p.get< std::string > ("G4producer" );
+  fSimChannelproducer           = p.get< std::string > ("SimChannelproducer" );
+  fRequireT0                    = p.get<bool>("RequireT0", false);
+  fDoTailFit                    = p.get<bool>("DoTailFit", true);
+  fVerbose                      = p.get<bool>("Verbose", false);
+  fSilenceMissingDataProducts   = p.get<bool>("SilenceMissingDataProducts", false);
   fHitRawDigitsTickCollectWidth = p.get<double>("HitRawDigitsTickCollectWidth", 50.);
   fHitRawDigitsWireCollectWidth = p.get<int>("HitRawDigitsWireCollectWidth", 5);
-  fTailFitResidualRange = p.get<double>("TailFitResidualRange", 5.);
+  fTailFitResidualRange         = p.get<double>("TailFitResidualRange", 5.);
+  fFillTrackEndHits             = p.get<bool>("FillTrackEndHits", true);
+  fTrackEndHitWireBox           = p.get<float>("TrackEndHitWireBox", 60); // 30 cm in the plane projection
+  fTrackEndHitTimeBox           = p.get<float>("TrackEndHitTimeBox", 300); // 150 us, about 25 cm
+
+  fRawDigitproducers            = p.get<std::vector<art::InputTag>>("RawDigitproducers", {}); 
+ 
   if (fTailFitResidualRange > 10.) {
     std::cout << "dune::CalibAnaTree: Bad tail fit residual range config :(" << fTailFitResidualRange << "). Fits will not be meaningful.\n";
   }
@@ -102,12 +142,38 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
     catch (...) {}
   }
 
+  //geometry stuff
+  fGeom    = &*art::ServiceHandle<geo::Geometry>();
+  //Get detector Boundaries
+  unsigned fNtpcs = fGeom->NTPC();
+
+  for(unsigned t_tpc_id=0;t_tpc_id<fNtpcs;t_tpc_id++)
+  {
+    geo::TPCID tpcid{0, t_tpc_id};
+    if(fgeoXmin > fGeom->TPC(tpcid).BoundingBox().MinX()) fgeoXmin = fGeom->TPC(tpcid).BoundingBox().MinX();
+    if(fgeoXmax < fGeom->TPC(tpcid).BoundingBox().MaxX()) fgeoXmax = fGeom->TPC(tpcid).BoundingBox().MaxX();
+    if(fgeoYmin > fGeom->TPC(tpcid).BoundingBox().MinY()) fgeoYmin = fGeom->TPC(tpcid).BoundingBox().MinY();
+    if(fgeoYmax < fGeom->TPC(tpcid).BoundingBox().MaxY()) fgeoYmax = fGeom->TPC(tpcid).BoundingBox().MaxY();
+    if(fgeoZmin > fGeom->TPC(tpcid).BoundingBox().MinZ()) fgeoZmin = fGeom->TPC(tpcid).BoundingBox().MinZ();
+    if(fgeoZmax < fGeom->TPC(tpcid).BoundingBox().MaxZ()) fgeoZmax = fGeom->TPC(tpcid).BoundingBox().MaxZ();
+  }
+  if(fVerbose)
+  {
+    std::cout << " -- detector boundaries -- " << std::endl;
+    std::cout << "  " << fgeoXmin << " < X < " << fgeoXmax << std::endl;
+    std::cout << "  " << fgeoYmin << " < Y < " << fgeoYmax << std::endl;
+    std::cout << "  " << fgeoZmin << " < Z < " << fgeoZmax << std::endl;
+  }
+
   // Output stuff
   fTrack = new dune::TrackInfo();
+  fCluster = new dune::ClusterInfo();
 
   art::ServiceHandle<art::TFileService> tfs;
-  fTree = tfs->make<TTree>("CalibAnaTree", "CalibAna Tree");
-  fTree->Branch("trk", &fTrack);
+  fTree_track = tfs->make<TTree>("CalibAnaTree_Tracks", "CalibAna Tree Tracks");
+  if (fTrackAnalysis)             fTree_track->Branch("trk", &fTrack);
+  fTree_LE    = tfs->make<TTree>("CalibAnaTree_LowEClusters", "CalibAna Tree LowE Clusters"); 
+  if (fLowEnergyClusterAnalysis)  fTree_LE->Branch("LowEnergyClusters", &fCluster);
 }
 
 void dune::CalibAnaTree::analyze(art::Event const& e)
@@ -130,6 +196,25 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
   auto const clock_data = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
   auto const dprop =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(e, clock_data);
+
+  float fTickTimeInMus  = detinfo::sampling_rate(clock_data)/1000; //caution sampling_rate(clock_data) is in ns
+  float fCoincidenceWd1_right_inmus = fCoincidenceWd1_right/fTickTimeInMus; // in tt
+  float fCoincidenceWd1_left_inmus  = fCoincidenceWd1_left/fTickTimeInMus; // in tt
+  float fCoincidenceWd2_left_inmus  = fCoincidenceWd2_left/fTickTimeInMus; // in tt
+  float fCoincidenceWd2_right_inmus = fCoincidenceWd2_right/fTickTimeInMus; // in tt
+
+  float fElectronVelocity   = dprop.DriftVelocity();
+
+  if(fVerbose){
+    std::cout << " -- timing parameters -- "                             << std::endl;
+    std::cout << "   sampling_rate         " << detinfo::sampling_rate(clock_data) << std::endl;
+    std::cout << "   fTickTimeInMus:       " << fTickTimeInMus           << std::endl;
+    std::cout << "   CoincidenceWd1:       " << fCoincidenceWd1_right_inmus + fCoincidenceWd1_left_inmus << std::endl;
+    std::cout << "   CoincidenceWd2:       " << fCoincidenceWd2_right_inmus + fCoincidenceWd2_left_inmus << std::endl;
+  }
+
+  fMeta.ttinmus          = fTickTimeInMus;
+  fMeta.electronvelocity = fElectronVelocity;
 
   // Identify which detector: can only detect either sbnd or icarus
   // Viktor Pec copied this for DUNE..  gdml seems ignored
@@ -167,21 +252,56 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
 
   // Truth information
   std::vector<art::Ptr<simb::MCParticle>> mcparticles;
-  if (fG4producer.size()) {
-    art::ValidHandle<std::vector<simb::MCParticle>> mcparticle_handle = e.getValidHandle<std::vector<simb::MCParticle>>(fG4producer);
-    art::fill_ptr_vector(mcparticles, mcparticle_handle);
-  }
-
   std::vector<art::Ptr<sim::SimChannel>> simchannels;
-  if (fSimChannelproducer.size()) {
-    art::ValidHandle<std::vector<sim::SimChannel>> simchannel_handle = e.getValidHandle<std::vector<sim::SimChannel>>(fSimChannelproducer);
-    art::fill_ptr_vector(simchannels, simchannel_handle);
+  if (!e.isRealData())
+  {
+    if (fG4producer.size()) {
+      art::ValidHandle<std::vector<simb::MCParticle>> mcparticle_handle = e.getValidHandle<std::vector<simb::MCParticle>>(fG4producer);
+      art::fill_ptr_vector(mcparticles, mcparticle_handle);
+    }
+
+    if (fSimChannelproducer.size()) {
+      art::ValidHandle<std::vector<sim::SimChannel>> simchannel_handle = e.getValidHandle<std::vector<sim::SimChannel>>(fSimChannelproducer);
+      art::fill_ptr_vector(simchannels, simchannel_handle);
+    }
   }
 
   if (fVerbose) {
       std::cout<<"Received "<<simchannels.size()<<" SimChannels for this event."<<std::endl;
   }
 
+  if (fLowEnergyClusterAnalysis)
+  {
+    if (fVerbose)
+    {
+      std::cout<< "Starting Low Energy clusters analysis for event " << e.event() << std::endl;
+    }
+
+    std::vector<dune::ClusterInfo*> vCluster = SingleHitAnalysis(e, fRDTLabel, fG4producer, fHITproducer,
+					       	          bIsPDVD, bIsPDHD, fCoincidenceWd1_left_inmus,
+		      					  fCoincidenceWd1_right_inmus, fCoincidenceWd2_left_inmus,
+       							  fCoincidenceWd2_right_inmus, bIs3ViewsCoincidence,
+					       		  fPitch, fPitchMultiplier, fVerbose, fMinSizeCluster,
+						      	  fMaxSizeCluster, fNumberInitClusters, fNumberConvStep,
+                                                          fClusterSizeMulti, fCovering, fRadiusInt,
+						      	  fRadiusExt, fgeoYmin, fgeoYmax, fgeoZmin, fgeoZmax,
+							  fElectronVelocity , fTickTimeInMus ,
+							  fWireReadout);
+    if (!vCluster.empty()) 
+    {
+      if (fVerbose) std::cout<< "There are " << vCluster.size() << " clusters in event " << fMeta.evt << std::endl;
+
+      for( int i = 0 ; i < (int) vCluster.size() ; i++ )
+      {
+	fCluster = vCluster[i];
+	fCluster->meta = fMeta;
+        fTree_LE->Fill();
+      }
+    }
+
+  }// end if Low Energy Clusters
+
+  if (!fTrackAnalysis) return;
 
   // Reconstructed Information
   std::vector<art::Ptr<recob::PFParticle>> PFParticleList;
@@ -377,7 +497,7 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
     // Save!
     if (select) {
       if (fVerbose) std::cout << "Track Selected! By tool: " << i_select << std::endl;
-      fTree->Fill();
+      fTree_track->Fill();
     }
   }
 }
@@ -1316,12 +1436,12 @@ std::map<int, std::vector<std::pair<geo::WireID, const sim::IDE*>>> dune::CalibA
 }
 
 std::map<int, std::vector<art::Ptr<recob::Hit>>> dune::CalibAnaTree::PrepTrueHits(const std::vector<art::Ptr<recob::Hit>> &allHits,
-							      const detinfo::DetectorClocksData &clockData,
+							      const detinfo::DetectorClocksData &clock_data,
 							      const cheat::BackTrackerService &backtracker)
 {
   std::map<int, std::vector<art::Ptr<recob::Hit>>> ret;
   for (const art::Ptr<recob::Hit> h: allHits) {
-    for (int ID: backtracker.HitToTrackIds(clockData, *h)) {
+    for (int ID: backtracker.HitToTrackIds(clock_data, *h)) {
       ret[abs(ID)].push_back(h);
     }
   }
@@ -1329,12 +1449,12 @@ std::map<int, std::vector<art::Ptr<recob::Hit>>> dune::CalibAnaTree::PrepTrueHit
 }
 
 
-std::vector<std::pair<int, float>> dune::CalibAnaTree::AllTrueParticleIDEnergyMatches(const detinfo::DetectorClocksData &clockData, const std::vector<art::Ptr<recob::Hit> >& hits, bool rollup_unsaved_ids) {
+std::vector<std::pair<int, float>> dune::CalibAnaTree::AllTrueParticleIDEnergyMatches(const detinfo::DetectorClocksData &clock_data, const std::vector<art::Ptr<recob::Hit> >& hits, bool rollup_unsaved_ids) {
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   std::map<int, float> trackIDToEDepMap;
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
     art::Ptr<recob::Hit> hit = *hitIt;
-    std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
+    std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(clock_data, hit);
     for (unsigned int idIt = 0; idIt < trackIDs.size(); ++idIt) {
       int id = trackIDs[idIt].trackID;
       if (rollup_unsaved_ids) id = std::abs(id);
@@ -1370,14 +1490,14 @@ int dune::CalibAnaTree::GetShowerPrimary(const int g4ID)
   return primary_id;
 }
 
-float dune::CalibAnaTree::TotalHitEnergy(const detinfo::DetectorClocksData &clockData, const std::vector<art::Ptr<recob::Hit> >& hits) {
+float dune::CalibAnaTree::TotalHitEnergy(const detinfo::DetectorClocksData &clock_data, const std::vector<art::Ptr<recob::Hit> >& hits) {
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
 
   float ret = 0.;
 
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
     art::Ptr<recob::Hit> hit = *hitIt;
-    std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(clockData, hit);
+    std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(clock_data, hit);
     for (unsigned int idIt = 0; idIt < trackIDs.size(); ++idIt) {
       ret += trackIDs[idIt].energy;
     }

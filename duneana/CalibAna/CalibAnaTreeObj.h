@@ -102,6 +102,8 @@ namespace dune {
     uint64_t time; //!< Timestamp
     int ifile; //!< Index of file into processing
     int iproc; //!< Index of process number into processing (useful for grid)
+    float ttinmus; //!< convertion tt in mus
+    float electronvelocity; //!< electron velocity in cm/mus 
 
    MetaInfo():
      run(-1),
@@ -307,6 +309,58 @@ namespace dune {
       nprescale(-1) {}
   };
 
+  struct ClusterInfo 
+  {
+     MetaInfo meta; //!< Meta-data associated with this cluster
+
+     bool AsConverged; //!< bool to know if the clusterisation as converged in this event
+
+     float y;       //!< position in cm
+     float z;       //!< position in cm
+     float peaktime;//!< time in tt
+     int   nof;     //!< +1 or if cluster on plane near to the beam -1 if far
+
+     float CRP_T0;  //!< T0 of CRP (usefull for charge light matching) in tt
+     float ChargeCollection; //!< charge of cluster on collection plane in ADCxtt
+     float ChargeInduction1; //!< charge of cluster on induction 1 plane in ADCxtt
+     float ChargeInduction2; //!< charge of cluster on induction 2 plane in ADCxtt
+
+     int NumberOfPoint;      //!< number of point in the cluster
+     int NumberOfCollection; //!< number of collection wires/channels in cluster
+     int NumberOfInduction1; //!< number of induction1 wires/channels in cluster
+     int NumberOfInduction2; //!< number of induction2 wires/channels in cluster
+
+     //truth info
+     bool               truth;      //!< yes if truth info no if not
+     std::vector<float> vMC_energy; //!< vector of energy for collection hits in the cluster
+     std::vector<int>   vMC_nelec;  //!< vector of number of e- for collection hits in the cluster
+     std::vector<int>   vMC_pdg;    //!< vector of pdg code for collection hits in the cluster
+     std::vector<int>   vMC_mompdg; //!< vector of pdg code of mother collection for hits in the cluster
+     std::vector<float> vMC_x;      //!< vector of x for collection hits in the cluster
+     std::vector<float> vMC_y;      //!< vector of y for collection hits in the cluster
+     std::vector<float> vMC_z;      //!< vector of z for collection hits in the cluster
+
+     std::vector<std::string> vMC_gentag ; //!< vector of main generator tag for collection hits in the cluster
+     std::vector<float> vMC_weight; //!< vector of weight of the main gen in the tot energy for col. hits in cluster
+
+     ClusterInfo():
+	AsConverged(false),
+	y(-999),
+	z(-999),
+        peaktime(-999),
+        CRP_T0(-999),
+        ChargeCollection(-999),
+        ChargeInduction1(-999),
+        ChargeInduction2(-999),
+        NumberOfPoint(-999),
+        NumberOfCollection(-999),
+        NumberOfInduction1(-999),
+        NumberOfInduction2(-999) {}
+  
+  }; 
+
+
+
 }
 
-#endif
+#endif 
