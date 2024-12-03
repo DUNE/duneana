@@ -39,8 +39,9 @@ BEGIN_PROLOG
     AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
 
     GenerateAdjOpFlash:         false        # Generate OpFlashes.
-    OpFlashAlgoNHit:            3            # Min number of hits to consider a flash.
-    OpFlashAlgoTime:            1            # Time window to look for adj. OpHits in [tick] units.
+    OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
+    OpFlashAlgoMinTime:         0.60         # Negative time window to look for adj. OpHits in [tick] units.
+    OpFlashAlgoMaxTime:         1.00         # Positive time window to look for adj. OpHits in [tick] units.
     OpFlashAlgoRad:             300          # Distance to look for adj. OpHits in [cm] units.
     OpFlashAlgoPE:              1.5          # PE threshold to look for adj. OpHits.
     OpFlashAlgoTriggerPE:       1.5          # PE threshold to trigger an OpFlash.
@@ -52,11 +53,13 @@ BEGIN_PROLOG
     AdjOpFlashZ:                150.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE. From average bkg rate of ~20 PE per tick.
+    AdjOpFlashMinNHitCut:       10           # Cut on the minimum number of OpHits in the OpFlash.
     FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
-    SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster
+    SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
+    SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
