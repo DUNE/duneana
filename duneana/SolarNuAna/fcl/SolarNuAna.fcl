@@ -1,15 +1,16 @@
 #include "generator_labels.fcl"
+#include "SolarOpFlash.fcl"
 
 BEGIN_PROLOG
 
   solar_nu_ana_hd:
   {
-    module_type:		     "SolarNuAna"
-    GEANT4Label:         "largeant"     # The label for the process which ran GEANT4
-    HitLabel:		         "hitfd" 	      # string for the process that made the reco hits
-    TrackLabel:          "pmtracktc"    # The label for the process which ran the PMTrack
-    OpHitLabel:          "ophitspe"     # The label for the process which ran the OpHit
-    OpFlashLabel:        "solarflash"   # The label for the process which ran the OpFlash
+    module_type:  "SolarNuAna"
+    GEANT4Label:  "largeant"     # The label for the process which ran GEANT4
+    HitLabel:		  "hitfd" 	     # String for the process that made the reco hits
+    TrackLabel:   "pmtracktc"    # The label for the process which ran the PMTrack
+    OpHitLabel:   "ophitspe"     # The label for the process which ran the OpHit
+    OpFlashLabel: "solarflash"   # The label for the process which ran the OpFlash
 
     #====================================================================================#
     # Vector with generator labels for the particles included in the event. IMPORTANT: Keep SIGNAL label in the first position!!!
@@ -24,7 +25,7 @@ BEGIN_PROLOG
     ClusterAlgoTime:            25           # Time window to look for plane clusters in [tick] units.
     ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
-    ClusterMatchNHit:           1.5          # DAQ Clusters min. hit requirement.
+    ClusterMatchNHit:           2            # DAQ Clusters min. hit requirement.
     ClusterMatchCharge:         0.6          # Charge fraction to match clusters.
     ClusterMatchTime:           20.0         # Time window to look for ind. plane clusters in [tick] units.
     ClusterInd0MatchTime:       0.00         # Wirecell seems to have made this obsolete.
@@ -38,23 +39,27 @@ BEGIN_PROLOG
     AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
 
     GenerateAdjOpFlash:         false        # Generate OpFlashes.
-    OpFlashAlgoNHit:            3            # Min number of hits to consider a flash.
-    OpFlashAlgoTime:            1            # Time window to look for adj. OpHits in [tick] units.
+    OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
+    OpFlashAlgoMinTime:         0.60         # Negative time window to look for adj. OpHits in [tick] units.
+    OpFlashAlgoMaxTime:         1.00         # Positive time window to look for adj. OpHits in [tick] units.
     OpFlashAlgoRad:             300          # Distance to look for adj. OpHits in [cm] units.
     OpFlashAlgoPE:              1.5          # PE threshold to look for adj. OpHits.
-    OpFlashAlgoTriggerPE:       20           # PE threshold to trigger an OpFlash.
-    OpFlashAlgoHotVertexThld:   0            # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
+    OpFlashAlgoTriggerPE:       1.5          # PE threshold to trigger an OpFlash.
+    OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
     # OpFlashAlgoCentroid:        false        # Use the centroid computation of the flash based on a likelihood estimation.
 
     AdjOpFlashTime:             4500         # Time window to look for adjacent flashes in [tick] units should be one full drift length.
-    AdjOpFlashY:                50.          # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashZ:                50.          # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashY:                100.         # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashZ:                150.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
-    AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE.
+    AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE. From average bkg rate of ~20 PE per tick.
+    AdjOpFlashMinNHitCut:       10           # Cut on the minimum number of OpHits in the OpFlash.
+    FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
-    SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster
+    SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
+    SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
@@ -69,13 +74,13 @@ BEGIN_PROLOG
   solar_nu_ana_vd.OpFlashLabel:        "solarflash"
   solar_nu_ana_vd.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
 
-  solar_nu_ana_vd.Geometry:                "VD"
-  solar_nu_ana_vd.DetectorSizeX:           340
-  solar_nu_ana_vd.DetectorSizeY:           680 
-  solar_nu_ana_vd.DetectorSizeZ:           2100
-  solar_nu_ana_vd.DetectorDriftTIme:       8500
+  solar_nu_ana_vd.Geometry:            "VD"
+  solar_nu_ana_vd.DetectorSizeX:       340
+  solar_nu_ana_vd.DetectorSizeY:       680 
+  solar_nu_ana_vd.DetectorSizeZ:       2100
+  solar_nu_ana_vd.DetectorDriftTIme:   8500
 
-  solar_nu_ana_vd.AdjOpFlashTime:          8500
+  solar_nu_ana_vd.AdjOpFlashTime:      8500
 
   solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x6.ParticleLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
