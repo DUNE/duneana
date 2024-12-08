@@ -27,7 +27,7 @@ physics:
 { 
   analyzers:
   {
-    solarnuana: @local::solar_nu_ana_hd
+    solarnuana: @local::solar_nu_ana_hd_centralAPA
   }
   ana: [ solarnuana ]
   end_paths: [ ana ] 

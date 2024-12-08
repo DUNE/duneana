@@ -1,6 +1,6 @@
 # Specific configuration for investigating Marley events
 # Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
-#include "solar_ana_dune10kt_1x2x6.fcl"
+#include "solar_ana_flash_radiological_decay0_dune10kt_1x2x6.fcl"
 
-physics.analyzers.solarnuana.ParticleLabelVector: [ "CavernwallGammasAtLAr1x2x6" ]
+physics.analyzers.solarnuana.SignalLabel: "generator"

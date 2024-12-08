@@ -3,4 +3,4 @@
 
 #include "solar_ana_dune10kt_1x2x6.fcl"
 
-physics.analyzers.solarnuana.SignalLabel: "generator"
+physics.analyzers.solarnuana.SignalLabel: [ "CavernwallGammasAtLAr1x2x6lowBgAPA" ]
