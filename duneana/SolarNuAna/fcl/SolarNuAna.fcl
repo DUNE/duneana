@@ -58,7 +58,7 @@ BEGIN_PROLOG
     AdjOpFlashMinNHitCut:       10           # Cut on the minimum number of OpHits in the OpFlash.
     FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
-    SaveSignalDaughters:        false        # Save the daughters of the signal particles.
+    SaveSignalDaughters:        true         # Save the daughters of the signal particles.
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
