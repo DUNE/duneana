@@ -3,7 +3,7 @@
 
 BEGIN_PROLOG
 
-  solar_nu_ana_hd:
+  solar_nu_ana_hd_centralAPA:
   {
     module_type:  "SolarNuAna"
     GEANT4Label:  "largeant"     # The label for the process which ran GEANT4
@@ -13,8 +13,10 @@ BEGIN_PROLOG
     OpFlashLabel: "solarflash"   # The label for the process which ran the OpFlash
 
     #====================================================================================#
-    # Vector with generator labels for the particles included in the event. IMPORTANT: Keep SIGNAL label in the first position!!!
-    ParticleLabelVector: @local::generator_dune10kt_1x2x6
+    # The following are the labels for the signal and background processes
+    SignalLabel: "marley"
+    # Vector with generator labels for the background processes included in the event 
+    BackgroundLabelVector: @local::generator_dune10kt_1x2x6_centralAPA
 
     Geometry:                   "HD"
     DetectorSizeX:              360          # 1 TPC drift (X) length in [cm].
@@ -50,29 +52,34 @@ BEGIN_PROLOG
 
     AdjOpFlashTime:             4500         # Time window to look for adjacent flashes in [tick] units should be one full drift length.
     AdjOpFlashY:                100.         # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashZ:                150.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashZ:                100.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE. From average bkg rate of ~20 PE per tick.
     AdjOpFlashMinNHitCut:       10           # Cut on the minimum number of OpHits in the OpFlash.
     FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
+    SaveSignalDaughters:        true         # Save the daughters of the signal particles.
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
     SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
+
   }
 
-  legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
-  legacy_solar_nu_ana_hd_v2.ParticleLabelVector: @local::generator_dune10kt_1x2x6_mcc11
+  legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd_centralAPA
+  legacy_solar_nu_ana_hd_v2.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_mcc11
 
-  legacy_solar_nu_ana_hd_v4: @local::solar_nu_ana_hd
-  legacy_solar_nu_ana_hd_v4.ParticleLabelVector: @local::generator_dune10kt_1x2x6_legacy
+  legacy_solar_nu_ana_hd_v4: @local::solar_nu_ana_hd_centralAPA
+  legacy_solar_nu_ana_hd_v4.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_legacy
 
-  solar_nu_ana_vd: @local::solar_nu_ana_hd
+  solar_nu_ana_hd_lateralAPA: @local::solar_nu_ana_hd_centralAPA
+  solar_nu_ana_hd_lateralAPA.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_lateralAPA
+  
+  solar_nu_ana_vd: @local::solar_nu_ana_hd_centralAPA
   solar_nu_ana_vd.HitLabel:            "gaushit"
   solar_nu_ana_vd.OpHitLabel:          "ophit10ppm"
   solar_nu_ana_vd.OpFlashLabel:        "solarflash"
-  solar_nu_ana_vd.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
+  solar_nu_ana_vd.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
 
   solar_nu_ana_vd.Geometry:            "VD"
   solar_nu_ana_vd.DetectorSizeX:       340
@@ -83,6 +90,6 @@ BEGIN_PROLOG
   solar_nu_ana_vd.AdjOpFlashTime:      8500
 
   solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
-  solar_nu_ana_vd_1x8x6.ParticleLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
+  solar_nu_ana_vd_1x8x6.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
 
 END_PROLOG
