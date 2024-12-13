@@ -94,16 +94,16 @@ namespace solar
     std::string TNuInteraction;
     std::vector<std::map<int, simb::MCParticle>> GeneratorParticles = {};
     int Event, Flag, MNHit, MGen, MTPC, MInd0TPC, MInd1TPC, MInd0NHits, MInd1NHits, MMainID, MMainPDG, MMainParentPDG, TrackNum, OpHitNum, OpFlashNum, MTrackNPoints, SignalParticlePDG;
-    float SignalParticleE, SignalParticleK, SignalParticleX, SignalParticleY, SignalParticleZ, SignalParticleTime, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
-    float MInd0dTime, MInd1dTime, MInd0RecoY, MInd1RecoY, MRecX, MRecY, MRecZ, MPur, MGenPur, MMainE, MMainK, MMainTime, MMainParentE, MMainParentK, MMainParentTime, MTrackChi2;
+    float SignalParticleE, SignalParticleP, SignalParticleK, SignalParticleX, SignalParticleY, SignalParticleZ, SignalParticleTime, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
+    float MInd0dTime, MInd1dTime, MInd0RecoY, MInd1RecoY, MRecX, MRecY, MRecZ, MPur, MGenPur, MMainE, MMainP, MMainK, MMainTime, MMainParentE, MMainParentP, MMainParentK, MMainParentTime, MTrackChi2;
     std::vector<int> MAdjClGen, MAdjClMainID, TPart, SignalPDGList, SignalPDGDepList, SignalIDList, SignalMotherList, SignalIDDepList, MAdjClMainPDG, HitNum, ClusterNum, SignalElectronDepList;
     std::vector<float> SignalEDepList, SignalXDepList, SignalYDepList, SignalZDepList;
     std::vector<float> SOpHitPur, SOpHitPE, SOpHitX, SOpHitY, SOpHitZ, SOpHitTime, SOpHitChannel, SOpHitFlashID;
     std::vector<float> MAdjClTime, MAdjClCharge, MAdjClInd0Charge, MAdjClInd1Charge, MAdjClMaxCharge, MAdjClInd0MaxCharge, MAdjClInd1MaxCharge;
-    std::vector<float> MAdjClNHits, MAdjClInd0NHits, MAdjClInd1NHits, MAdjClRecoY, MAdjClRecoZ, MAdjClR, MAdjClPur, MAdjClGenPur, MAdjClMainE, MAdjClMainK;
+    std::vector<float> MAdjClNHits, MAdjClInd0NHits, MAdjClInd1NHits, MAdjClRecoY, MAdjClRecoZ, MAdjClR, MAdjClPur, MAdjClGenPur, MAdjClMainE, MAdjClMainP, MAdjClMainK;
     std::vector<float> MAdjClMainX, MAdjClMainY, MAdjClMainZ, MAdjClEndX, MAdjClEndY, MAdjClEndZ, MSignalFrac, MGenFrac;
     std::vector<float> MAdjFlashTime, MAdjFlashResidual, MAdjFlashPE, MAdjFlashNHits, MAdjFlashMaxPE, MAdjFlashRecoX, MAdjFlashRecoY, MAdjFlashRecoZ, MAdjFlashR, MAdjFlashPur, MAdjFlashSTD, MAdjFlashFast;
-    std::vector<float> SignalEList, SignalKList, SignalTimeList, SignalEndXList, SignalEndYList, SignalEndZList, SignalMaxEDepList, SignalMaxEDepXList, SignalMaxEDepYList, SignalMaxEDepZList;
+    std::vector<float> SignalEList, SignalPList, SignalKList, SignalTimeList, SignalEndXList, SignalEndYList, SignalEndZList, SignalMaxEDepList, SignalMaxEDepXList, SignalMaxEDepYList, SignalMaxEDepZList;
     std::vector<double> MMainVertex, MEndVertex, MMainParentVertex;
     std::vector<double> MTrackStart, MTrackEnd;
     bool MPrimary;
@@ -262,6 +262,7 @@ namespace solar
     fMCTruthTree->Branch("TruthPart", &TPart);                                               // Number particles per generator
     fMCTruthTree->Branch("Interaction", &TNuInteraction);                                    // True signal interaction process
     fMCTruthTree->Branch("SignalParticleE", &SignalParticleE, "SignalParticleE/F");          // True signal energy [MeV]
+    fMCTruthTree->Branch("SignalParticleP", &SignalParticleP, "SignalParticleP/F");          // True signal momentum [MeV]
     fMCTruthTree->Branch("SignalParticleK", &SignalParticleK, "SignalParticleK/F");          // True signal K.E. [MeV]
     fMCTruthTree->Branch("SignalParticleX", &SignalParticleX, "SignalParticleX/F");          // True signal X [cm]
     fMCTruthTree->Branch("SignalParticleY", &SignalParticleY, "SignalParticleY/F");          // True signal Y [cm]
@@ -277,6 +278,7 @@ namespace solar
     {
       fMCTruthTree->Branch("TSignalPDG", &SignalPDGList);                                      // PDG of Signal marticles
       fMCTruthTree->Branch("TSignalE", &SignalEList);                                          // Energy of Signal particles [MeV]
+      fMCTruthTree->Branch("TSignalP", &SignalPList);                                          // Energy of Signal momentum [MeV]
       fMCTruthTree->Branch("TSignalK", &SignalKList);                                          // Kinetik Energy of Signal particles [MeV]
       fMCTruthTree->Branch("TSignalT", &SignalTimeList);                                       // Time of Signal particles [ticks]
       fMCTruthTree->Branch("TSignalEndX", &SignalEndXList);                                    // X of Signal particles [cm]
@@ -330,6 +332,7 @@ namespace solar
     fSolarNuAnaTree->Branch("TruthPart", &TPart);                                               // Number particles per generator
     fSolarNuAnaTree->Branch("Interaction", &TNuInteraction);                                    // True signal interaction process
     fSolarNuAnaTree->Branch("SignalParticleE", &SignalParticleE, "SignalParticleE/F");          // True signal energy
+    fSolarNuAnaTree->Branch("SignalParticleP", &SignalParticleP, "SignalParticleP/F");          // True signal momentum
     fSolarNuAnaTree->Branch("SignalParticleK", &SignalParticleK, "SignalParticleK/F");          // True signal K
     fSolarNuAnaTree->Branch("SignalParticleX", &SignalParticleX, "SignalParticleX/F");          // True signal X
     fSolarNuAnaTree->Branch("SignalParticleY", &SignalParticleY, "SignalParticleY/F");          // True signal Y
@@ -340,6 +343,7 @@ namespace solar
     {
       fSolarNuAnaTree->Branch("TSignalPDG", &SignalPDGList);                                      // PDG of Signal particles
       fSolarNuAnaTree->Branch("TSignalE", &SignalEList);                                          // Energy of Signal particles
+      fSolarNuAnaTree->Branch("TSignalP", &SignalPList);                                          // Momentum of Signal particles
       fSolarNuAnaTree->Branch("TSignalK", &SignalKList);                                          // Kinetik Energy of Signal particles
       fSolarNuAnaTree->Branch("TSignalEndX", &SignalEndXList);                                    // X of Signal particles
       fSolarNuAnaTree->Branch("TSignalEndY", &SignalEndYList);                                    // Y of Signal particles
@@ -379,11 +383,13 @@ namespace solar
     fSolarNuAnaTree->Branch("RecoZ", &MRecZ, "RecoZ/F");                             // Main cluster reco Z [cm]
     fSolarNuAnaTree->Branch("MainID", &MMainID, "MainID/I");                         // Main cluster main track ID
     fSolarNuAnaTree->Branch("MainE", &MMainE, "MainE/F");                            // Main cluster main energy [MeV]
+    fSolarNuAnaTree->Branch("MainP", &MMainP, "MainP/F");                            // Main cluster main momentum [MeV]
     fSolarNuAnaTree->Branch("MainK", &MMainK, "MainK/F");                            // Main cluster main kinetic energy [MeV]
     fSolarNuAnaTree->Branch("MainTime", &MMainTime, "MainTime/F");                   // Main cluster main Time [ticks]
     fSolarNuAnaTree->Branch("MainPDG", &MMainPDG, "MainPDG/I");                      // Main cluster main pdg
     fSolarNuAnaTree->Branch("MainParentPDG", &MMainParentPDG, "MainParentPDG/I");    // Main cluster main pdg
     fSolarNuAnaTree->Branch("MainParentE", &MMainParentE, "MainParentE/F");          // Main cluster main parent energy [MeV]
+    fSolarNuAnaTree->Branch("MainParentP", &MMainParentP, "MainParentP/F");          // Main cluster main parent momentum [MeV]
     fSolarNuAnaTree->Branch("MainParentK", &MMainParentK, "MainParentK/F");          // Main cluster main parent kinetic energy [MeV]
     fSolarNuAnaTree->Branch("MainParentTime", &MMainParentTime, "MainParentTime/F"); // Main cluster main parent Time [ticks]
     fSolarNuAnaTree->Branch("MainVertex", &MMainVertex);                             // Main cluster main particle vertex [cm]
@@ -420,6 +426,7 @@ namespace solar
     fSolarNuAnaTree->Branch("AdjClMainID", &MAdjClMainID);               // Adj. clusters' main track ID
     fSolarNuAnaTree->Branch("AdjClMainPDG", &MAdjClMainPDG);             // Adj. clusters' main PDG
     fSolarNuAnaTree->Branch("AdjClMainE", &MAdjClMainE);                 // Adj. clusters' main energy [MeV]
+    fSolarNuAnaTree->Branch("AdjClMainP", &MAdjClMainP);                 // Adj. clusters' main momentum [MeV]
     fSolarNuAnaTree->Branch("AdjClMainK", &MAdjClMainK);                 // Adj. clusters' main K.E. [MeV]
     fSolarNuAnaTree->Branch("AdjClMainX", &MAdjClMainX);                 // Adj. clusters' main X [cm]
     fSolarNuAnaTree->Branch("AdjClMainY", &MAdjClMainY);                 // Adj. clusters' main Y [cm]
@@ -575,6 +582,7 @@ namespace solar
           const simb::MCNeutrino &nue = SignalTruth.GetNeutrino();
           TNuInteraction = SolarAuxUtils::str(nue.InteractionType());
           SignalParticleE = 1e3 * nue.Nu().E();
+          SignalParticleP = 1e3 * nue.Nu().P();
           SignalParticleK = 1e3 * nue.Nu().E() - 1e3 * nue.Nu().Mass();
           SignalParticleX = nue.Nu().Vx();
           SignalParticleY = nue.Nu().Vy();
@@ -594,6 +602,7 @@ namespace solar
           }
           const simb::MCParticle &SignalParticle = SignalTruth.GetParticle(0);
           SignalParticleE = 1e3 * SignalParticle.E();
+          SignalParticleP = 1e3 * SignalParticle.P();
           SignalParticleK = 1e3 * SignalParticle.E() - 1e3 * SignalParticle.Mass();
           SignalParticleX = SignalParticle.Vx();
           SignalParticleY = SignalParticle.Vy();
@@ -639,6 +648,7 @@ namespace solar
           {
             SignalPDGList.push_back((*SignalParticle)->PdgCode());
             SignalEList.push_back(1e3 * (*SignalParticle)->E());
+            SignalPList.push_back(1e3 * (*SignalParticle)->P());
             SignalKList.push_back(1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass());
             SignalTimeList.push_back((*SignalParticle)->T());
             SignalEndXList.push_back((*SignalParticle)->EndX());
@@ -1337,6 +1347,7 @@ namespace solar
         MAdjClMainID = {};
         MAdjClMainPDG = {};
         MAdjClMainE = {};
+        MAdjClMainP = {};
         MAdjClMainK = {};
         MAdjClMainX = {};
         MAdjClMainY = {};
@@ -1410,6 +1421,7 @@ namespace solar
           {
             MAdjClMainPDG.push_back(0);
             MAdjClMainE.push_back(-1e6);
+            MAdjClMainP.push_back(-1e6);
             MAdjClMainK.push_back(-1e6);
             MAdjClMainX.push_back(-1e6);
             MAdjClMainY.push_back(-1e6);
@@ -1422,6 +1434,7 @@ namespace solar
           {
             MAdjClMainPDG.push_back(MAdjClTruth->PdgCode());
             MAdjClMainE.push_back(1e3*MAdjClTruth->E());
+            MAdjClMainP.push_back(1e3*MAdjClTruth->P());
             MAdjClMainK.push_back(1e3*MAdjClTruth->E() - 1e3*MAdjClTruth->Mass());
             MAdjClMainX.push_back(MAdjClTruth->Vx());
             MAdjClMainY.push_back(MAdjClTruth->Vy());
@@ -1605,12 +1618,14 @@ namespace solar
           MEndVertex = {-1e6, -1e6, -1e6};
           MMainPDG = 0;
           MMainE = -1e6;
+          MMainP = -1e6;
           MMainK = -1e6;
           MMainTime = -1e6;
 
           MMainParentVertex = {-1e6, -1e6, -1e6};
           MMainParentPDG = 0;
           MMainParentE = -1e6;
+          MMainParentP = -1e6;
           MMainParentK = -1e6;
           MMainParentTime = -1e6;
         }
@@ -1624,6 +1639,7 @@ namespace solar
           MEndVertex = {MClTruth->EndX(), MClTruth->EndY(), MClTruth->EndZ()};
           MMainPDG = MClTruth->PdgCode();
           MMainE = 1e3 * MClTruth->E();
+          MMainP = 1e3 * MClTruth->P();
           MMainK = MMainE - 1e3 * MClTruth->Mass();
           MMainTime = MClTruth->T();
           // If exists add the parent information
@@ -1636,6 +1652,7 @@ namespace solar
             MMainParentVertex = {-1e6, -1e6, -1e6};
             MMainParentPDG = 0;
             MMainParentE = -1e6;
+            MMainParentP = -1e6;
             MMainParentK = -1e6;
             MMainParentTime = -1e6;
           }
@@ -1644,6 +1661,7 @@ namespace solar
             MMainParentVertex = {MClParentTruth->Vx(), MClParentTruth->Vy(), MClParentTruth->Vz()};
             MMainParentPDG = MClParentTruth->PdgCode();
             MMainParentE = 1e3 * MClParentTruth->E();
+            MMainParentP = 1e3 * MClParentTruth->P();
             MMainParentK = MMainParentE - 1e3 * MClParentTruth->Mass();
             MMainParentTime = MClParentTruth->T();
           }
@@ -1677,6 +1695,7 @@ namespace solar
   void SolarNuAna::ResetVariables()
   {
     SignalParticleE = 0;
+    SignalParticleP = 0;
     SignalParticleK = 0;
     SignalParticleX = 0;
     SignalParticleY = 0;
@@ -1706,7 +1725,7 @@ namespace solar
     SignalPDGDepList = {};
     SignalIDList = {}, SignalIDDepList = {};
     SignalMotherList = {};
-    SignalEList = {}, SignalKList = {}, SignalTimeList = {}, SignalEndXList = {}, SignalEndYList = {}, SignalEndZList = {};
+    SignalEList = {}, SignalPList = {}, SignalKList = {}, SignalTimeList = {}, SignalEndXList = {}, SignalEndYList = {}, SignalEndZList = {};
     SignalEDepList = {}, SignalXDepList = {}, SignalYDepList = {}, SignalZDepList = {};
     SignalMaxEDepList = {}, SignalMaxEDepXList = {}, SignalMaxEDepYList = {}, SignalMaxEDepZList = {};
     SOpHitChannel = {}, SOpHitPur = {}, SOpHitPE = {}, SOpHitX = {}, SOpHitY = {}, SOpHitZ = {}, SOpHitTime = {}, SOpHitFlashID = {};
