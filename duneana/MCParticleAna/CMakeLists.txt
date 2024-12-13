@@ -1,0 +1,48 @@
+add_subdirectory(fcl)
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
+art_make(BASENAME_ONLY
+    LIB_LIBRARIES
+      ${ROOT_CORE}
+      ${ROOT_EVE}
+      cetlib::cetlib
+      lardata::Utilities
+      lardataobj::RawData
+      larcorealg::Geometry
+      larcore::Geometry_Geometry_service
+      messagefacility::MF_MessageLogger
+      art::Persistency_Provenance
+      art::Persistency_Common
+      art::Utilities 
+      lardataobj::RecoBase
+      art_root_io::tfile_support
+    SERVICE_LIBRARIES
+      lardata::Utilities
+      lardataobj::RecoBase
+      ${ART_ROOT_IO_ROOTINPUT_SOURCE}
+    MODULE_LIBRARIES
+      dunecore::DuneObj
+      lardata::RecoObjects
+      lardata::Utilities
+      larcorealg::Geometry
+      lardataobj::RawData
+      lardataobj::RecoBase
+      larcore::Geometry_Geometry_service
+      dunecore::DAQTriggerSim_TriggerDataProducts
+      lardata::DetectorInfoServices_DetectorClocksServiceStandard_service
+      larsim::MCCheater_ParticleInventoryService_service
+      nug4::ParticleNavigation
+      nusimdata::SimulationBase
+      art_root_io::tfile_support
+      art::Persistency_Common
+      art::Persistency_Provenance
+      art::Utilities 
+      messagefacility::MF_MessageLogger
+      cetlib::cetlib 
+      duneopdet::SolarNuUtils
+      dunereco::LowEUtils
+      ROOT::Core ROOT::Hist ROOT::Tree
+)
+
+install_headers()
+install_fhicl()
+install_source()
