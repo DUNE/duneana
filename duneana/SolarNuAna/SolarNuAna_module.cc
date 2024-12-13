@@ -84,7 +84,9 @@ namespace solar
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels, fBackgroundLabels;
     float fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
-    bool fClusterPreselectionTrack, fClusterPreselectionPrimary, fGenerateAdjOpFlash, fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveTrackInfo, fFlashMatchByResidual;
+    bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
+    bool fGenerateAdjOpFlash, fFlashMatchByResidual;
+    bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveTrackInfo;
     // bool fOpFlashAlgoCentroid;
 
     // --- Our TTrees, and its associated variables.
@@ -169,9 +171,11 @@ namespace solar
     fClusterMatchTime = p.get<float>("ClusterMatchTime");
     fClusterInd0MatchTime = p.get<float>("ClusterInd0MatchTime");
     fClusterInd1MatchTime = p.get<float>("ClusterInd1MatchTime");
+    fClusterPreselectionSignal = p.get<bool>("ClusterPreselectionSignal");
+    fClusterPreselectionPrimary = p.get<bool>("ClusterPreselectionPrimary");
     fClusterPreselectionNHit = p.get<int>("ClusterPreselectionNHit");
     fClusterPreselectionTrack = p.get<bool>("ClusterPreselectionTrack");
-    fClusterPreselectionPrimary = p.get<bool>("ClusterPreselectionPrimary");
+    fClusterPreselectionFlashMatch = p.get<bool>("ClusterPreselectionFlashMatch");
     fAdjClusterRad = p.get<float>("AdjClusterRad");
     fMinClusterCharge = p.get<float>("MinClusterCharge");
     fGenerateAdjOpFlash = p.get<bool>("GenerateAdjOpFlash");
@@ -230,9 +234,11 @@ namespace solar
     fConfigTree->Branch("ClusterMatchTime", &fClusterMatchTime);
     fConfigTree->Branch("ClusterInd0MatchTime", &fClusterInd0MatchTime);
     fConfigTree->Branch("ClusterInd1MatchTime", &fClusterInd1MatchTime);
+    fConfigTree->Branch("ClusterPreselectionSignal", &fClusterPreselectionSignal);
+    fConfigTree->Branch("ClusterPreselectionPrimary", &fClusterPreselectionPrimary);
     fConfigTree->Branch("ClusterPreselectionNHit", &fClusterPreselectionNHit);
     fConfigTree->Branch("ClusterPreselectionTrack", &fClusterPreselectionTrack);
-    fConfigTree->Branch("ClusterPreselectionPrimary", &fClusterPreselectionPrimary);
+    fConfigTree->Branch("ClusterPreselectionFlashMatch", &fClusterPreselectionFlashMatch);
     fConfigTree->Branch("AdjClusterRad", &fAdjClusterRad);
     fConfigTree->Branch("MinClusterCharge", &fMinClusterCharge);
     fConfigTree->Branch("GenerateAdjOpFlash", &fGenerateAdjOpFlash);
@@ -1311,6 +1317,11 @@ namespace solar
     // Loop over matched clusters and export to tree if number of hits is above threshold
     for (int i = 0; i < int(MVecNHit.size()); i++)
     {
+      if (fClusterPreselectionSignal && MVecPur[i] == 0)
+      {
+        continue;
+      }
+
       bool TrackMatch = false;
       std::string sFlashReco = "";
       std::string sClusterReco = "";
@@ -1319,11 +1330,6 @@ namespace solar
       float MatchedOpFlashPE = -1e6;
       float MatchedOpFlashResidual = 1e6;
       float MatchedOpFlashX = -1e6;
-
-      if (MVecCharge[i] < fMinClusterCharge)
-      {
-        continue;
-      }
 
       if (MVecNHit[i] > fClusterPreselectionNHit && (MVecInd0NHits[i] > fClusterPreselectionNHit || MVecInd1NHits[i] > fClusterPreselectionNHit))
       {
@@ -1446,11 +1452,14 @@ namespace solar
         }
 
         sResultColor = "yellow";
-        if (MVecPur[i] > 0.5)
+        if (MVecPur[i] > 0)
         {
           sResultColor = "green";
         }
-
+        if (fClusterPreselectionPrimary && !MPrimary)
+        {
+          continue;
+        }
         if (MPrimary)
         {
           sClusterReco += "*** Matched preselection cluster: \n";
@@ -1490,6 +1499,10 @@ namespace solar
             }; // Loop over tracks
           }; // if (fSaveTrackInfo)
         }; // if (MPrimary)
+        if (fClusterPreselectionTrack && !TrackMatch)
+        {
+          continue;
+        }
 
         for (int j = 0; j < int(OpFlashPE.size()); j++)
         {
@@ -1570,7 +1583,10 @@ namespace solar
           MAdjFlashResidual.push_back(OpFlashResidual);
         }
         sClusterReco += sFlashReco;
-
+        if (fClusterPreselectionFlashMatch && MatchedOpFlashPE < 0)
+        {
+          continue;
+        } 
         // Fill the tree with the cluster information and the adjacent clusters and flashes
         MPur = MVecPur[i];
         MGen = MVecGen[i];
@@ -1666,17 +1682,12 @@ namespace solar
             MMainParentTime = MClParentTruth->T();
           }
         }
-        if ((fClusterPreselectionPrimary && !MPrimary) || (fClusterPreselectionTrack && !TrackMatch))
-        {
-          continue;
-        }
+
         fSolarNuAnaTree->Fill();
         hDriftTime->Fill(MainElectronEndPointX, MTime);
         hXTruth->Fill(MVecRecY[i] - SignalParticleY, SignalParticleX);
         hYTruth->Fill(MVecRecY[i] - SignalParticleY, SignalParticleY);
         hZTruth->Fill(MVecRecZ[i] - SignalParticleZ, SignalParticleZ);
-        if (MVecTime[i] < 0)
-          mf::LogWarning("SolarNuAna") << "Negative Main Cluster Time = " << MVecTime[i];
       }
       // Check if the string sClusterReco is not empty and print it in color
       if (sClusterReco != "")
