@@ -64,6 +64,7 @@ namespace solar
     // --- Input settings imported from the fcl
     std::string fGeometry;
     int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime;
+    float fMCParticleMinKE;
     std::vector<std::string> fParticleLabels;
 
     // --- Our TTrees, and its associated variables.
@@ -98,6 +99,7 @@ namespace solar
     fDetectorSizeY = p.get<int>("DetectorSizeY");
     fDetectorSizeZ = p.get<int>("DetectorSizeZ");
     fDetectorDriftTime = p.get<float>("DetectorDriftTime");
+    fMCParticleMinKE = p.get<float>("MCParticleMinKE");
   } // Reconfigure
 
   //......................................................
@@ -115,6 +117,7 @@ namespace solar
     fConfigTree->Branch("DetectorSizeY", &fDetectorSizeY);
     fConfigTree->Branch("DetectorSizeZ", &fDetectorSizeZ);
     fConfigTree->Branch("DetectorDriftTime", &fDetectorDriftTime);
+    fConfigTree->Branch("MCParticleMinKE", &fMCParticleMinKE);
 
     // MCTruth info.
     fMCTruthTree->Branch("Event", &Event, "Event/I"); // Event number
@@ -198,9 +201,14 @@ namespace solar
           for (int j = 0; j < NParticles; j++)
           {
             const simb::MCParticle &Particle = ParticleTruth.GetParticle(j);
+            float ThisParticleKE = 1e3 * Particle.E() - 1e3 * Particle.Mass();
+            if (ThisParticleKE < fMCParticleMinKE)
+            {
+              continue;
+            }
             ParticleE = 1e3 * Particle.E();
             ParticleP = 1e3 * Particle.P();
-            ParticleK = 1e3 * Particle.E() - 1e3 * Particle.Mass();
+            ParticleK = ThisParticleKE;
             ParticleX = Particle.Vx();
             ParticleY = Particle.Vy();
             ParticleZ = Particle.Vz();
