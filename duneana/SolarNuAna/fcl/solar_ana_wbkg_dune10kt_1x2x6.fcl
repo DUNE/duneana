@@ -3,5 +3,4 @@
 
 #include "solar_ana_dune10kt_1x2x6.fcl"
 
-physics.analyzers.solarnuana.ClusterPreselectionSignal: true
-physics.analyzers.solarnuana.SaveSignalDaughters: true
+physics.analyzers.solarnuana.ClusterPreselectionSignal: false

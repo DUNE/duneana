@@ -5,4 +5,4 @@
 
 physics.analyzers.solarnuana: @local::solar_nu_ana_hd_lateralAPA
 
-physics.analyzers.solarnuana.ClusterPreselectionNHit: 2
+physics.analyzers.solarnuana.ClusterPreselectionNHit: 0

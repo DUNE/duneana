@@ -3,4 +3,4 @@
 
 #include "solar_ana_dune10kt_1x2x6.fcl"
 
-physics.analyzers.solarnuana.ClusterPreselectionNHit: 2
+physics.analyzers.solarnuana.ClusterPreselectionNHit: 0

@@ -3,6 +3,5 @@
 
 #include "solar_ana_radiological_decay0_dune10kt_1x2x6_lateralAPA.fcl"
 
-physics.analyzers.solarnuana.ClusterPreselectionSignal: true
-physics.analyzers.solarnuana.ClusterPreselectionNHit: 0
-physics.analyzers.solarnuana.SaveSignalDaughters: true
+physics.analyzers.solarnuana.ClusterPreselectionSignal: false
+physics.analyzers.solarnuana.ClusterPreselectionNHit: 2
