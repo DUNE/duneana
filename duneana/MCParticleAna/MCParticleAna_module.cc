@@ -63,7 +63,7 @@ namespace solar
 
     // --- Input settings imported from the fcl
     std::string fGeometry;
-    int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime;
+    int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime, fMCParticlePDG;
     float fMCParticleMinKE;
     std::vector<std::string> fParticleLabels;
 
@@ -100,6 +100,7 @@ namespace solar
     fDetectorSizeZ = p.get<int>("DetectorSizeZ");
     fDetectorDriftTime = p.get<float>("DetectorDriftTime");
     fMCParticleMinKE = p.get<float>("MCParticleMinKE");
+    fMCParticlePDG = p.get<int>("MCParticlePDG");
   } // Reconfigure
 
   //......................................................
@@ -118,6 +119,7 @@ namespace solar
     fConfigTree->Branch("DetectorSizeZ", &fDetectorSizeZ);
     fConfigTree->Branch("DetectorDriftTime", &fDetectorDriftTime);
     fConfigTree->Branch("MCParticleMinKE", &fMCParticleMinKE);
+    fConfigTree->Branch("MCParticlePDG", &fMCParticlePDG);
 
     // MCTruth info.
     fMCTruthTree->Branch("Event", &Event, "Event/I"); // Event number
@@ -203,6 +205,10 @@ namespace solar
             const simb::MCParticle &Particle = ParticleTruth.GetParticle(j);
             float ThisParticleKE = 1e3 * Particle.E() - 1e3 * Particle.Mass();
             if (ThisParticleKE < fMCParticleMinKE)
+            {
+              continue;
+            }
+            if (Particle.PdgCode() != fMCParticlePDG && fMCParticlePDG != -1)
             {
               continue;
             }
