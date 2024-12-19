@@ -80,7 +80,7 @@ namespace solar
 
     // --- Input settings imported from the fcl
     std::string fSignalLabel, fGeometry;
-    int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHit, fAdjOpFlashMinNHitCut;
+    int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut;
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels, fBackgroundLabels;
     float fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
@@ -173,7 +173,7 @@ namespace solar
     fClusterInd1MatchTime = p.get<float>("ClusterInd1MatchTime");
     fClusterPreselectionSignal = p.get<bool>("ClusterPreselectionSignal");
     fClusterPreselectionPrimary = p.get<bool>("ClusterPreselectionPrimary");
-    fClusterPreselectionNHit = p.get<int>("ClusterPreselectionNHit");
+    fClusterPreselectionNHits = p.get<int>("ClusterPreselectionNHits");
     fClusterPreselectionTrack = p.get<bool>("ClusterPreselectionTrack");
     fClusterPreselectionFlashMatch = p.get<bool>("ClusterPreselectionFlashMatch");
     fAdjClusterRad = p.get<float>("AdjClusterRad");
@@ -236,7 +236,7 @@ namespace solar
     fConfigTree->Branch("ClusterInd1MatchTime", &fClusterInd1MatchTime);
     fConfigTree->Branch("ClusterPreselectionSignal", &fClusterPreselectionSignal);
     fConfigTree->Branch("ClusterPreselectionPrimary", &fClusterPreselectionPrimary);
-    fConfigTree->Branch("ClusterPreselectionNHit", &fClusterPreselectionNHit);
+    fConfigTree->Branch("ClusterPreselectionNHits", &fClusterPreselectionNHits);
     fConfigTree->Branch("ClusterPreselectionTrack", &fClusterPreselectionTrack);
     fConfigTree->Branch("ClusterPreselectionFlashMatch", &fClusterPreselectionFlashMatch);
     fConfigTree->Branch("AdjClusterRad", &fAdjClusterRad);
@@ -1331,7 +1331,7 @@ namespace solar
       float MatchedOpFlashResidual = 1e6;
       float MatchedOpFlashX = -1e6;
 
-      if (MVecNHit[i] > fClusterPreselectionNHit && (MVecInd0NHits[i] > fClusterPreselectionNHit || MVecInd1NHits[i] > fClusterPreselectionNHit))
+      if (MVecNHit[i] > fClusterPreselectionNHits)
       {
         MPrimary = true;
         MAdjClTime = {};
