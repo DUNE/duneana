@@ -1,6 +1,6 @@
-# Specific configuration for investigating Marley events
+# Specific configuration for investigating energy depositions of signal events.
 # Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
 #include "solar_ana_radiological_decay0_dune10kt_1x2x6_lateralAPA.fcl"
 
-physics.analyzers.solarnuana.SignalLabel: "generator"
+physics.analyzers.solarnuana.SaveSignalDaughters: true

@@ -1,7 +1,7 @@
 # Specific configuration for investigating complete truth of signal events
 # Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
-#include "solar_ana_radiological_decay0_dune10kt_1x2x6_lateralAPA.fcl"
+#include "solar_ana_marley_radiological_decay0_dune10kt_1x2x6_lateralAPA.fcl"
 
 physics.analyzers.solarnuana.ClusterPreselectionSignal: false
 physics.analyzers.solarnuana.ClusterPreselectionNHit: 2
