@@ -281,21 +281,21 @@ namespace solar
     fMCTruthTree->Branch("ClusterNum", &ClusterNum);                                         // Number of clusters in each TPC plane
     fMCTruthTree->Branch("TrackNum", &TrackNum, "TrackNum/I");                               // Number of PMTracks
     if (fSaveSignalDaughters)
-    {
-      fMCTruthTree->Branch("TSignalPDG", &SignalPDGList);                                      // PDG of Signal marticles
-      fMCTruthTree->Branch("TSignalE", &SignalEList);                                          // Energy of Signal particles [MeV]
-      fMCTruthTree->Branch("TSignalP", &SignalPList);                                          // Energy of Signal momentum [MeV]
-      fMCTruthTree->Branch("TSignalK", &SignalKList);                                          // Kinetik Energy of Signal particles [MeV]
-      fMCTruthTree->Branch("TSignalT", &SignalTimeList);                                       // Time of Signal particles [ticks]
-      fMCTruthTree->Branch("TSignalEndX", &SignalEndXList);                                    // X of Signal particles [cm]
-      fMCTruthTree->Branch("TSignalEndY", &SignalEndYList);                                    // Y of Signal particles [cm]
-      fMCTruthTree->Branch("TSignalEndZ", &SignalEndZList);                                    // Z of Signal particles [cm]
-      fMCTruthTree->Branch("TSignalMaxEDep", &SignalMaxEDepList);                              // Energy of Signal particles [MeV]
-      fMCTruthTree->Branch("TSignalX", &SignalMaxEDepXList);                                   // X of Signal particles [cm]
-      fMCTruthTree->Branch("TSignalY", &SignalMaxEDepYList);                                   // Y of Signal particles [cm]
-      fMCTruthTree->Branch("TSignalZ", &SignalMaxEDepZList);                                   // Z of Signal particles [cm]
-      fMCTruthTree->Branch("TSignalID", &SignalIDList);                                        // TrackID of Signal particles
-      fMCTruthTree->Branch("TSignalMother", &SignalMotherList);                                // TrackID of Signal mother
+    { // Save Signal Daughters. (Only makes sense for marley)
+      fMCTruthTree->Branch("TSignalPDG", &SignalPDGList);         // PDG of Signal marticles
+      fMCTruthTree->Branch("TSignalE", &SignalEList);             // Energy of Signal particles [MeV]
+      fMCTruthTree->Branch("TSignalP", &SignalPList);             // Energy of Signal momentum [MeV]
+      fMCTruthTree->Branch("TSignalK", &SignalKList);             // Kinetik Energy of Signal particles [MeV]
+      fMCTruthTree->Branch("TSignalT", &SignalTimeList);          // Time of Signal particles [ticks]
+      fMCTruthTree->Branch("TSignalEndX", &SignalEndXList);       // X of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalEndY", &SignalEndYList);       // Y of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalEndZ", &SignalEndZList);       // Z of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalMaxEDep", &SignalMaxEDepList); // Energy of Signal particles [MeV]
+      fMCTruthTree->Branch("TSignalX", &SignalMaxEDepXList);      // X of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalY", &SignalMaxEDepYList);      // Y of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalZ", &SignalMaxEDepZList);      // Z of Signal particles [cm]
+      fMCTruthTree->Branch("TSignalID", &SignalIDList);           // TrackID of Signal particles
+      fMCTruthTree->Branch("TSignalMother", &SignalMotherList);   // TrackID of Signal mother
     }
     if (fSaveSignalEDep)
     {
@@ -308,13 +308,13 @@ namespace solar
       fMCTruthTree->Branch("TSignalElectronDepList", &SignalElectronDepList); // Number of electrons in the Signal particles
     }
     if (fSaveSignalOpHits)
-    {
+    { // Save OpHits. (Can be very heavy for background productions)
       fMCTruthTree->Branch("OpHitPur", &SOpHitPur);         // OpHit Purity
       fMCTruthTree->Branch("OpHitPE", &SOpHitPE);           // OpHit PE
       fMCTruthTree->Branch("OpHitX", &SOpHitX);             // OpHit X
       fMCTruthTree->Branch("OpHitY", &SOpHitY);             // OpHit Y
       fMCTruthTree->Branch("OpHitZ", &SOpHitZ);             // OpHit Z
-      fMCTruthTree->Branch("OpHitTime", &SOpHitTime);             // OpHit T
+      fMCTruthTree->Branch("OpHitTime", &SOpHitTime);       // OpHit Time
       fMCTruthTree->Branch("OpHitChannel", &SOpHitChannel); // OpHit Channel
       fMCTruthTree->Branch("OpHitFlashID", &SOpHitFlashID); // OpHit Area
     }
@@ -337,29 +337,29 @@ namespace solar
     fSolarNuAnaTree->Branch("Flag", &Flag, "Flag/I");                                           // Flag used to match truth with reco tree entries
     fSolarNuAnaTree->Branch("TruthPart", &TPart);                                               // Number particles per generator
     fSolarNuAnaTree->Branch("Interaction", &TNuInteraction);                                    // True signal interaction process
-    fSolarNuAnaTree->Branch("SignalParticleE", &SignalParticleE, "SignalParticleE/F");          // True signal energy
-    fSolarNuAnaTree->Branch("SignalParticleP", &SignalParticleP, "SignalParticleP/F");          // True signal momentum
-    fSolarNuAnaTree->Branch("SignalParticleK", &SignalParticleK, "SignalParticleK/F");          // True signal K
-    fSolarNuAnaTree->Branch("SignalParticleX", &SignalParticleX, "SignalParticleX/F");          // True signal X
-    fSolarNuAnaTree->Branch("SignalParticleY", &SignalParticleY, "SignalParticleY/F");          // True signal Y
-    fSolarNuAnaTree->Branch("SignalParticleZ", &SignalParticleZ, "SignalParticleZ/F");          // True signal Z
+    fSolarNuAnaTree->Branch("SignalParticleE", &SignalParticleE, "SignalParticleE/F");          // True signal energy [MeV]
+    fSolarNuAnaTree->Branch("SignalParticleP", &SignalParticleP, "SignalParticleP/F");          // True signal momentum [MeV]
+    fSolarNuAnaTree->Branch("SignalParticleK", &SignalParticleK, "SignalParticleK/F");          // True signal K.E. [MeV]
+    fSolarNuAnaTree->Branch("SignalParticleX", &SignalParticleX, "SignalParticleX/F");          // True signal X [cm]
+    fSolarNuAnaTree->Branch("SignalParticleY", &SignalParticleY, "SignalParticleY/F");          // True signal Y [cm]
+    fSolarNuAnaTree->Branch("SignalParticleZ", &SignalParticleZ, "SignalParticleZ/F");          // True signal Z [cm]
     fSolarNuAnaTree->Branch("SignalParticlePDG", &SignalParticlePDG, "SignalParticlePDG/I");    // True signal PDG
-    fSolarNuAnaTree->Branch("SignalParticleTime", &SignalParticleTime, "SignalParticleTime/F"); // True signal time
+    fSolarNuAnaTree->Branch("SignalParticleTime", &SignalParticleTime, "SignalParticleTime/F"); // True signal Time [tick]
     if (fSaveSignalDaughters)
-    {
-      fSolarNuAnaTree->Branch("TSignalPDG", &SignalPDGList);                                      // PDG of Signal particles
-      fSolarNuAnaTree->Branch("TSignalE", &SignalEList);                                          // Energy of Signal particles
-      fSolarNuAnaTree->Branch("TSignalP", &SignalPList);                                          // Momentum of Signal particles
-      fSolarNuAnaTree->Branch("TSignalK", &SignalKList);                                          // Kinetik Energy of Signal particles
-      fSolarNuAnaTree->Branch("TSignalEndX", &SignalEndXList);                                    // X of Signal particles
-      fSolarNuAnaTree->Branch("TSignalEndY", &SignalEndYList);                                    // Y of Signal particles
-      fSolarNuAnaTree->Branch("TSignalEndZ", &SignalEndZList);                                    // Z of Signal particles
-      fSolarNuAnaTree->Branch("TSignalMaxEDep", &SignalMaxEDepList);                              // Max Energy Deposition of Signal particles
-      fSolarNuAnaTree->Branch("TSignalX", &SignalMaxEDepXList);                                   // Max Energy Deposition X of Signal particles
-      fSolarNuAnaTree->Branch("TSignalY", &SignalMaxEDepYList);                                   // Max Energy Deposition Y of Signal particles
-      fSolarNuAnaTree->Branch("TSignalZ", &SignalMaxEDepZList);                                   // Max Energy Deposition Z of Signal particles
-      fSolarNuAnaTree->Branch("TSignalID", &SignalIDList);                                        // TrackID of Signal particles")
-      fSolarNuAnaTree->Branch("TSignalMother", &SignalMotherList);                                // TrackID of Signal particles")
+    { // Save Signal Daughters. (Only makes sense for marley)
+      fSolarNuAnaTree->Branch("TSignalPDG", &SignalPDGList);         // PDG of Signal particles
+      fSolarNuAnaTree->Branch("TSignalE", &SignalEList);             // Energy of Signal particles
+      fSolarNuAnaTree->Branch("TSignalP", &SignalPList);             // Momentum of Signal particles
+      fSolarNuAnaTree->Branch("TSignalK", &SignalKList);             // Kinetik Energy of Signal particles
+      fSolarNuAnaTree->Branch("TSignalEndX", &SignalEndXList);       // X of Signal particles
+      fSolarNuAnaTree->Branch("TSignalEndY", &SignalEndYList);       // Y of Signal particles
+      fSolarNuAnaTree->Branch("TSignalEndZ", &SignalEndZList);       // Z of Signal particles
+      fSolarNuAnaTree->Branch("TSignalMaxEDep", &SignalMaxEDepList); // Max Energy Deposition of Signal particles
+      fSolarNuAnaTree->Branch("TSignalX", &SignalMaxEDepXList);      // Max Energy Deposition X of Signal particles
+      fSolarNuAnaTree->Branch("TSignalY", &SignalMaxEDepYList);      // Max Energy Deposition Y of Signal particles
+      fSolarNuAnaTree->Branch("TSignalZ", &SignalMaxEDepZList);      // Max Energy Deposition Z of Signal particles
+      fSolarNuAnaTree->Branch("TSignalID", &SignalIDList);           // TrackID of Signal particles")
+      fSolarNuAnaTree->Branch("TSignalMother", &SignalMotherList);   // TrackID of Signal particles")
     }
 
     // Main Cluster info.
@@ -634,7 +634,7 @@ namespace solar
           }
           else
           {
-            sSignalParticle = "Unknown";
+            sSignalParticle = "Other";
           }
           TNuInteraction = "Single " + sSignalParticle;
           sSignalTruth = sSignalTruth + "\n" +  sSignalParticle + " Energy: " + SolarAuxUtils::str(SignalParticleE) + " MeV";
@@ -779,10 +779,6 @@ namespace solar
       OpFlashNum = int(FlashVec.size());
       for (int i = 0; i < int(FlashVec.size()); i++)
       {
-        // if (FlashVec[i].MaxPE / FlashVec[i].PE < fAdjOpFlashMaxPERatioCut && FlashVec[i].PE < fAdjOpFlashMinPECut)
-        // {
-        //   continue;
-        // }
         AdjOpHitsUtils::FlashInfo TheFlash = FlashVec[i];
         double ThisOpFlashPur = 0;
         OpFlashMaxPE.push_back(TheFlash.MaxPE);
@@ -885,8 +881,6 @@ namespace solar
           varY += pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2) * OpHit.PE();
           varZ += pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2) * OpHit.PE();
           FlashTime += OpHit.PeakTime() * OpHit.PE();
-          // if (OpHit.PE() > fOpFlashAlgoPE)
-          // {
           SOpHitPur.push_back(ThisOphitPurity / int(ThisOpHitTrackIds.size()));
           if (OpHit.PE() > MaxOpHitPE)
           {
@@ -899,7 +893,6 @@ namespace solar
           SOpHitY.push_back(OpHitXYZ.Y());
           SOpHitZ.push_back(OpHitXYZ.Z());
           SOpHitFlashID.push_back(i);
-          // }
         } // End of OpHit loop
 
         OpHitVec.push_back(MatchedHits);
@@ -915,8 +908,6 @@ namespace solar
         mf::LogDebug("SolarNuAna") << "PE of this OpFlash " << TotalFlashPE << " OpFlash time " << FlashTime;
 
         // Calculate the flash purity, only for the Signal events
-        // if (MaxOpHitPE / TotalFlashPE < fAdjOpFlashMaxPERatioCut && TotalFlashPE > fAdjOpFlashMinPECut)
-        // {
         OpFlashID.push_back(i);
         OpFlashPur.push_back(ThisOpFlashPur);
         OpFlashMaxPE.push_back(MaxOpHitPE);
@@ -929,7 +920,6 @@ namespace solar
         OpFlashFast.push_back(TheFlash.FastToTotal());
         OpFlashDeltaT.push_back(TheFlash.TimeWidth());
         OpFlashNHits.push_back(MatchedHits.size());
-        // }
         if (abs(TheFlash.Time()) < 5)
         {
           mf::LogDebug("SolarNuAna") << "OpFlash PE " << TheFlash.TotalPE() << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time();
@@ -950,8 +940,7 @@ namespace solar
 
     for (int i = 0; i < NTotHits; ++i)
     {
-      // --- Loop over the reconstructed hits to separate them among tpc planes according to view
-
+      // --- Loop over the reconstructed hits to separate them among tpc planes according to view and signal type
       recob::Hit const &ThisHit = RecoHits->at(i);
       if (ThisHit.PeakTime() < 0)
         solaraux->PrintInColor("Negative Hit Time = " + SolarAuxUtils::str(ThisHit.PeakTime()), SolarAuxUtils::GetColor("red"));
@@ -1106,8 +1095,7 @@ namespace solar
             Pur = Pur + hitCharge;
           }
         }
-        // std::cout << SolarAuxUtils::str(VecGenPur) << "\n"
-        //           << std::endl;
+
         float MainGenPurity = 0;
         for (size_t genpur = 0; genpur < VecGenPur.size(); genpur++)
         {
