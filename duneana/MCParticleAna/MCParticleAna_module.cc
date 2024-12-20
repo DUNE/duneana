@@ -63,12 +63,15 @@ namespace solar
 
     // --- Input settings imported from the fcl
     std::string fGeometry;
-    int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime;
+    int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime, fMCParticlePDG;
+    float fMCParticleMinKE;
     std::vector<std::string> fParticleLabels;
 
     // --- Our TTrees, and its associated variables.
-    TTree *fMCTruthTree;
-    int Event, Flag, ParticlePDG, ParticleLabelID;
+    TTree *fConfigTree;     // Filled once per file
+    TTree *fMCTruthTree;    // Filled once per event
+    TTree *fMCParticleTree; // Filled once per particle
+    int Event, Flag, ParticlePDG, ParticleLabelID, NeutronCount, AlphaCount, ElectronCount, GammaCount, OtherCount;
     float ParticleE, ParticleP, ParticleK, ParticleX, ParticleY, ParticleZ, ParticleEndX, ParticleEndY, ParticleEndZ, ParticleTime;
     std::vector<int> ParticleCount;
     std::vector<std::map<int, simb::MCParticle>> GeneratorParticles = {};
@@ -96,6 +99,8 @@ namespace solar
     fDetectorSizeY = p.get<int>("DetectorSizeY");
     fDetectorSizeZ = p.get<int>("DetectorSizeZ");
     fDetectorDriftTime = p.get<float>("DetectorDriftTime");
+    fMCParticleMinKE = p.get<float>("MCParticleMinKE");
+    fMCParticlePDG = p.get<int>("MCParticlePDG");
   } // Reconfigure
 
   //......................................................
@@ -103,23 +108,48 @@ namespace solar
   {
     // --- Make our handle to the TFileService
     art::ServiceHandle<art::TFileService> tfs;
+    fConfigTree = tfs->make<TTree>("ConfigTree", "ConfigTree");
     fMCTruthTree = tfs->make<TTree>("MCTruthTree", "MCTruthTree");
+    fMCParticleTree = tfs->make<TTree>("MCParticleTree", "MCParticleTree");
 
-    // Repeated Truth info.
-    fMCTruthTree->Branch("Event", &Event, "Event/I");                      // Event number
-    fMCTruthTree->Branch("Flag", &Flag, "Flag/I");                         // Flag used to match truth with reco tree entries
-    fMCTruthTree->Branch("ParticleLabelID", &ParticleLabelID, "ParticleLabelID/I"); // Label ID for the particle. 0 = not generated, 1 = first generator, 2 = second generator, ...
-    fMCTruthTree->Branch("ParticleE", &ParticleE, "ParticleE/F");          // True signal energy [MeV]
-    fMCTruthTree->Branch("ParticleP", &ParticleP, "ParticleP/F");          // True signal momentum [MeV]
-    fMCTruthTree->Branch("ParticleK", &ParticleK, "ParticleK/F");          // True signal K.E. [MeV] 
-    fMCTruthTree->Branch("ParticleX", &ParticleX, "ParticleX/F");          // True signal X [cm]
-    fMCTruthTree->Branch("ParticleY", &ParticleY, "ParticleY/F");          // True signal Y [cm]
-    fMCTruthTree->Branch("ParticleZ", &ParticleZ, "ParticleZ/F");          // True signal Z [cm]
-    fMCTruthTree->Branch("ParticleEndX", &ParticleEndX, "ParticleEndX/F"); // True signal EndX [cm]
-    fMCTruthTree->Branch("ParticleEndY", &ParticleEndY, "ParticleEndY/F"); // True signal EndY [cm]
-    fMCTruthTree->Branch("ParticleEndZ", &ParticleEndZ, "ParticleEndZ/F"); // True signal EndZ [cm]
-    fMCTruthTree->Branch("ParticlePDG", &ParticlePDG, "ParticlePDG/I");    // True signal PDG
-    fMCTruthTree->Branch("ParticleTime", &ParticleTime, "ParticleTime/F"); // True signal time [tick]
+    // Larsoft Config info.
+    fConfigTree->Branch("Geometry", &fGeometry);
+    fConfigTree->Branch("DetectorSizeX", &fDetectorSizeX);
+    fConfigTree->Branch("DetectorSizeY", &fDetectorSizeY);
+    fConfigTree->Branch("DetectorSizeZ", &fDetectorSizeZ);
+    fConfigTree->Branch("DetectorDriftTime", &fDetectorDriftTime);
+    fConfigTree->Branch("MCParticleMinKE", &fMCParticleMinKE);
+    fConfigTree->Branch("MCParticlePDG", &fMCParticlePDG);
+
+    // MCTruth info.
+    fMCTruthTree->Branch("Event", &Event, "Event/I"); // Event number
+    fMCTruthTree->Branch("Flag", &Flag, "Flag/I");    // Flag used to match truth with reco tree entries
+    fMCTruthTree->Branch("AlphaCount", &AlphaCount, "AlphaCount/I");
+    fMCTruthTree->Branch("ElectronCount", &ElectronCount, "ElectronCount/I");
+    fMCTruthTree->Branch("GammaCount", &GammaCount, "GammaCount/I");
+    fMCTruthTree->Branch("NeutronCount", &NeutronCount, "NeutronCount/I");
+    fMCTruthTree->Branch("OtherCount", &OtherCount, "OtherCount/I");
+
+    // Particle info.
+    fMCParticleTree->Branch("Event", &Event, "Event/I");                      // Event number
+    fMCParticleTree->Branch("Flag", &Flag, "Flag/I");                         // Flag used to match truth with reco tree entries
+    fMCParticleTree->Branch("ParticleLabelID", &ParticleLabelID, "ParticleLabelID/I"); // Label ID for the particle. 0 = not generated, 1 = first generator, 2 = second generator, ...
+    fMCParticleTree->Branch("ParticleE", &ParticleE, "ParticleE/F");          // True signal energy [MeV]
+    fMCParticleTree->Branch("ParticleP", &ParticleP, "ParticleP/F");          // True signal momentum [MeV]
+    fMCParticleTree->Branch("ParticleK", &ParticleK, "ParticleK/F");          // True signal K.E. [MeV] 
+    fMCParticleTree->Branch("ParticleX", &ParticleX, "ParticleX/F");          // True signal X [cm]
+    fMCParticleTree->Branch("ParticleY", &ParticleY, "ParticleY/F");          // True signal Y [cm]
+    fMCParticleTree->Branch("ParticleZ", &ParticleZ, "ParticleZ/F");          // True signal Z [cm]
+    fMCParticleTree->Branch("ParticleEndX", &ParticleEndX, "ParticleEndX/F"); // True signal EndX [cm]
+    fMCParticleTree->Branch("ParticleEndY", &ParticleEndY, "ParticleEndY/F"); // True signal EndY [cm]
+    fMCParticleTree->Branch("ParticleEndZ", &ParticleEndZ, "ParticleEndZ/F"); // True signal EndZ [cm]
+    fMCParticleTree->Branch("ParticlePDG", &ParticlePDG, "ParticlePDG/I");    // True signal PDG
+    fMCParticleTree->Branch("ParticleTime", &ParticleTime, "ParticleTime/F"); // True signal time [tick]
+
+    // Add tree friends
+    fConfigTree->AddFriend(fMCParticleTree);
+    fMCTruthTree->AddFriend(fMCParticleTree);
+    fConfigTree->Fill();
   } // BeginJob
 
   //......................................................
@@ -173,9 +203,18 @@ namespace solar
           for (int j = 0; j < NParticles; j++)
           {
             const simb::MCParticle &Particle = ParticleTruth.GetParticle(j);
+            float ThisParticleKE = 1e3 * Particle.E() - 1e3 * Particle.Mass();
+            if (ThisParticleKE < fMCParticleMinKE)
+            {
+              continue;
+            }
+            if (Particle.PdgCode() != fMCParticlePDG && fMCParticlePDG != -1)
+            {
+              continue;
+            }
             ParticleE = 1e3 * Particle.E();
             ParticleP = 1e3 * Particle.P();
-            ParticleK = 1e3 * Particle.E() - 1e3 * Particle.Mass();
+            ParticleK = ThisParticleKE;
             ParticleX = Particle.Vx();
             ParticleY = Particle.Vy();
             ParticleZ = Particle.Vz();
@@ -210,7 +249,7 @@ namespace solar
               ParticelTypeCount[4]++;
               sParticle = "Other";
             }
-            fMCTruthTree->Fill();
+            fMCParticleTree->Fill();
           }
         }
       }
@@ -222,8 +261,14 @@ namespace solar
         trackids.push_back(ThisGeneratorIDs);
       }
     }
+    AlphaCount = ParticelTypeCount[0];
+    ElectronCount = ParticelTypeCount[1];
+    GammaCount = ParticelTypeCount[2];
+    NeutronCount = ParticelTypeCount[3];
+    OtherCount = ParticelTypeCount[4];
     sMcTruth = sMcTruth + "\nParticle Type Count: " + SolarAuxUtils::str(ParticelTypeCount[0]) + " Alphas, " + SolarAuxUtils::str(ParticelTypeCount[1]) + " Electrons, " + SolarAuxUtils::str(ParticelTypeCount[2]) + " Gammas, " + SolarAuxUtils::str(ParticelTypeCount[3]) + " Neutrons, " + SolarAuxUtils::str(ParticelTypeCount[4]) + " Others";
     solaraux->PrintInColor(sMcTruth, SolarAuxUtils::GetColor("bright_red"));
+    fMCTruthTree->Fill();
   } // Analyze
 
   // ########################################################################################################################################//

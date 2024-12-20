@@ -1,6 +1,6 @@
 # Specific configuration for investigating complete truth of signal events
 # Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
-#include "solar_ana_dune10kt_1x2x6.fcl"
+#include "solar_ana_marley_dune10kt_1x2x6.fcl"
 
-physics.analyzers.solarnuana.SaveSignalDaughters: true
+physics.analyzers.solarnuana.ClusterPreselectionSignal: false

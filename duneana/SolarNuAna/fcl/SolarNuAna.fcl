@@ -3,7 +3,7 @@
 
 BEGIN_PROLOG
 
-  solar_nu_ana_hd_centralAPA:
+  solar_nu_ana_hd:
   {
     module_type:  "SolarNuAna"
     GEANT4Label:  "largeant"     # The label for the process which ran GEANT4
@@ -16,7 +16,7 @@ BEGIN_PROLOG
     # The following are the labels for the signal and background processes
     SignalLabel: "marley"
     # Vector with generator labels for the background processes included in the event 
-    BackgroundLabelVector: @local::generator_dune10kt_1x2x6_centralAPA
+    BackgroundLabelVector: []
 
     Geometry:                   "HD"
     DetectorSizeX:              360          # 1 TPC drift (X) length in [cm].
@@ -27,15 +27,17 @@ BEGIN_PROLOG
     ClusterAlgoTime:            25           # Time window to look for plane clusters in [tick] units.
     ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
-    ClusterMatchNHit:           2            # DAQ Clusters min. hit requirement.
-    ClusterMatchCharge:         0.6          # Charge fraction to match clusters.
+    ClusterMatchNHit:           2            # NHit fraction to match clusters. abs(NHitsCol - NHitsInd) / NHitsCol < ClusterMatchNHit.
+    ClusterMatchCharge:         0.6          # Charge fraction to match clusters. abs(ChargeCol - ChargeInd) / ChargeCol < ClusterMatchCharge.
     ClusterMatchTime:           20.0         # Time window to look for ind. plane clusters in [tick] units.
     ClusterInd0MatchTime:       0.00         # Wirecell seems to have made this obsolete.
     ClusterInd1MatchTime:       0.00         # Wirecell seems to have made this obsolete.
     
-    ClusterPreselectionNHit:    0            # Min number of hits to preselect a cluster.
-    ClusterPreselectionTrack:   false        # If true, the cluster must be associated with a track to be saved.
-    ClusterPreselectionPrimary: true         # If true, the cluster must be primary particle to be saved.
+    ClusterPreselectionSignal:     true      # If true, the cluster must be signal particle to be saved.
+    ClusterPreselectionPrimary:    true      # If true, the cluster must be primary particle to be saved.
+    ClusterPreselectionNHits:      0         # Min number of hits to preselect a cluster.
+    ClusterPreselectionTrack:      false     # If true, the cluster must be associated with a track to be saved.
+    ClusterPreselectionFlashMatch: false     # If true, the cluster must be matched with a flash to be saved.
 
     MinClusterCharge:           0.           # Min Charge for adj. clusters in [ADCxTick].
     AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
@@ -58,7 +60,7 @@ BEGIN_PROLOG
     AdjOpFlashMinNHitCut:       10           # Cut on the minimum number of OpHits in the OpFlash.
     FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
-    SaveSignalDaughters:        true         # Save the daughters of the signal particles.
+    SaveSignalDaughters:        false        # Save the daughters of the signal particles.
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
@@ -66,13 +68,16 @@ BEGIN_PROLOG
 
   }
 
-  legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd_centralAPA
+  legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
   legacy_solar_nu_ana_hd_v2.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_mcc11
 
-  legacy_solar_nu_ana_hd_v4: @local::solar_nu_ana_hd_centralAPA
+  legacy_solar_nu_ana_hd_v4: @local::solar_nu_ana_hd
   legacy_solar_nu_ana_hd_v4.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_legacy
 
-  solar_nu_ana_hd_lateralAPA: @local::solar_nu_ana_hd_centralAPA
+  solar_nu_ana_hd_centralAPA: @local::solar_nu_ana_hd
+  solar_nu_ana_hd_centralAPA.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_centralAPA
+
+  solar_nu_ana_hd_lateralAPA: @local::solar_nu_ana_hd
   solar_nu_ana_hd_lateralAPA.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_lateralAPA
   
   solar_nu_ana_vd: @local::solar_nu_ana_hd_centralAPA
