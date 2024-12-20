@@ -15,7 +15,7 @@ services:
   WireReadout: @local::dune_wire_readout
   GeometryConfigurationWriter: {}
   AuxDetGeometry:         @local::dune10kt_auxdet_geo
-  Geometry:               @local::dune10kt_geo
+  Geometry:               @local::dune10kt_base_geo
   MagneticField:          @local::no_mag
 }
 
