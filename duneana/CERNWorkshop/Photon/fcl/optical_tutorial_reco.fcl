@@ -1,0 +1,95 @@
+#include "services_dune.fcl"
+
+#include "workflow_reco_dune10kt.fcl"
+
+#include "HitDumper.fcl"
+#include "tools_dune.fcl"
+
+process_name: Reco
+
+services:
+{
+  # Load the service that manages root files for histograms.
+  TFileService:              { fileName: "%ifb_%p_hist.root" }
+  RandomNumberGenerator:     {}
+  @table::dunefd_1x2x6_reco_services # from services_dune.fcl
+}
+
+
+#source is now a root file
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1  # Number of events to create
+}
+
+
+#block to define where the output goes.  if you defined a filter in the physics
+#block and put it in the trigger_paths then you need to put a SelectEvents: {SelectEvents: [XXX]}
+#entry in the output stream you want those to go to, where XXX is the label of the filter module(s)
+outputs:
+{
+  out1:
+  {
+    module_type: RootOutput
+    fileName:    "%ifb_Reco.root"
+    dataTier:    "reconstructed"
+    compressionLevel: 1
+ }
+}
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics:
+{
+
+  #Reconstruction from photon detectors
+  producers:
+  {
+    @table::dunefd_horizdrift_producers
+  }
+
+  #Load analyzers
+  #  Analyzer from larana/OpticalDetector
+  analyzers:
+  {
+    opflashana:  @local::dunefd_opflashana
+    hitdumper:   @local::hitdumper
+  }
+
+
+  #define the producer and filter modules for this path, order matters,
+  #filters reject all following items.  see lines starting physics.producers below
+  reco: [
+    opdec,
+    ophitspe,
+    opflash
+  ]
+
+  ana: [
+   opflashana, 
+   hitdumper
+  ]
+
+  # define the output stream, there could be more than one if using filters
+  stream1: [out1]
+
+  # trigger_paths is a keyword and contains the paths that modify the art::event,
+  # ie filters and producers
+  trigger_paths: [reco]
+
+  # end_paths is a keyword and contains the paths that do not modify the art::Event,
+  # ie analyzers and output streams.  these all run simultaneously
+  end_paths: [ana, stream1]
+}
+
+
+### Analyzer configuration 
+### DUNE translation
+physics.analyzers.opflashana.YMin: -600
+physics.analyzers.opflashana.YMax: 600
+physics.analyzers.opflashana.ZMin: 0
+physics.analyzers.opflashana.ZMax: 1400
+physics.analyzers.opflashana.OpHitModuleLabel: "ophitspe"
+
