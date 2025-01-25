@@ -32,9 +32,6 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 
-// SBN(D) includes
-#include "sbnobj/Common/Reco/OpT0FinderResult.h"
-
 // Additional framework includes
 #include "art_root_io/TFileService.h"
 #include "canvas/Persistency/Common/FindManyP.h"
@@ -74,7 +71,6 @@ private:
   unsigned int fEventID;
   unsigned int fNPFParticles;
   unsigned int fNPrimaryChildren;
-  double fOpT0;
 
   std::vector<float> fChildTrackLengths;
   std::vector<bool> fChildTrackIsLongest;
@@ -86,7 +82,6 @@ private:
   std::string fPFParticleLabel;
   std::string fTrackLabel;
   std::string fCalorimetryLabel;
-  std::string fOpT0FinderLabel;
 };
 
 test::AnalyseEvents::AnalyseEvents(fhicl::ParameterSet const& p)
@@ -94,8 +89,7 @@ test::AnalyseEvents::AnalyseEvents(fhicl::ParameterSet const& p)
   fSliceLabel(p.get<std::string>("SliceLabel")),
   fPFParticleLabel(p.get<std::string>("PFParticleLabel")),
   fTrackLabel(p.get<std::string>("TrackLabel")),
-  fCalorimetryLabel(p.get<std::string>("CalorimetryLabel")),
-  fOpT0FinderLabel(p.get<std::string>("OpT0FinderLabel"))
+  fCalorimetryLabel(p.get<std::string>("CalorimetryLabel"))
   {
     // Call appropriate consumes<>() for any products to be retrieved by this module.
   }
@@ -108,7 +102,6 @@ void test::AnalyseEvents::analyze(art::Event const& e)
   // Prepare variables for new event (reset counters to 0 / set default values / empty vectors)
   fNPFParticles = 0;
   fNPrimaryChildren = 0;
-  fOpT0 = std::numeric_limits<double>::lowest();
   fChildTrackLengths.clear();
   fChildTrackIsLongest.clear();
   fChildTrackdEdx.clear();
@@ -123,7 +116,6 @@ void test::AnalyseEvents::analyze(art::Event const& e)
 
   // Get associations between slices and pfparticles & opt0 results
   art::FindManyP<recob::PFParticle> slicePFPAssoc(sliceHandle, e, fSliceLabel);
-  art::FindManyP<sbn::OpT0Finder> sliceOpT0Assoc(sliceHandle, e, fOpT0FinderLabel);
 
   // Filling our neutrino hierarchy variables
   int nuID = -1;
@@ -146,18 +138,6 @@ void test::AnalyseEvents::analyze(art::Event const& e)
           nuID = slicePFP->Self();
           fNPFParticles = slicePFPs.size();
           fNPrimaryChildren = slicePFP->NumDaughters();
-
-          // Get any OpT0Finder results associated with our slice
-          std::vector<art::Ptr<sbn::OpT0Finder>> opT0s = sliceOpT0Assoc.at(nuSliceKey);
-
-          // Occasionally there may be multiple results, let's use the one with the best score
-          std::sort(opT0s.begin(), opT0s.end(),
-                    [](auto const& a, auto const& b)
-                    { return a->score > b->score; });
-
-          // The best score will now be at the front of the vector (if there were any)
-          if (opT0s.size() != 0)
-            fOpT0 = opT0s[0]->time;
 
           break;
         }
@@ -261,7 +241,6 @@ void test::AnalyseEvents::beginJob()
   fTree->Branch("eventID", &fEventID);
   fTree->Branch("nPFParticles", &fNPFParticles);
   fTree->Branch("nPrimaryChildren", &fNPrimaryChildren);
-  fTree->Branch("opT0", &fOpT0);
   fTree->Branch("childTrackLengths", &fChildTrackLengths);
   fTree->Branch("childTrackIsLongest", &fChildTrackIsLongest);
   fTree->Branch("childTrackdEdx", &fChildTrackdEdx);

@@ -1,5 +1,5 @@
 #include "analysisConfig.fcl"
-#include "simulationservices_sbnd.fcl"
+#include "services_dune.fcl"
 
 process_name: AnalyseEvents  # The process name must NOT contain any underscores
 
@@ -12,7 +12,7 @@ source:
 services:
 {
   TFileService: { fileName: "analysisOutput.root" }
-  @table::sbnd_services
+  @table::dunefd_1x2x6_simulation_services # 1x2x6 HD detector
 }
 
 physics:

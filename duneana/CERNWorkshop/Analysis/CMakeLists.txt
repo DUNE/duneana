@@ -22,9 +22,6 @@ art_make(  MODULE_LIBRARIES  larpandora::LArPandoraInterface
                              ${MF_UTILITIES}
                              ${FHICLCPP}
                              ${CLHEP}
-                             sbndcode::RecoUtils
-                             sbnobj::Common_Reco
-
 
                              messagefacility::MF_MessageLogger
                              fhiclcpp::fhiclcpp
