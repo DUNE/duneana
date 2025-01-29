@@ -92,4 +92,5 @@ physics.analyzers.opflashana.YMax: 600
 physics.analyzers.opflashana.ZMin: 0
 physics.analyzers.opflashana.ZMax: 1400
 physics.analyzers.opflashana.OpHitModuleLabel: "ophitspe"
-
+###
+physics.analyzers.hitdumper.OpHitsModuleLabel: ["ophitspe"]

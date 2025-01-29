@@ -12,7 +12,7 @@ hitdumper:
 
     DigitModuleLabel:         "daq"
     HitsModuleLabel:          "fasthit"
-    OpHitsModuleLabel:        ["ophit"]
+    OpHitsModuleLabel:        ["ophitspe"]
     MuonTrackModuleLabel:     "MuonTrackProducer"
     GenieGenModuleLabel:      "generator"
  
