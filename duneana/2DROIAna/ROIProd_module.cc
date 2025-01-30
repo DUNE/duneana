@@ -1,11 +1,11 @@
-#include "ROIAna_module.h"
+#include "ROIProd_module.h"
 //Constructor for cnn struct
 
-roiana::ROIAna::ROIAna(fhicl::ParameterSet const& pset)
-  : EDAnalyzer{pset}  ,
+roiana::ROIProd::ROIProd(fhicl::ParameterSet const& pset)
+  : EDProducer{pset}  ,
   fWireProducerLabel(pset.get< art::InputTag >("InputWireProducerLabel", "caldata")),
   fRawProducerLabel(pset.get< art::InputTag >("InputRawProducerLabel", "tpcrawdecoder:daq")),
-  fSimChannelLabel(pset.get< art::InputTag >("SimChannelLabel", "elecDrift")),
+  fSimChannelLabel(pset.get< art::InputTag >("SimChannelLabel", "tpcrawdecoder:simpleSC")),
   fSimulationProducerLabel(pset.get< art::InputTag >("SimulationProducerLabel", "largeant"))
 {
   fLogLevel           = pset.get<int>("LogLevel", 10);
@@ -25,9 +25,12 @@ roiana::ROIAna::ROIAna(fhicl::ParameterSet const& pset)
   fHistEnergyMax     = pset.get<float>("fHistEnergyMax", 100); 
   fHistChargeMax     = pset.get<float>("fHistChargeMax", 1000); 
 
+  produces<std::vector<raw::RawDigit>>("RawDigitROI"); //RawDigitROI
+  //produces<std::vector<sim::SimChannel>>("SimChannelListCopy"); //SimChannel 
+  //produces<std::vector<raw::OpDetWaveform>>(); //OpDetWaveform
 }
 
-void roiana::ROIAna::analyze(art::Event const & evt) {
+void roiana::ROIProd::produce(art::Event & evt) {
 
 
   //get detector property
@@ -91,6 +94,19 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   SortWirePtrByChannel( channellist, true );
 
   ////////////////////////////////////////////////////////////
+  //Build OpDetWaveform List
+
+  //art::Handle<std::vector<raw::OpDetWaveform>> opDetWaveformHandle;
+  //std::vector<art::Ptr<sim::SimChannel>> opdetwaveformlist;
+  //if (evt.getByLabel("opdigi", opDetWaveformHandle))
+  //  art::fill_ptr_vector(opdetwaveformlist, opDetWaveformHandle);
+
+  ////////////////////////////////////////////////////////////
+  //Copy detsim products to output
+  //std::unique_ptr< std::vector<sim::SimChannel>  >              SimChannelListCopy  (new std::vector<sim::SimChannel>);
+  //std::vector<sim::SimChannel> SimChannelListCopy;
+
+  ////////////////////////////////////////////////////////////
   //Store TrackIDs for each generator
   // MarleyChannels stores Channel+IDE of energy deposits from Marley produced signals
   std::vector<int> MarleyTrackIDs;
@@ -133,23 +149,32 @@ void roiana::ROIAna::analyze(art::Event const & evt) {
   ret = ProcessROIWide(rawList);
   
   // ROIMetrics
-  if( fLogLevel >= 3 ) std::cout << "starting ROIMetrics" << std::endl;
-  ROIMetrics(ret);
+  //if( fLogLevel >= 3 ) std::cout << "starting ROIMetrics" << std::endl;
+  //ROIMetrics(ret);
 
   // ROIFilter
-  //if( fLogLevel >= 3 ) std::cout << "starting ROIFilter" << std::endl;
-  //ROIFilter(rawList, ret);
+  if( fLogLevel >= 3 ) std::cout << "starting ROIFilter" << std::endl;
+  ROIFilter(evt, rawList, ret);
 
   //compute efficiency and data reduction
   if( fLogLevel >= 3 ) std::cout << "starting ROIEfficiencies" << std::endl;
   int n_channels = rawList.size();
   ROIEfficiencies(ret, n_channels, MarleyChannels);
 
+  ////////////////////////////////////////////////////////////
+  //Copy SimChannel and (OpDetWaveform) Lists
+  //std::unique_ptr< std::vector<sdp::EnergyDeposit>  >              SimChannelListCopy  (new std::vector<sim::SimChannel>);
+  //std::vector<sim::SimChannel> SimChannelListCopy;
+  //for (auto mySimChannel : channellist) {
+  //  SimChannelListCopy.push_back(*mySimChannel.get());} 
+
+  //evt.put(std::make_unique<decltype(SimChannelListCopy)>(std::move(SimChannelListCopy)),"SimChannelListCopy");
+  //evt.put(std::make_unique<decltype(RawDigitROI)>(std::move(RawDigitROI)),"RawDigitROI");
   
 }
 
 
-std::map<int,bool> roiana::ROIAna::ProcessROIWide(std::vector<art::Ptr<raw::RawDigit>>& rawList)
+std::map<int,bool> roiana::ROIProd::ProcessROIWide(std::vector<art::Ptr<raw::RawDigit>>& rawList)
 {
   int num_channels = rawList.size();
 
@@ -196,7 +221,7 @@ std::map<int,bool> roiana::ROIAna::ProcessROIWide(std::vector<art::Ptr<raw::RawD
   return ret;
 }
 
-void roiana::ROIAna::beginJob() {
+void roiana::ROIProd::beginJob() {
 
   gROOT->SetBatch(1);
 
@@ -262,12 +287,12 @@ void roiana::ROIAna::beginJob() {
   MarleySignalSensitivity = tfs->make<TH1F>( "SignalSensitivity", "Marley event energy fraction in ROI; (energy in ROI)/(total energy)",100,0,1.02);
 }
 
-void roiana::ROIAna::endJob()
+void roiana::ROIProd::endJob()
 {
 }
 
 template<class T>
-void roiana::ROIAna::SortWirePtrByChannel( std::vector<art::Ptr<T>> &vec, bool increasing )
+void roiana::ROIProd::SortWirePtrByChannel( std::vector<art::Ptr<T>> &vec, bool increasing )
 {
   if( fLogLevel >= 10 ) 
   {
@@ -283,7 +308,7 @@ void roiana::ROIAna::SortWirePtrByChannel( std::vector<art::Ptr<T>> &vec, bool i
   }
 }
 
-void roiana::ROIAna::ROIMetrics( std::map<int,bool> ret )
+void roiana::ROIProd::ROIMetrics( std::map<int,bool> ret )
 /*
   Fill ROI charge and energy histograms:
 */
@@ -375,7 +400,7 @@ void roiana::ROIAna::ROIMetrics( std::map<int,bool> ret )
   TrueChargeDepositedRatio->Divide(TrueChargeDepositedInROI, TrueChargeDeposited);
 }
 
-void roiana::ROIAna::ROIFilter( std::vector<art::Ptr<raw::RawDigit>>& rawList, std::map<int,bool> ret )
+void roiana::ROIProd::ROIFilter( art::Event & evt, std::vector<art::Ptr<raw::RawDigit>>& rawList, std::map<int,bool> ret )
 /*
  * Apply ROI Filter on RawDigit output:
 */
@@ -391,16 +416,21 @@ void roiana::ROIAna::ROIFilter( std::vector<art::Ptr<raw::RawDigit>>& rawList, s
     if (!ret[channel])
     {
       // Construct RawDigits with ADC_zeros
-      //raw::RawDigit empty_rawdigit = raw::RawDigit(channel, fNTicksPerWire, ADC_zeros);
-      //art::Ptr<raw::RawDigit> empty_rawdigit_ptr = &empty_rawdigit
-      //empty_rawdigit_ptr->RawDigit(channel, fNTicksPerWire, ADC_zeros, rawdigit->Compression());
-      //rawdigit_ptr = &empty_rawdigit;
+      raw::RawDigit empty_rawdigit = raw::RawDigit(channel, fNTicksPerWire, ADC_zeros);
+      RawDigitROI.push_back(empty_rawdigit);
+    }
+    else
+    {
+      raw::RawDigit copy_rawdigit = raw::RawDigit(channel, fNTicksPerWire, rawdigit.ADCs());
+      RawDigitROI.push_back(copy_rawdigit);
     }
   }
+  evt.put(std::make_unique<decltype(RawDigitROI)>(std::move(RawDigitROI)),"RawDigitROI");
+  
 }
 
 
-void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, std::map<int,sim::IDE> MarleyChannels )
+void roiana::ROIProd::ROIEfficiencies( std::map<int,bool> ret, int n_channels, std::map<int,sim::IDE> MarleyChannels )
 /*
  * Fill ROI performance histograms:
 */
@@ -464,7 +494,7 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, st
 }
 
 //......................................................
-void roiana::ROIAna::FillMCInteractionTree( std::map< int, simb::MCParticle> &MCParticleList, std::vector<std::string> ProcessList, int fLogLevel )
+void roiana::ROIProd::FillMCInteractionTree( std::map< int, simb::MCParticle> &MCParticleList, std::vector<std::string> ProcessList, int fLogLevel )
 /*
 Fill MCInteraction Tree with information about the main interaction in the event:
 - MCParticleList is the list of MCParticles with a given generator label in the event
@@ -542,7 +572,7 @@ Fill MCInteraction Tree with information about the main interaction in the event
 } // FillMCInteractionTree
 
 //......................................................
-void roiana::ROIAna::FillMyMaps( std::map< int, simb::MCParticle> &MyMap, art::FindManyP<simb::MCParticle> Assn, art::ValidHandle< std::vector<simb::MCTruth> > Hand )
+void roiana::ROIProd::FillMyMaps( std::map< int, simb::MCParticle> &MyMap, art::FindManyP<simb::MCParticle> Assn, art::ValidHandle< std::vector<simb::MCTruth> > Hand )
 /*
  * This function fills a map with the MCParticles from a given MCTruth
  * */ 
@@ -559,7 +589,7 @@ void roiana::ROIAna::FillMyMaps( std::map< int, simb::MCParticle> &MyMap, art::F
 
 //......................................................
 // This function checks if a given TrackID is in a given map
-bool roiana::ROIAna::InMyMap( int TrID, std::map< int, simb::MCParticle> ParMap ){
+bool roiana::ROIProd::InMyMap( int TrID, std::map< int, simb::MCParticle> ParMap ){
   std::map<int, simb::MCParticle>::iterator ParIt;
   ParIt = ParMap.find( TrID );
   if (ParIt != ParMap.end()) {return true;}
@@ -568,14 +598,14 @@ bool roiana::ROIAna::InMyMap( int TrID, std::map< int, simb::MCParticle> ParMap 
 
 //......................................................
 // This function creates a terminal color printout
-std::string roiana::ROIAna::PrintInColor( std::string InputString, std::string MyString, int Color ){
+std::string roiana::ROIProd::PrintInColor( std::string InputString, std::string MyString, int Color ){
   std::string OutputString = InputString + "\033[" + std::to_string(Color) + "m" + MyString + "\033[0m";
   return OutputString;
 }
 
 // ......................................................
 // This function returns an integer that corresponds to a given color name
-int roiana::ROIAna::GetColor( std::string ColorName ){
+int roiana::ROIProd::GetColor( std::string ColorName ){
   if (ColorName == "black") return 30;
   else if (ColorName == "red") return 31;
   else if (ColorName == "green") return 32;
@@ -588,4 +618,4 @@ int roiana::ROIAna::GetColor( std::string ColorName ){
   return 0;
 }
 
-DEFINE_ART_MODULE(roiana::ROIAna)
+DEFINE_ART_MODULE(roiana::ROIProd)

@@ -1,5 +1,5 @@
 #include "services_dune.fcl"
-#include "marley_dune.fcl"
+#include "roiana_marley_dune.fcl"
 #include "workflow_radiological_decay0_dune10kt.fcl"
 
 process_name: MARLEYGen
@@ -39,8 +39,9 @@ physics:
  
   # Define the producer and filter modules for this path, order matters, 
   # filters reject all following items. See lines starting physics.producers below
-  simulate:      [ rns, marley, @sequence::dunefd_hd_backgrounds_1x2x6_v3_5 ]
-  
+  #simulate:      [ rns, marley, @sequence::dunefd_hd_backgrounds_1x2x6_v3_5 ]
+  simulate:      [ rns, marley, @sequence::dunefd_hd_backgrounds_1x2x6 ]
+ 
   # Define the output stream, there could be more than one if using filters 
   stream1:       [ out1 ]
  

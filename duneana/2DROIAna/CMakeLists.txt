@@ -13,22 +13,22 @@ art_make(BASENAME_ONLY
          larsim::MCCheater_BackTrackerService_service
          larsim::MCCheater_ParticleInventoryService_service
          dunereco::HitFinderDUNE
-         ART_FRAMEWORK_CORE
-         ART_FRAMEWORK_PRINCIPAL
-         ART_FRAMEWORK_SERVICES_REGISTRY
-         ART_ROOT_IO_TFILE_SUPPORT
-         ART_ROOT_IO_TFILESERVICE_SERVICE
+         art::Framework_Core
+         art::Framework_Principal
+         art::Framework_Services_Registry
+         art_root_io::tfile_support
          ROOT::Core
-         art::Persistency_Common canvas
-         art::Persistency_Provenance canvas
-         art::Utilities canvas
-         messagefacility::MF_MessageLogger	 
-         ART_PERSISTENCY_COMMON
-         ART_PERSISTENCY_PROVENANCE
-         ART_UTILITIES
-
-         cetlib::cetlib cetlib_except
-         ROOT_BASIC_LIB_LIST
+         art_root_io::TFileService_service
+         art::Persistency_Common
+         art::Persistency_Provenance
+         art::Utilities 
+	 canvas::canvas
+         art::Persistency_Common
+         art::Persistency_Provenance
+         messagefacility::MF_MessageLogger
+         cetlib::cetlib 
+	 cetlib_except::cetlib_except
+         ROOT::Core ROOT::Hist ROOT::Tree
          #hep_hpc_hdf5
          #HDF5
 )

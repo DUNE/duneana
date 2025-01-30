@@ -1,14 +1,14 @@
 ////////////////////////////////////////////////////////////////////////
-// Class:      ROIAna 
-// Plugin Type: analyzer (art v3_00_00)
-// File:        ROIAna_module.cc
+// Class:      ROIProd 
+// Plugin Type: Producer (art v3.00.00)
+// File:        ROIProd_module.cc
 // Written by Tejin Cai & Matthew Man
 // Reach out for questions/issues/bugs
 ////////////////////////////////////////////////////////////////////////
 #ifndef WIREANA_H
 #define WIREANA_H
 
-#include "art/Framework/Core/EDAnalyzer.h"
+#include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
@@ -61,22 +61,22 @@
 
 namespace roiana {
 
-  class ROIAna;
+  class ROIProd;
 
 }
 
-class roiana::ROIAna : public art::EDAnalyzer {
+class roiana::ROIProd : public art::EDProducer {
 public:
-  explicit ROIAna(fhicl::ParameterSet const& pset);
-  ROIAna(ROIAna const&) = delete;
-  ROIAna(ROIAna&&) = delete;
-  ROIAna& operator=(ROIAna const&) = delete;
-  ROIAna& operator=(ROIAna&&) = delete;
-  virtual ~ROIAna() noexcept {};
+  explicit ROIProd(fhicl::ParameterSet const& pset);
+  ROIProd(ROIProd const&) = delete;
+  ROIProd(ROIProd&&) = delete;
+  ROIProd& operator=(ROIProd const&) = delete;
+  ROIProd& operator=(ROIProd&&) = delete;
+  virtual ~ROIProd() noexcept {};
 
   /////////////////////////////////////////////
   // Required functions.
-  void analyze(art::Event const& evt) override;
+  void produce(art::Event & evt) override;
 
   /////////////////////////////////////////////
   // Selected optional functions.
@@ -184,7 +184,7 @@ private:
 
   /////////////////////////////////////////////
   // ROI Filter
-  void ROIFilter( std::vector<art::Ptr<raw::RawDigit>>& rawList, std::map<int,bool> ret );
+  void ROIFilter( art::Event & evt, std::vector<art::Ptr<raw::RawDigit>>& rawList, std::map<int,bool> ret );
 
   /////////////////////////////////////////////
   // ROI Efficiencies
@@ -222,6 +222,8 @@ private:
   float fECMin; //minimum energy and charge to begin accumulation
   float fHistEnergyMax;
   float fHistChargeMax;
+
+  std::vector<raw::RawDigit> RawDigitROI;
 };
 
 
