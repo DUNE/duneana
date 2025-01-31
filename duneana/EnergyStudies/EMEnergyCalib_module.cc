@@ -33,6 +33,7 @@
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
@@ -100,6 +101,7 @@ private:
   art::ServiceHandle<cheat::BackTrackerService> backtracker;
   art::ServiceHandle<cheat::ParticleInventoryService> particleinventory;
   art::ServiceHandle<geo::Geometry> geom;
+  geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
 
 };
 
@@ -214,7 +216,7 @@ void emshower::EMEnergyCalib::analyze(art::Event const& evt) {
   // Find the energy deposited on each plane in the TPC
   const std::vector<art::Ptr< sim::SimChannel > >& simChannels = backtracker->SimChannels();
   for (auto channelIt = simChannels.begin(); channelIt != simChannels.end(); ++channelIt) {
-    int plane = geom->View((*channelIt)->Channel());
+    int plane = wireReadout.View((*channelIt)->Channel());
     for (auto const& tdcIt : (*channelIt)->TDCIDEMap()) {
       for (auto const& ideIt : tdcIt.second) {
         switch (plane) {

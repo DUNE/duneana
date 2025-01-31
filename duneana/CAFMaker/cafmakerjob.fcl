@@ -42,6 +42,8 @@ physics:
 
 services.Geometry: @local::dune10kt_workspace_geo
 services.Geometry.GDML: "dune10kt_v1_1x2x6.gdml"
+services.AuxDetGeometry: @local::dune10kt_workspace_auxdet_geo
+services.AuxDetGeometry.GDML: @local::services.Geometry.GDML
 
 physics.producers.mvaselectnue.MVAMethod:  "BDTG"
 physics.producers.mvaselectnumu.MVAMethod: "BDTG"

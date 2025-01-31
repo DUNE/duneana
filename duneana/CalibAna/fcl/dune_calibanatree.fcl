@@ -1,0 +1,95 @@
+BEGIN_PROLOG
+
+dune_calibanatree: {
+   module_type:                  CalibAnaTree
+   RadiusInt:                    1
+   RadiusExt:                    20
+   CALOproducer:                 "pandoracalo"
+   TRKproducer:                  "pandoraTrack"
+   TRKHMproducer:                "" # Track Hit Metadata module; same as TRKproducer by default
+   T0producers:                  ["pandora"]
+   PFPproducer:                  "pandora"
+   G4producer:                   "largeant"
+   SimChannelproducer:           ""
+   HITproducer:                  "fasthit" # for standard sims, use gaushit, or pandora
+   RawDigitproducers:            ["daq"]
+   RequireT0:                    true
+   HitRawDigitsTickCollectWidth: 200
+   HitRawDigitsWireCollectWidth: 5
+   DoTailFit:                    false
+   TailFitResidualRange:         5.
+   FillTrackEndHits:             true
+   TrackEndHitWireBox:           60
+   TrackEndHitTimeBox:           300
+   SilenceMissingDataProducts:   true
+   SelectionTools:               []
+   Verbose:                      false # to switch the verbose output on
+}
+
+stopping_selection: {
+  tool_type: CalibAnaTreeSelectStoppingTrack
+  FVInsetMinX: 40
+  FVInsetMaxX: 40
+  FVInsetMinY: 40
+  FVInsetMaxY: 40
+  FVInsetMinZ: 40
+  FVInsetMaxZ: 40
+  MinTimeTickInset: 100
+  MaxTimeTickInset: 100
+  EndMediandQdxCut: 85
+  NumberTimeSamples: 6000
+  MediandQdxRRMax: 5.
+  CheckFiducialX: false
+}
+
+a2c_selection: {
+  tool_type: CalibAnaTreeSelectAnode2CathodeTrack
+  TickCut: 4300
+  RequireT0: true
+}
+
+dune_calibanatree_selectall: {
+   tool_type: CalibAnaTreeSelectAllTracks
+   RequireT0: true 
+}
+
+dune_calibanatree.SelectionTools: [@local::stopping_selection, @local::a2c_selection, @local::dune_calibanatree_selectall]
+
+# Default MC config
+dune_calibanatree_mc: @local::dune_calibanatree
+dune_calibanatree_mc.G4producer: "largeant"
+dune_calibanatree_mc.SimChannelproducer: "tpcrawdecoder:simpleSC" # before factorisation, use tpcrawdecoder for factorised sim scheme
+
+pdhd_data_a2c_selection: @local::a2c_selection
+pdhd_data_a2c_selection.TickCut: 4200
+pdhd_mc_a2c_selection: @local::a2c_selection
+pdhd_mc_a2c_selection.TickCut: 4200
+
+
+pdhd_calibana_data: @local::dune_calibanatree
+pdhd_calibana_data.HITproducer: "hitpdune"
+pdhd_data_stopping_selection: @local::stopping_selection
+pdhd_data_stopping_selection.NumberTimeSamples: 5888
+pdhd_calibana_data.SelectionTools: [@local::pdhd_data_stopping_selection, @local::pdhd_data_a2c_selection, @local::dune_calibanatree_selectall]
+
+pdhd_mc_stopping_selection: @local::stopping_selection
+pdhd_calibana_mc: @local::dune_calibanatree_mc
+pdhd_calibana_mc.HITproducer: "hitpdune"
+pdhd_calibana_mc.SelectionTools: [@local::pdhd_mc_stopping_selection, @local::pdhd_mc_a2c_selection, @local::dune_calibanatree_selectall]
+
+
+dune_calibanatree_cluster:                            @local::dune_calibanatree_mc
+
+dune_calibanatree_cluster.LowEnergyClusterAnalysis:   true
+dune_calibanatree_cluster.TrackAnalysis:              false
+dune_calibanatree_cluster.G4producer:                 "largeant"
+dune_calibanatree_cluster.HITproducer:                "hitpdune"
+dune_calibanatree_cluster.RDTLabel:                   "tpcrawdecoder:daq"
+dune_calibanatree_cluster.RadiusInt:                  1 
+dune_calibanatree_cluster.RadiusExt:                  20
+dune_calibanatree_cluster.CoincidenceWindow1_right:   5   # in mus
+dune_calibanatree_cluster.CoincidenceWindow1_left:    5    # in mus
+dune_calibanatree_cluster.CoincidenceWindow2_left:    5    # in mus
+dune_calibanatree_cluster.CoincidenceWindow2_right:   5   # in mus
+
+END_PROLOG

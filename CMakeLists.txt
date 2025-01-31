@@ -4,14 +4,15 @@
 
 
 # use cmake 3.14 or later
-cmake_minimum_required (VERSION 3.19 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.20 FATAL_ERROR) 
+# cmake_policy(VERSION 3.19) 
 
 #project(duneana VERSION 09.48.00.d00 LANGUAGES CXX)
+find_package(cetmodules REQUIRED) 
 project(duneana LANGUAGES CXX)
-set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 09.82.02d01)
+set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 10.03.01d01)
 
 # cetbuildtools contains our cmake modules
-find_package(cetbuildtools REQUIRED)
 
 include(CetCMakeEnv)
 cet_cmake_env()
@@ -24,26 +25,28 @@ cet_set_compiler_flags(DIAGS CAUTIOUS
 
 cet_report_compiler_flags()
 
-find_ups_product( art )
-find_ups_product( art_root_io )
-find_ups_product( canvas_root_io )
-find_ups_boost( )
-find_ups_root()
-find_ups_product( cetbuildtools )
-find_ups_product( dunecore )
-find_ups_product( dunereco )
-find_ups_product( duneopdet )
-find_ups_product( duneanaobj )
-find_ups_product( larcoreobj )
-find_ups_product( larreco )
-find_ups_product( larsim )
-find_ups_product( larevt )
-find_ups_product( larpandora )
-find_ups_product( srproxy )
-find_ups_product( systematicstools )
+find_package( nufinder REQUIRED )
+find_package( larfinder REQUIRED )
+find_package( art REQUIRED ) 
+find_package( art_root_io REQUIRED ) 
+find_package( canvas_root_io REQUIRED ) 
+find_package( Boost REQUIRED ) 
+find_package(ROOT REQUIRED) 
+find_package( dunepdlegacy REQUIRED EXPORT )
+find_package( dunecore REQUIRED EXPORT ) 
+find_package( dunereco REQUIRED EXPORT ) 
+find_package( duneopdet REQUIRED EXPORT ) 
+find_package( duneanaobj REQUIRED EXPORT ) 
+find_package( larana REQUIRED EXPORT )
+find_package( larcoreobj REQUIRED EXPORT ) 
+find_package( larreco REQUIRED EXPORT ) 
+find_package( larsim REQUIRED EXPORT ) 
+find_package( larevt REQUIRED EXPORT ) 
+find_package( larpandora REQUIRED EXPORT ) 
+#find_package( srproxy REQUIRED ) 
+find_package( systematicstools REQUIRED EXPORT ) 
 find_package(GENIE REQUIRED EXPORT)
-#find_ups_product( dunepdlegacy )
-find_ups_geant4( )
+find_package( Geant4 REQUIRED EXPORT ) 
 
 # macros for artdaq_dictionary and simple_plugin
 include(ArtDictionary)
@@ -51,6 +54,5 @@ include(ArtMake)
 include(BuildPlugins)
 
 add_subdirectory(duneana)
-add_subdirectory(ups)
 
-include(UseCPack)
+cet_cmake_config() 

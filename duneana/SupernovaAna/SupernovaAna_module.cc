@@ -184,7 +184,7 @@ void SupernovaAna::analyze(art::Event const & e)
     recob::Hit const& hit = hits_list->at(i);  
     avgRMSloop[i] = hit.RMS();
     avgRMSloopsum += avgRMSloop[i];
-    SummedADC += hit.SummedADC();
+    SummedADC += hit.ROISummedADC();
    }
   avgRMS = avgRMSloopsum/(hits_list->size());
 

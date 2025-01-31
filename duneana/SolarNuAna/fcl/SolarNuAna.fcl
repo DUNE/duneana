@@ -1,73 +1,100 @@
 #include "generator_labels.fcl"
+#include "SolarOpFlash.fcl"
 
 BEGIN_PROLOG
 
   solar_nu_ana_hd:
   {
-    module_type:		     "SolarNuAna"
-    RawDigitLabel:       "daq"		      # string for the process that made the raw digits
-    HitLabel:		         "hitfd" 	      # string for the process that made the reco hits
-    GEANT4Label:         "largeant"     # The label for the process which ran GEANT4
-    OpFlashLabel:        "opflash"
-    OpHitLabel:          "ophit"
+    module_type:  "SolarNuAna"
+    GEANT4Label:  "largeant"     # The label for the process which ran GEANT4
+    HitLabel:		  "hitfd" 	     # String for the process that made the reco hits
+    TrackLabel:   "pmtracktc"    # The label for the process which ran the PMTrack
+    OpHitLabel:   "ophitspe"     # The label for the process which ran the OpHit
+    OpFlashLabel: "solarflash"   # The label for the process which ran the OpFlash
 
     #====================================================================================#
-    # Vector with generator labels for the particles included in the event. IMPORTANT: Keep MARLEY label in the first position!!!
-    ParticleLabelVector: @local::generator_dune10kt_1x2x6
+    # The following are the labels for the signal and background processes
+    SignalLabel: "marley"
+    # Vector with generator labels for the background processes included in the event 
+    BackgroundLabelVector: []
 
-    Geometry:                "HD"
-    DetectorSizeX:           370          # 1 TPC drift (X) length in [cm].
-    DetectorSizeY:           610          # 1 TPC Y length in [cm].
-    DetectorSizeZ:           1400         # 1 TPC Z length in [cm].
-    DetectorDriftTime:       4500         # Don't change this value for HD unless you know what you are doing!!!
+    Geometry:                   "HD"
+    DetectorSizeX:              360          # 1 TPC drift (X) length in [cm].
+    DetectorSizeY:              600          # 1 TPC Y length in [cm].
+    DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
+    DetectorDriftTime:          4500         # Don't change this value for HD unless you know what you are doing!!!
     
-    ClusterAlgoTime:         15           # Time window to look for plane clusters in [tick] units.
-    ClusterAlgoAdjChannel:   2            # Number of adjacent channels to look for plane clusters.
+    ClusterAlgoTime:            25           # Time window to look for plane clusters in [tick] units.
+    ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
-    ClusterMatchNHit:        0.75         # DAQ Clusters min. hit requirement.
-    ClusterMatchCharge:      0.50         # Charge fraction to match clusters.
-    ClusterMatchTime:        20.0         # Time window to look for ind. plane clusters in [tick] units.
-    ClusterInd0MatchTime:    0.00         # Wirecell seems to have made this obsolete.
-    ClusterInd1MatchTime:    0.00         # Wirecell seems to have made this obsolete.
+    ClusterMatchNHit:           2            # NHit fraction to match clusters. abs(NHitsCol - NHitsInd) / NHitsCol < ClusterMatchNHit.
+    ClusterMatchCharge:         0.6          # Charge fraction to match clusters. abs(ChargeCol - ChargeInd) / ChargeCol < ClusterMatchCharge.
+    ClusterMatchTime:           20.0         # Time window to look for ind. plane clusters in [tick] units.
+    ClusterInd0MatchTime:       0.00         # Wirecell seems to have made this obsolete.
+    ClusterInd1MatchTime:       0.00         # Wirecell seems to have made this obsolete.
     
-    ClusterPreselectionNHit: 2            # Number of hits to match clusters.
+    ClusterPreselectionSignal:     true      # If true, the cluster must be signal particle to be saved.
+    ClusterPreselectionPrimary:    true      # If true, the cluster must be primary particle to be saved.
+    ClusterPreselectionNHits:      0         # Min number of hits to preselect a cluster.
+    ClusterPreselectionTrack:      false     # If true, the cluster must be associated with a track to be saved.
+    ClusterPreselectionFlashMatch: false     # If true, the cluster must be matched with a flash to be saved.
 
-    MinClusterCharge:        10           # Min Charge for adj. clusters in [ADCxTick].
-    AdjClusterRad:           200.         # Radius to search for adj. clusters in [cm] units.
+    MinClusterCharge:           0.           # Min Charge for adj. clusters in [ADCxTick].
+    AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
 
-    AdjOpFlashTime:          4500         # Time window to look for adjacent flashes in [tick] units should be one full drift length.
-    AdjOpFlashRad:           200.         # Radius to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashMaxPECut:      1.00         # Cut on the maximum PE OpHit contribution to the total OpFlash PE (lower limit).
-    AdjOpFlashMinPECut:      00.0         # Cut on the minimum PE OpHit.
+    GenerateAdjOpFlash:         false        # Generate OpFlashes.
+    OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
+    OpFlashAlgoMinTime:         0.60         # Negative time window to look for adj. OpHits in [tick] units.
+    OpFlashAlgoMaxTime:         1.00         # Positive time window to look for adj. OpHits in [tick] units.
+    OpFlashAlgoRad:             300          # Distance to look for adj. OpHits in [cm] units.
+    OpFlashAlgoPE:              1.5          # PE threshold to look for adj. OpHits.
+    OpFlashAlgoTriggerPE:       1.5          # PE threshold to trigger an OpFlash.
+    OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
+    # OpFlashAlgoCentroid:        false        # Use the centroid computation of the flash based on a likelihood estimation.
 
-    SaveMarleyEDep:          false        # Save the energy deposition of the marley energy deposition in the LAr.
+    AdjOpFlashTime:             4500         # Time window to look for adjacent flashes in [tick] units should be one full drift length.
+    AdjOpFlashY:                100.         # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashZ:                100.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
+    AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE. From average bkg rate of ~20 PE per tick.
+    AdjOpFlashMinNHitCut:       10           # Cut on the minimum number of OpHits in the OpFlash.
+    FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
+
+    SaveSignalDaughters:        false        # Save the daughters of the signal particles.
+    SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
+    SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
+    SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
+    SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
+
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
-  legacy_solar_nu_ana_hd_v2.ParticleLabelVector: @local::generator_dune10kt_1x2x6_mcc11
+  legacy_solar_nu_ana_hd_v2.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_mcc11
 
   legacy_solar_nu_ana_hd_v4: @local::solar_nu_ana_hd
-  legacy_solar_nu_ana_hd_v4.ParticleLabelVector: @local::generator_dune10kt_1x2x6_legacy
+  legacy_solar_nu_ana_hd_v4.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_legacy
 
-  solar_nu_ana_vd: @local::solar_nu_ana_hd
+  solar_nu_ana_hd_centralAPA: @local::solar_nu_ana_hd
+  solar_nu_ana_hd_centralAPA.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_centralAPA
+
+  solar_nu_ana_hd_lateralAPA: @local::solar_nu_ana_hd
+  solar_nu_ana_hd_lateralAPA.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_lateralAPA
+  
+  solar_nu_ana_vd: @local::solar_nu_ana_hd_centralAPA
   solar_nu_ana_vd.HitLabel:            "gaushit"
-  solar_nu_ana_vd.OpFlashLabel:        "opflash10ppm"
   solar_nu_ana_vd.OpHitLabel:          "ophit10ppm"
-  solar_nu_ana_vd.OpDetWaveformLabel:  "opdigi10ppm"
-  solar_nu_ana_vd.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
+  solar_nu_ana_vd.OpFlashLabel:        "solarflash"
+  solar_nu_ana_vd.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
 
-  solar_nu_ana_vd.Geometry:                "VD"
-  solar_nu_ana_vd.DetectorSizeX:           340
-  solar_nu_ana_vd.DetectorSizeY:           680 
-  solar_nu_ana_vd.DetectorSizeZ:           2100
-  solar_nu_ana_vd.DetectorDriftTIme:       8500
+  solar_nu_ana_vd.Geometry:            "VD"
+  solar_nu_ana_vd.DetectorSizeX:       340
+  solar_nu_ana_vd.DetectorSizeY:       680 
+  solar_nu_ana_vd.DetectorSizeZ:       2100
+  solar_nu_ana_vd.DetectorDriftTIme:   8500
 
-  solar_nu_ana_vd.AdjOpFlashTime:          8500
-  solar_nu_ana_vd.AdjOpFlashRad:           100.
-  solar_nu_ana_vd.AdjOpFlashMaxPECut:      1
-  solar_nu_ana_vd.AdjOpFlashMinPECut:      0
+  solar_nu_ana_vd.AdjOpFlashTime:      8500
 
   solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
-  solar_nu_ana_vd_1x8x6.ParticleLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
+  solar_nu_ana_vd_1x8x6.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
 
 END_PROLOG

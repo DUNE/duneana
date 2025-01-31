@@ -1,0 +1,30 @@
+#include "services_dune.fcl"
+process_name: RawDigitAna
+
+services:
+{
+  TFileService: { fileName: "%ifb_ana_rawdigit.root" }
+  MemoryTracker:     {}
+  TimeTracker:       {}
+  RandomNumberGenerator: {}
+  @table::protodune_services
+}
+
+source:{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+physics:{
+  analyzers:{
+
+    rawdigit:{
+      module_label: rawdigitana
+      module_type:  RawDigitAnaTree
+      ModuleLabel:  "caldata:dataprep" 
+    }
+  }
+
+  ana:  [ rawdigitana ]
+  end_paths:     [ana]  
+}

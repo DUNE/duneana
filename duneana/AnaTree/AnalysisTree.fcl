@@ -36,6 +36,22 @@ dune35t_analysistree:
  POTModuleLabel:              ""
  PFParticleModuleLabel:       "pandora" # pandoraTrack and pandoraShower should be passed as the first labels for tracks and showers
 
+ EnergyRecoNueLabel:          "energyreconue" # make sure you call the produces and that they have theses names
+ EnergyRecoNumuLabel:         "energyreconumu"
+ EnergyRecoNumuRangeLabel:    "energyreconumurange"
+ EnergyRecoNumuMCSChi2Label:  "energyreconumumcschi2"
+ EnergyRecoNumuMCSLLHDLabel:  "energyreconumumcsllhd"
+ EnergyRecoNCLabel:           "energyreconc"
+ 
+ AngleRecoNueLabel: "angularreconue"
+ AngleRecoNumuLabel: "angularreconumu"
+ AngleRecoNuePFPLabel: "angularreconuepfp"
+ AngleRecoNumuPFPLabel: "angularreconumupfp"
+
+ SaveCVNScoresInfo: false
+ IsAtmoCVN: false
+ CVNLabel: "cvneva:cvnresult"
+
 
  UseBuffers:               false
  IgnoreMissingShowers:     false
@@ -44,12 +60,15 @@ dune35t_analysistree:
  SaveProtoInfo:            false # ProtoDUNE specific
  SaveGenieInfo:            false # Don't have in the 35 ton
  SaveGeantInfo:            true
+ SaveGeantPrimaryOnly:     true
  SaveMCShowerInfo:         false # Don't have in the 35 ton 
  SaveMCTrackInfo:          false # Don't have in the 35 ton
  SaveHitInfo:              true
  SaveRawDigitInfo:         false #set this to false by default since not everyone want rawdigits.
  SaveTrackInfo:            true
  SaveVertexInfo:           true 
+ SaveNuRecoEnergyInfo:     false # set to false because one needs to call products first
+ SaveNuRecoAngleInfo:      false # set to false because one needs to call products first
  SavePandoraNuVertexInfo:  false # Don't have in the 35 ton
  SaveClusterInfo:          true
  SaveFlashInfo:            true
@@ -60,6 +79,7 @@ dune35t_analysistree:
  SaveCnnInfo:              false
  SavePFParticleInfo:       true
  G4minE:                   -1
+ AddGeantFlag:             false # If set to true, geant information from `SaveGeantInfo` will be saved with an extra `_geant`
  RollUpUnsavedIDs:         true
 }
 

@@ -1,33 +1,35 @@
-include_directories ( $ENV{GENIE_INC}/GENIE )
-
+if( DEFINED ENV{TENSORFLOW_DIR} )
 # nusystematics
 ##cet_find_library( SYSTTOOLS NAMES systematicstools_interface systematicstools_interpreters systematicstools_utility PATHS ENV SYSTEMATICSTOOLS_LIB NO_DEFAULT_PATH )
-
-cet_build_plugin(CAFMaker   art::module
-                        duneanaobj_StandardRecord
-                        duneanaobj_StandardRecordFlat
+include_directories($ENV{SRPROXY_INC})
+cet_build_plugin(CAFMaker   art::module LIBRARIES
+                        duneanaobj::StandardRecord
+                        duneanaobj::StandardRecordFlat
                         nugen::NuReweight
                         nugen::NuReweight_art
+			nugen::EventGeneratorBase_GENIE
 			nusimdata::SimulationBase
-                        ART_FRAMEWORK_CORE
-                        ART_FRAMEWORK_PRINCIPAL
-                        ART_FRAMEWORK_SERVICES_REGISTRY
-                        ART_ROOT_IO_TFILE_SUPPORT
+                        art::Framework_Core
+                        art::Framework_Principal
+                        art::Framework_Services_Registry
+                        art_root_io::tfile_support
                         ROOT::Core
-                        ART_ROOT_IO_TFILESERVICE_SERVICE
-                        art::Persistency_Common canvas
-                        art::Persistency_Provenance canvas
-                        art::Utilities canvas
+                        art_root_io::TFileService_service
+                        art::Persistency_Common
+                        art::Persistency_Provenance
+                        art::Utilities canvas::canvas
                         messagefacility::MF_MessageLogger
-                        cetlib::cetlib cetlib_except
-                        ROOT_BASIC_LIB_LIST
+                        cetlib::cetlib cetlib_except::cetlib_except
+                        ROOT::Core ROOT::Hist ROOT::Tree
 			${GENIE_LIB_LIST}
                         systematicstools::interface
 			systematicstools::interpreters
 			systematicstools::utility
                         dunereco::CVN_func
+			larpandora::LArPandoraInterface
               BASENAME_ONLY
 )
+endif()
 
 install_headers()
 install_fhicl()

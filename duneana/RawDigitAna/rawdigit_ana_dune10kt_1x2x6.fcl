@@ -1,0 +1,46 @@
+#include "services_dune.fcl"
+#include "tools_dune.fcl"
+
+process_name: RawDigitAna
+
+services:
+{
+  TFileService: { fileName: "%ifb_rawdigit.root" }
+  MemoryTracker:          {}
+  TimeTracker:            {}
+  RandomNumberGenerator:  {}
+  FileCatalogMetadata:    @local::art_file_catalog_mc
+                          @table::dunefd_reco_services
+                          @table::dunefd_1x2x6_reco_services
+}
+
+
+physics:{
+  analyzers:{
+
+    rawdigit:{
+      module_label: rawdigit
+      module_type:  RawDigitAna
+      ModuleLabel:  "tpcrawdecoder:daq" 
+    }
+  }
+
+  ana:       [ rawdigit ]
+  end_paths: [ana]  
+}
+
+source:{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+outputs:
+{
+  out1:
+  {
+    module_type: RootOutput
+    fileName:    "%ifb_rawdigit.root"
+    dataTier:    "analized"
+    compressionLevel: 1
+  }
+}

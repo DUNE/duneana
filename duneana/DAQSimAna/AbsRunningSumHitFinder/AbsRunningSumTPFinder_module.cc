@@ -15,7 +15,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardataobj/RawData/RawDigit.h"
 
@@ -62,7 +62,7 @@ AbsRunningSumTPFinder::AbsRunningSumTPFinder(fhicl::ParameterSet const & p)
 
 void AbsRunningSumTPFinder::produce(art::Event & e)
 {
-    art::ServiceHandle<geo::Geometry> geo;
+    auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
 
     std::vector<std::vector<short>>  induction_samples;
     std::vector<std::vector<short>> collection_samples;
@@ -76,7 +76,7 @@ void AbsRunningSumTPFinder::produce(art::Event & e)
     
     for(auto&& digit: digits_in){
       
-      const geo::SigType_t sigType = geo->SignalType(digit.Channel());
+      const geo::SigType_t sigType = wireReadout.SignalType(digit.Channel());
       
       if(sigType==geo::kInduction){
 	indChanToDigit[digit.Channel()]=&digit;
@@ -98,7 +98,7 @@ void AbsRunningSumTPFinder::produce(art::Event & e)
     recob::HitCollectionCreator hcol(e, false /* doWireAssns */, true /* doRawDigitAssns */);
     for(auto const& hit : hits_col){
       const raw::RawDigit* digit=colChanToDigit[hit.channel];
-      std::vector<geo::WireID> wids = geo->ChannelToWire(hit.channel);
+      std::vector<geo::WireID> wids = wireReadout.ChannelToWire(hit.channel);
       geo::WireID wid = wids[0];
       
       recob::HitCreator lar_hit(*digit,                                //RAW DIGIT REFERENCE.
@@ -112,7 +112,8 @@ void AbsRunningSumTPFinder::produce(art::Event & e)
 				0,                                         //SIGMA_PEAK_AMPLITUDE.
 				hit.SADC,                                  //HIT_INTEGRAL.
 				0,                                         //HIT_SIGMA_INTEGRAL.
-				hit.SADC,                                  //SUMMED CHARGE. 
+				hit.SADC,                                  //SUMMED CHARGE ROI. 
+				hit.SADC,                                  //SUMMED CHARGE HIT. TO BE FIXED 
 				0,                                         //MULTIPLICITY.
 				0,                                         //LOCAL_INDEX.
 				0,                                         //WIRE ID. (?)
@@ -124,7 +125,7 @@ void AbsRunningSumTPFinder::produce(art::Event & e)
     for(auto const& hit : hits_ind){
       const raw::RawDigit* digit=indChanToDigit[hit.channel];
       
-      std::vector<geo::WireID> wids = geo->ChannelToWire(hit.channel);
+      std::vector<geo::WireID> wids = wireReadout.ChannelToWire(hit.channel);
       geo::WireID wid = wids[0];
       
       recob::HitCreator lar_hit(*digit,                                //RAW DIGIT REFERENCE.
@@ -138,7 +139,8 @@ void AbsRunningSumTPFinder::produce(art::Event & e)
 				0,                                         //SIGMA_PEAK_AMPLITUDE.
 				hit.SADC,                                  //HIT_INTEGRAL.
 				0,                                         //HIT_SIGMA_INTEGRAL.
-				hit.SADC,                                  //SUMMED CHARGE. 
+				hit.SADC,                                  //SUMMED CHARGE ROI. 
+				hit.SADC,                                  //SUMMED CHARGE HIT. TO BE FIXED 
 				0,                                         //MULTIPLICITY.
 				1,                                         //LOCAL_INDEX.
 				0,                                         //WIRE ID.

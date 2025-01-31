@@ -255,7 +255,7 @@ void MakeSNeTProfileHistos::analyze(art::Event const & e)
     float SummedADC = 0.0; // ...I know... this number is a float?! Who would have guessed that...
     for(unsigned int i = 0; i < hits_list->size();i++){
       recob::Hit const& hit = hits_list->at(i);  
-      SummedADC += hit.SummedADC();
+      SummedADC += hit.ROISummedADC();
     }
 
     

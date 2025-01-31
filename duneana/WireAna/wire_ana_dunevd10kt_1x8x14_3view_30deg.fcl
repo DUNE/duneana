@@ -1,0 +1,45 @@
+#include "services_dune.fcl"
+#include "tools_dune.fcl"
+
+process_name: WireAnaTree
+
+services:
+{
+  TFileService: { fileName: "%ifb_wire.root" }
+  MemoryTracker:          {}
+  TimeTracker:            {}
+  RandomNumberGenerator:  {}
+  FileCatalogMetadata:    @local::art_file_catalog_mc
+                          @table::dunefdvd_1x8x14_3view_30deg_services
+}
+
+
+physics:{
+  analyzers:{
+
+    wire:{
+      module_label: wireana
+      module_type:  WireAnaTree
+      CalWireModuleLabel:  "tpcrawdecoder:gauss" 
+    }
+  }
+
+  ana:       [ wire ]
+  end_paths: [ana]  
+}
+
+source:{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+outputs:
+{
+  out1:
+  {
+    module_type: RootOutput
+    fileName:    "%ifb_wire.root"
+    dataTier:    "analized"
+    compressionLevel: 1
+  }
+}

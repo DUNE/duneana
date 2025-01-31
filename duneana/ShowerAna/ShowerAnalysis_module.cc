@@ -24,7 +24,7 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -218,7 +218,7 @@ class showerAna::ShowerAnalysis : public art::EDAnalyzer {
   art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
   art::ServiceHandle<art::TFileService> tfs;
-  art::ServiceHandle<geo::Geometry> geom;
+  geo::WireReadoutGeom const* wireReadout = &art::ServiceHandle<geo::WireReadout const>{}->Get();
 
   TTree* fTree;
 
@@ -306,7 +306,7 @@ void showerAna::ShowerAnalysis::analyze(const art::Event& evt) {
     std::map<int,double> depositedEnergy;
     const std::vector<art::Ptr< sim::SimChannel >>& simChannels = bt_serv->SimChannels();
     for (std::vector<art::Ptr< sim::SimChannel >>::const_iterator channelIt = simChannels.begin(); channelIt != simChannels.end(); ++channelIt) {
-      int plane = geom->View((*channelIt)->Channel());
+      int plane = wireReadout->View((*channelIt)->Channel());
       auto const & tdcidemap = (*channelIt)->TDCIDEMap();
       for (auto const& tdcIt : tdcidemap) {
         auto const& idevec = tdcIt.second;

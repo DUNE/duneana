@@ -1,0 +1,41 @@
+<lcgdict>
+  <class name="dune::Vector3D" ClassVersion="10" >
+   <version ClassVersion="10" checksum="969058721"/>
+  </class>
+  <class name="dune::TrackTruth" ClassVersion="10" >
+   <version ClassVersion="10" checksum="3295481036"/>
+  </class>
+  <class name="dune::TrueParticle" ClassVersion="10" >
+   <version ClassVersion="10" checksum="240986196"/>
+  </class>
+  <class name="dune::TrueHit" ClassVersion="10" >
+   <version ClassVersion="10" checksum="1144893705"/>
+  </class>
+  <class name="dune::TrackInfo" ClassVersion="10" >
+   <version ClassVersion="10" checksum="1022826678"/>
+  </class>
+  <class name="dune::ClusterInfo" ClassVersion="12" >
+   <version ClassVersion="12" checksum="129734508"/>
+   <version ClassVersion="11" checksum="2297744983"/>
+   <version ClassVersion="10" checksum="1022826678"/>
+  </class>
+  <class name="dune::MetaInfo" ClassVersion="11" >
+   <version ClassVersion="11" checksum="328235296"/>
+   <version ClassVersion="10" checksum="3074527675"/>
+  </class>
+  <class name="dune::TrackHitInfo" ClassVersion="10" >
+   <version ClassVersion="10" checksum="2129771193"/>
+  </class>
+  <class name="dune::HitTruth" ClassVersion="10" >
+   <version ClassVersion="10" checksum="592819136"/>
+  </class>
+  <class name="dune::HitInfo" ClassVersion="10" >
+   <version ClassVersion="10" checksum="3751121843"/>
+  </class>
+  <class name="dune::WireInfo" ClassVersion="10" >
+   <version ClassVersion="10" checksum="882501041"/>
+  </class>
+  <class name="std::vector<dune::TrueHit>"  />
+  <class name="std::vector<dune::HitInfo>"  />
+  <class name="std::vector<dune::WireInfo>" />
+</lcgdict>

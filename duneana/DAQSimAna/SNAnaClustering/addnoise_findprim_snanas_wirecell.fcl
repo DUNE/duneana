@@ -1,0 +1,76 @@
+# addnoise_findprim_daqsimanas_wirecell.fcl
+# EXPERIMENTAL! Use at your peril
+
+#include "SNAna.fcl"
+#include "trigprim.fcl"
+BEGIN_PROLOG
+trigprim_snana: {
+   @table::standard_snana
+   SaveNeighbourADCs:    false
+   SaveTruth:            false
+}
+END_PROLOG
+#include "opticaldetectormodules_dune.fcl"
+#include "detsim_dune10kt_1x2x6_notpcsigproc.fcl"
+
+process_name: PrimSim
+services.TFileService: { fileName: "SNAna_refactored_plus_trigprim_multithreshold.root" }
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics: {
+   producers: {
+
+      ophit:              @local::dune35t_ophit # optical hits 
+      trigprim12: @local::trigprimpass1 #tpc hits 
+
+      rns:            { module_type: "RandomNumberSaver" }
+   }
+   
+   analyzers: {
+      # Analyse the hits with SNAna module 
+      snanatrigprim12:    @local::trigprim_snana
+
+   }
+
+   simulate: [rns, ophit, trigprim12]
+
+   ana     : [snanatrigprim12]
+   
+   trigger_paths: [ simulate ] 
+   end_paths: [ ana ] 
+
+}
+
+# Se the threshold for the hit finder & change the input tag
+physics.producers.trigprim12.finder.Threshold: 1200
+physics.producers.trigprim12.finder.InputTag: "tpcrawdecoder:daq" # Raw digit module label from WireCell
+
+
+
+# Set the appropritate HitLabel input for SNana to analyse 
+physics.analyzers.snanatrigprim12.HitLabel: "trigprim12"
+# Update the raw digit label in SNana to the WireCell label 
+physics.analyzers.snanatrigprim12.RawDigitLabel: "tpcrawdecoder:daq"
+
+
+#Update the backtracker label for WireCell
+#services.BackTrackerService.BackTracker.SimChannelModuleLabel: "tpcrawdecoder:simpleSC"
+
+
+#Optical detector configuration
+physics.producers.ophit.InputModule: "opdigi"
+
+# ------- debgging options -------
+
+# Only save IDEs in one of the output trees, since they're always the same and will only take up space otherwise
+# physics.analyzers.snanatrigprim800.SaveIDEs: true
+
+# Shut up the backtracker
+services.message.destinations.LogStandardOut.categories.BackTracker.limit: 0
+services.message.destinations.LogStandardError.categories.BackTracker.limit: 0
+
+# Display all the INFO message for SNAna_module
+services.message.destinations.LogStandardOut.categories.SNAna_module.limit:-1
+

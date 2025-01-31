@@ -413,7 +413,7 @@ namespace RecoTrack {
 	    hittime2 = itrack_hit->PeakTime()/frequency;
 	    hittime2 = hittime2 + itrack*2000.0;
 
-	    chargeADC2 = itrack_hit->SummedADC();
+	    chargeADC2 = itrack_hit->ROISummedADC();
 	    chargeADC2Log = log(chargeADC2);
 
 	    fChADCvsTM->Fill(hittime2,chargeADC2);

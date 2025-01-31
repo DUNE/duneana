@@ -23,6 +23,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larsim/MCCheater/BackTrackerService.h"
@@ -401,6 +402,7 @@ void NeutronDecayN2Ana::NeutronDecayN2Ana::analyze(art::Event const & evt) {
 
   // Any providers I need.
   auto const* geo = lar::providerFrom<geo::Geometry>();
+  auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
   /*
   // Implementation of required member function here. 
   std::vector<art::Ptr<recob::Track> > tracklist;
@@ -443,7 +445,7 @@ void NeutronDecayN2Ana::NeutronDecayN2Ana::analyze(art::Event const & evt) {
   for (auto const& simchannel:*simchannels) {
     // ------ Only want to look at collection plane hits ------
     //std::cout << "Looking at a new SimChannel, it was on channel " << simchannel.Channel() << ", which is plane " << geo->SignalType(simchannel.Channel()) << std::endl;
-    if (geo->SignalType(simchannel.Channel()) != geo::kCollection) continue;
+    if (wireReadout.SignalType(simchannel.Channel()) != geo::kCollection) continue;
     int tdcideIt = 0;
     // ------ Loop through all the IDEs for this channel ------
     for (auto const& tdcide:simchannel.TDCIDEMap()) {

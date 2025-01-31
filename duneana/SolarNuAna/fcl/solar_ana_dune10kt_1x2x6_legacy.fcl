@@ -1,6 +1,6 @@
-// solarnuana_hd_job.fcl
-//
-// Run SolarNuAna on the output of offline hit finders
+# solar_ana_dune10kt_1x2x6_legacy.fcl
+#
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
 #include "SolarNuAna.fcl"
 #include "services_dune.fcl"
@@ -15,6 +15,7 @@ services:
   MemoryTracker:         {} # default is one
   RandomNumberGenerator: {} #ART native random number generator
   FileCatalogMetadata:   @local::art_file_catalog_mc
+  AuxDetGeometry:        @local::dune10kt_1x2x6_auxdet_geo
   Geometry:              @local::dune10kt_1x2x6_geo
   @table::dunefd_simulation_services
 }
@@ -49,8 +50,7 @@ outputs:
   }
 }
 services.Geometry.GDML: "dune10kt_v4_1x2x6.gdml"
-services.Geometry.Name: "dune10kt_v4_1x2x6"
-services.Geometry.ROOT: "dune10kt_v4_1x2x6.gdml"
+services.AuxDetGeometry.GDML: @local::services.Geometry.GDML
 
 services.BackTrackerService.BackTracker.SimChannelModuleLabel: "largeant"
 services.BackTrackerService.BackTracker.SimChannelLabel: "largeant"

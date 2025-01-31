@@ -24,7 +24,7 @@
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -111,7 +111,7 @@ namespace dunezsanalysis {
     double fChargeSum[200];
 
     // Other variables that will be shared between different methods.
-    art::ServiceHandle<geo::Geometry> fGeometry;       // pointer to Geometry service
+    geo::WireReadoutGeom const& fWireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   }; // class dunezsanalysis
 
@@ -206,7 +206,7 @@ namespace dunezsanalysis {
 	digit=Digits.at(d);
 	uint32_t chan = digit->Channel();
 	std::vector<short> uncompressed(digit->Samples());
-	if (fGeometry->View(chan) == geo::kZ)  // for now only do charge sums for collection hits
+        if (fWireReadoutGeom.View(chan) == geo::kZ)  // for now only do charge sums for collection hits
 	  {
 	    raw::Uncompress(digit->ADCs(), uncompressed, digit->Compression());
 	    for(unsigned int tick=0;tick<uncompressed.size();tick++) 

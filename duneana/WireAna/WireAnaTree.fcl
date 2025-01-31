@@ -1,0 +1,30 @@
+#include "services_dune.fcl"
+process_name: WireAna
+
+services:
+{
+  TFileService: { fileName: "%ifb_ana_wire.root" }
+  MemoryTracker:     {}
+  TimeTracker:       {}
+  RandomNumberGenerator: {}
+  @table::protodune_services
+}
+
+source:{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+physics:{
+  analyzers:{
+
+    wireana:{
+      module_label: wireana
+      module_type: WireAnaTree
+      CalWireModuleLabel:       "caldata:dataprep" 
+    }
+  }
+
+  ana:  [ wireana ]
+  end_paths:     [ana]  
+}

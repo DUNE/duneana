@@ -1,4 +1,6 @@
-# Run LowE on the output of offline reco data
+# solar_ana_dune10kt_1x2x6.fcl
+#
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
 #include "SolarNuAna.fcl"
 #include "services_dune.fcl"
@@ -25,7 +27,7 @@ physics:
 { 
   analyzers:
   {
-    solarnuana: @local::solar_nu_ana_hd
+    solarnuana: @local::solar_nu_ana_hd_centralAPA
   }
   ana: [ solarnuana ]
   end_paths: [ ana ] 
@@ -53,4 +55,3 @@ services.message.destinations.LogStandardOut.type: "cout"
 
 # services.Geometry.GDML: "dune10kt_v4_1x2x6.gdml"
 # services.Geometry.Name: "dune10kt_v4_1x2x6"
-# services.Geometry.ROOT: "dune10kt_v4_1x2x6.gdml"

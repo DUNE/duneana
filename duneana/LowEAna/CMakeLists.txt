@@ -1,35 +1,50 @@
 add_subdirectory(fcl)
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
 art_make(BASENAME_ONLY
-         MODULE_LIBRARIES
-         dunecore::DAQTriggerSim_TriggerDataProducts
-         larcore::Geometry_Geometry_service
-         lardata::DetectorInfoServices_DetectorClocksServiceStandard_service
-         larcorealg::Geometry
-         lardataobj::RawData
-         nusimdata::SimulationBase
-         larsim::MCCheater_BackTrackerService_service
-         larsim::MCCheater_PhotonBackTrackerService_service
-         larsim::MCCheater_ParticleInventoryService_service
-         nug4::ParticleNavigation
-         ART_FRAMEWORK_CORE
-         ART_FRAMEWORK_PRINCIPAL
-         ART_FRAMEWORK_SERVICES_REGISTRY
-         ART_ROOT_IO_TFILE_SUPPORT
-         ROOT::Core
-         ART_ROOT_IO_TFILESERVICE_SERVICE
-         art::Persistency_Common
-         art::Persistency_Provenance
-         art::Utilities 
-	 canvas
-         ART_PERSISTENCY_COMMON
-         ART_PERSISTENCY_PROVENANCE
-         ART_UTILITIES
-         messagefacility::MF_MessageLogger
-         cetlib::cetlib 
-	 cetlib_except
-         ROOT_BASIC_LIB_LIST
-         )
+    LIB_LIBRARIES
+      ${ROOT_CORE}
+      ${ROOT_EVE}
+      cetlib::cetlib
+      lardata::Utilities
+      lardataobj::RawData
+      larcorealg::Geometry
+      larcore::Geometry_Geometry_service
+      messagefacility::MF_MessageLogger
+      art::Persistency_Provenance
+      art::Persistency_Common
+      art::Utilities 
+      lardataobj::RecoBase
+      art_root_io::tfile_support
+    SERVICE_LIBRARIES
+      lardata::Utilities
+      lardataobj::RecoBase
+      ${ART_ROOT_IO_ROOTINPUT_SOURCE}
+    MODULE_LIBRARIES
+      dunecore::DuneObj
+      lardata::RecoObjects
+      lardata::Utilities
+      larcorealg::Geometry
+      lardataobj::RawData
+      lardataobj::RecoBase
+      larcore::Geometry_Geometry_service
+      dunecore::DAQTriggerSim_TriggerDataProducts
+      larsim::MCCheater_BackTrackerService_service
+      lardata::DetectorInfoServices_DetectorClocksServiceStandard_service
+      larsim::MCCheater_PhotonBackTrackerService_service
+      larsim::MCCheater_ParticleInventoryService_service
+      nug4::ParticleNavigation
+      nusimdata::SimulationBase
+      art_root_io::tfile_support
+      art::Persistency_Common
+      art::Persistency_Provenance
+      art::Utilities 
+      messagefacility::MF_MessageLogger
+      cetlib::cetlib 
+      duneopdet::SolarNuUtils
+      dunereco::LowEUtils
+      ROOT::Core ROOT::Hist ROOT::Tree
+)
 
-install_fhicl()
 install_headers()
+install_fhicl()
 install_source()

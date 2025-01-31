@@ -25,6 +25,7 @@
 #include "art_root_io/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
 #include "larsim/MCCheater/BackTracker.h"
@@ -66,6 +67,7 @@ namespace filt{
 
     // Handles
     art::ServiceHandle<geo::Geometry> geom;
+    geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
 
     // FHiCL parameters
     bool fWantMuon;
@@ -127,7 +129,7 @@ namespace filt{
     // ------ Now loop through all of my hits ------
     for (auto const& simchannel:*simchannels) {
     // ------ Only want to look at collection plane hits ------
-      if (geo->SignalType(simchannel.Channel()) != geo::kCollection) continue;
+      if (wireReadout.SignalType(simchannel.Channel()) != geo::kCollection) continue;
       // ------ Loop through all the IDEs for this channel ------
       for (auto const& tdcide:simchannel.TDCIDEMap()) {
 	auto const& idevec=tdcide.second;

@@ -20,6 +20,7 @@
 
 
 
+#include "larcore/Geometry/WireReadout.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
@@ -84,6 +85,7 @@ private:
 
   //Geometry service
   geo::Geometry*            fGeometry;              ///<  pointer to the Geometry service
+  geo::WireReadoutGeom const& fWireReadoutGeom = art::ServiceHandle<geo::WireReadout>()->Get();
 
   //TFileService
   art::TFileService*        fTFS;
@@ -224,9 +226,9 @@ void GoodWireAna::makeHistoSetForThisRun( int runID )
       std::pair<size_t,size_t> CryTPCPair(iCry,iTPC);
 
       //Get geometry information
-    size_t nWiresU = fGeometry->Nwires(geo::PlaneID{tpcid, 0});
-    size_t nWiresV = fGeometry->Nwires(geo::PlaneID{tpcid, 1});
-    size_t nWiresW = fGeometry->Nwires(geo::PlaneID{tpcid, 2});
+    size_t nWiresU = fWireReadoutGeom.Nwires(geo::PlaneID{tpcid, 0});
+    size_t nWiresV = fWireReadoutGeom.Nwires(geo::PlaneID{tpcid, 1});
+    size_t nWiresW = fWireReadoutGeom.Nwires(geo::PlaneID{tpcid, 2});
 
       char name[50];
       char title[105];
@@ -798,7 +800,7 @@ void GoodWireAna::writeListOfBadWires(std::vector<std::vector<size_t> > badWireV
 
     //Get the channel from the Cryo, TPC, Plane, and Wire
     geo::WireID theWireID( badWireVect.at(iWire).at(1), badWireVect.at(iWire).at(2), badWireVect.at(iWire).at(3),badWireVect.at(iWire).at(4)-1);
-    size_t channel = fGeometry->PlaneWireToChannel(theWireID);
+    size_t channel = fWireReadoutGeom.PlaneWireToChannel(theWireID);
     std::cout << "We're in plane: " << badWireVect.at(iWire).at(3) << ", and wire: " << theWireID.Wire << " corresponds to channel: " << channel << std::endl;
 
     if( fVerbose )
@@ -910,7 +912,7 @@ void GoodWireAna::writeListOfGoodWires(std::vector<std::vector<size_t> > goodWir
 
     //Get the channel from the Cryo, TPC, Plane, and Wire
     geo::WireID theWireID( goodWireVect.at(iWire).at(1), goodWireVect.at(iWire).at(2), goodWireVect.at(iWire).at(3),goodWireVect.at(iWire).at(4)-1);
-    size_t channel = fGeometry->PlaneWireToChannel(theWireID);
+    size_t channel = fWireReadoutGeom.PlaneWireToChannel(theWireID);
 
     if( fVerbose )
       std::cout << "Cryo/TPC/Plane/Wire/Channel: " << goodWireVect.at(iWire).at(1) << "/"  << goodWireVect.at(iWire).at(2) << "/" << goodWireVect.at(iWire).at(3) << "/" << goodWireVect.at(iWire).at(4)-1 << "/" << channel  << std::endl;
@@ -952,17 +954,14 @@ void GoodWireAna::findRepeatingWireCutoff()
       
       //Loop over wires
       geo::PlaneID const planeID{iCry, iTPC, iPlane};
-      for( size_t iWire = 0; iWire < fGeometry->Nwires(planeID); ++iWire ){
-	
-	//Construct the wireID
-        geo::WireID const theWireID( planeID, iWire );
+      for(geo::WireID const theWireID : fWireReadoutGeom.Iterate<geo::WireID>(planeID)) {
 
 	//Get the channel corresponding to this wire
-	size_t channel = fGeometry->PlaneWireToChannel(theWireID);
+        size_t channel = fWireReadoutGeom.PlaneWireToChannel(theWireID);
 	
 	//If the channel has been found already, then return false. There's now repetition
 	if( tempMap.count(channel) == 1 ){
-	  theFinalWire = iWire;
+	  theFinalWire = theWireID.Wire;
 	  break;	
 	}
 	
@@ -1003,8 +1002,6 @@ void GoodWireAna::beginJob()
   art::ServiceHandle<art::TFileService> tfs;
   fTFS = &*tfs;
 
-  //Geometry Helper
-  art::ServiceHandle<dune::DUNEGeometryHelper> geometryHelper;
   */
   
 }

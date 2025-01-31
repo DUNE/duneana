@@ -1,0 +1,55 @@
+#include "services_dune.fcl"
+#include "hitfindermodules_dune.fcl"
+#include "cluster_dune.fcl"
+#include "trackfindermodules_dune.fcl"
+#include "pandoramodules_dune.fcl"
+#include "calorimetry_dune10kt.fcl"
+#include "particleid.fcl"
+#include "mctrutht0matching.fcl"
+#include "t0reco.fcl"
+#include "opticaldetectormodules_dune.fcl"
+#include "trackshowerhits.fcl"
+#include "showerfindermodules_dune.fcl"
+#include "emshower3d.fcl"
+#include "imagepatternalgs.fcl"
+
+BEGIN_PROLOG
+waveformsimchanneldump: {
+   module_type: WaveformAndSimChannelDump
+}
+END_PROLOG
+
+#include "standard_detsim_dune10kt_1x2x6.fcl"
+
+process_name: WaveformDump
+
+services:
+{
+   @table::dunefd_services
+   TFileService:          { fileName: "deleteme.root" }
+   TimeTracker:           {}
+   MemoryTracker:         {} # default is one
+   RandomNumberGenerator: {} #ART native random number generator
+   FileCatalogMetadata:  @local::art_file_catalog_mc
+                         @table::dunefd_reco_services
+   AuxDetGeometry:       @local::dune10kt_1x2x6_auxdet_geo
+   Geometry:             @local::dune10kt_1x2x6_geo
+   NuRandomService:      @local::per_event_NuRandomService  # seedservice.fcl
+}
+
+physics:
+{
+   analyzers: {
+      waveformdump: @local::waveformsimchanneldump
+   }
+
+   ana: [ waveformdump]
+   end_paths: [ ana ]
+
+}
+
+source:
+{
+   module_type: RootInput
+   maxEvents: 1
+}

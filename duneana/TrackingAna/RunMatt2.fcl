@@ -11,11 +11,12 @@ services:
   RandomNumberGenerator:  {}
   SimpleMemoryCheck:      { ignoreTotal: 1 } # default is one
   FileCatalogMetadata:    @local::art_file_catalog_mc
-  			  @table::dunefd_simulation_services
-  ExptGeoHelperInterface: @local::dune_geometry_helper
+                          @table::dunefd_simulation_services
+  WireReadout: @local::dune_wire_readout
   GeometryConfigurationWriter: {}
-  Geometry:               @local::dune10kt_geo
-  MagneticField:          @local::no_mag  
+  AuxDetGeometry:         @local::dune10kt_base_auxdet_geo
+  Geometry:               @local::dune10kt_base_geo
+  MagneticField:          @local::no_mag
 }
 
 source:
@@ -33,7 +34,7 @@ physics:
 {
  matt2: @local::dunefd_Matt2
 }
- #define the producer and filter modules for this path, order matters, 
+ #define the producer and filter modules for this path, order matters,
  #filters reject all following items.  see lines starting physics.producers below
  ana:  [ matt2 ]
 

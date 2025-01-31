@@ -1,0 +1,56 @@
+// daqsimana_job_trigprim.fcl
+//
+// Run DAQSimAna on a file with recob::Hits from the trigger primitive
+// generation chain. You probably don't want this file: More likely you
+// want to run the noise creation, trigger primitive generation and
+// DAQSimAna in one job (so you don't have to save enormous intermediate
+// files of full waveforms), using
+// addnoise_findprim_daqsimanas.fcl
+
+#include "services_dune.fcl"
+#include "DAQSimAna.fcl"
+
+process_name: DAQSimAna
+
+services:
+{
+  @table::dunefd_services
+  TFileService:          { fileName: "DAQSimAna_hist.root" }
+  TimeTracker:           {}
+  MemoryTracker:         {} # default is one
+  RandomNumberGenerator: {} #ART native random number generator
+  FileCatalogMetadata:   @local::art_file_catalog_mc
+  AuxDetGeometry:        @local::dune10kt_1x2x6_auxdet_geo
+  Geometry:              @local::dune10kt_1x2x6_geo
+  message:               @local::dune_message_services_prod
+}
+
+physics:
+{
+  analyzers:
+  {
+    daqanatrigprim:     @local::standard_daqsimana
+  }
+
+  ana: [ daqanatrigprim ]
+  end_paths: [ ana ]
+
+}
+
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+
+physics.analyzers.daqanatrigprim.HitLabel: "trigprim"
+physics.analyzers.daqanatrigprim.MARLEYLabel: "marley"
+
+services.message.destinations.LogStandardOut.categories.BackTracker.limit: 0
+services.message.destinations.LogStandardError.categories.BackTracker.limit: 0
+
+
+services.message.debugModules: ["*"]
+services.message.destinations.LogStandardOut.threshold: "DEBUG"
+services.message.destinations.LogStandardError.categories.DAQSimAna.limit: 10

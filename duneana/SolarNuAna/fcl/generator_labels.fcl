@@ -1,8 +1,9 @@
+# IMPORTANT: place the signal label first, then the background labels
+
 BEGIN_PROLOG
 
   generator_dune10kt_1x2x6_mcc11:
   [
-    "marley",
     "apa",
     "neut",
     "po",
@@ -15,7 +16,6 @@ BEGIN_PROLOG
 
   generator_dune10kt_1x2x6_legacy:
   [
-    "marley",
     "apaGen",
     "cNeutronGen",
     "cpaGen",
@@ -26,21 +26,25 @@ BEGIN_PROLOG
     "po210Gen"
   ]
 
-  generator_dune10kt_1x2x6:
+  generator_dune10kt_1x2x6_lateralAPA:
   [
-    "marley",
+    # Liquid argon
     "Ar39GenInLAr",
     "Kr85GenInLAr",
     "Ar42GenInLAr",
     "K42From42ArGenInLAr",
     "Rn222ChainRn222GenInLAr",
+    ## Subject to ion drifting (funky x-profile)
     "Rn222ChainPo218GenInLAr",
     "Rn222ChainPb214GenInLAr",
     "Rn222ChainBi214GenInLAr",
     "Rn222ChainPb210GenInLAr",
     "Rn220ChainPb212GenInLAr",
+    # CPA
     "K40GenInCPA",
     "U238ChainGenInCPA",
+    "Th232ChainGenInCPA",
+    ## Product of ion drifting, on CPA, but these actually came from the liquid argon
     "K42From42ArGenInCPA",
     "Rn222ChainPo218GenInCPA",
     "Rn222ChainPb214GenInCPA",
@@ -48,20 +52,70 @@ BEGIN_PROLOG
     "Rn222ChainPb210GenInCPA",
     "Rn222ChainFromBi210GenInCPA",
     "Rn220ChainFromPb212GenInCPA",
+    # APA
     "Co60GenInAPA",
     "U238ChainGenInAPA",
     "Th232ChainGenInAPA",
+    #K40GenInAPAboards,
+    #U238ChainGenInAPAboards,
+    #Th232ChainGenInAPAboards,
+    "U238Th232K40GenInLArAPAboards1x2x6",
+    # PDS
     "Rn222ChainGenInPDS",
-    "CavernwallGammasAtLAr",
-    "foamGammasAtLAr",
-    "CavernwallNeutronsAtLAr",
-    "CryostatNGammasAtLAr",
-    "CavernNGammasAtLAr"
+    # Externals
+    "CavernwallGammasAtLAr1x2x6",
+    "foamGammasAtLAr1x2x6",
+    "CavernwallNeutronsAtLAr1x2x6",
+    "CryostatNGammasAtLAr1x2x6",
+    "CavernNGammasAtLAr1x2x6"
+  ]
+
+    generator_dune10kt_1x2x6_centralAPA:
+  [
+    # Liquid argon
+    "Ar39GenInLAr",
+    "Kr85GenInLAr",
+    "Ar42GenInLAr",
+    "K42From42ArGenInLAr",
+    "Rn222ChainRn222GenInLAr",
+    ## Subject to ion drifting (funky x-profile)
+    "Rn222ChainPo218GenInLAr",
+    "Rn222ChainPb214GenInLAr",
+    "Rn222ChainBi214GenInLAr",
+    "Rn222ChainPb210GenInLAr",
+    "Rn220ChainPb212GenInLAr",
+    # CPA
+    "K40GenInCPA",
+    "U238ChainGenInCPA",
+    "Th232ChainGenInCPA",
+    ## Product of ion drifting, on CPA, but these actually came from the liquid argon
+    "K42From42ArGenInCPA",
+    "Rn222ChainPo218GenInCPA",
+    "Rn222ChainPb214GenInCPA",
+    "Rn222ChainBi214GenInCPA",
+    "Rn222ChainPb210GenInCPA",
+    "Rn222ChainFromBi210GenInCPA",
+    "Rn220ChainFromPb212GenInCPA",
+    # APA
+    "Co60GenInAPA",
+    "U238ChainGenInAPA",
+    "Th232ChainGenInAPA",
+    #K40GenInAPAboards,
+    #U238ChainGenInAPAboards,
+    #Th232ChainGenInAPAboards,
+    "U238Th232K40GenInLArAPAboards1x2x6",
+    # PDS
+    "Rn222ChainGenInPDS",
+    # Externals
+    "CavernwallGammasAtLAr1x2x6lowBgAPA",
+    "foamGammasAtLAr1x2x6lowBgAPA",
+    "CavernwallNeutronsAtLAr1x2x6lowBgAPA",
+    "CryostatNGammasAtLAr1x2x6lowBgAPA",
+    "CavernNGammasAtLAr1x2x6lowBgAPA"
   ]
 
   generator_dunevd10kt_1x8x14_3view_30deg:
   [
-    "marley",
     "Ar39GenInLAr",
     "Kr85GenInLAr",
     "Ar42GenInLAr",
@@ -95,7 +149,6 @@ BEGIN_PROLOG
 
   generator_dunevd10kt_1x8x6_3view_30deg:
   [
-    "marley",
     "Ar39GenInLAr",
     "Kr85GenInLAr",
     "Ar42GenInLAr",

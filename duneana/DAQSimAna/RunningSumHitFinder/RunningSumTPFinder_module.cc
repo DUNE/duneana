@@ -18,7 +18,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 
 #include "duneana/DAQSimAna/RunningSumHitFinder/RunningSumTPFinderTool.h"
@@ -66,7 +66,7 @@ void RunningSumTPFinder::produce(art::Event & e)
     auto const& digits_handle=e.getValidHandle<std::vector<raw::RawDigit>>(m_inputTag);
     auto& digits_in =*digits_handle;
 
-    art::ServiceHandle<geo::Geometry> geo;
+    auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
     std::vector<std::vector<short>>  induction_samples;
     std::vector<std::vector<short>> collection_samples;
     std::vector<unsigned int>  induction_channel_numbers;
@@ -75,7 +75,7 @@ void RunningSumTPFinder::produce(art::Event & e)
     std::map<raw::ChannelID_t, const raw::RawDigit*> colChanToDigit;
     for(auto&& digit: digits_in){
         // Select just the collection channels for the primitive-finding algorithm
-        const geo::SigType_t sigType = geo->SignalType(digit.Channel());
+        const geo::SigType_t sigType = wireReadout.SignalType(digit.Channel());
         if(sigType==geo::kInduction){
             indChanToDigit[digit.Channel()]=&digit;
             induction_channel_numbers.push_back(digit.Channel());
@@ -99,7 +99,7 @@ void RunningSumTPFinder::produce(art::Event & e)
         if(!digit){
             std::cout << "No digit with channel " << hit.channel << " found. Did you set the channel correctly?" << std::endl;
         }
-        std::vector<geo::WireID> wids = geo->ChannelToWire(hit.channel);
+        std::vector<geo::WireID> wids = wireReadout.ChannelToWire(hit.channel);
         geo::WireID wid = wids[0];
 
         recob::HitCreator lar_hit(*digit,                           //RAW DIGIT REFERENCE.
@@ -113,7 +113,8 @@ void RunningSumTPFinder::produce(art::Event & e)
                               0,                                    //SIGMA_PEAK_AMPLITUDE.
                               hit.charge,                           //HIT_INTEGRAL.
                               0,                                    //HIT_SIGMA_INTEGRAL.
-                              hit.charge,                           //SUMMED CHARGE. 
+                              hit.charge,                           //SUMMED CHARGE. ROI
+       			      hit.charge,                           //SUMMED CHARGE.HIT TO BE FIXED 
                               0,                                    //MULTIPLICITY.
                               0,                                    //LOCAL_INDEX.
                               0,                                    //WIRE ID.
@@ -127,7 +128,7 @@ void RunningSumTPFinder::produce(art::Event & e)
         if(!digit){
             std::cout << "No digit with channel " << hit.channel << " found. Did you set the channel correctly?" << std::endl;
         }
-        std::vector<geo::WireID> wids = geo->ChannelToWire(hit.channel);
+        std::vector<geo::WireID> wids = wireReadout.ChannelToWire(hit.channel);
         geo::WireID wid = wids[0];
 
         recob::HitCreator lar_hit(*digit,                           //RAW DIGIT REFERENCE.
@@ -141,7 +142,8 @@ void RunningSumTPFinder::produce(art::Event & e)
                               0,                                    //SIGMA_PEAK_AMPLITUDE.
                               hit.charge,                           //HIT_INTEGRAL.
                               0,                                    //HIT_SIGMA_INTEGRAL.
-                              hit.charge,                           //SUMMED CHARGE. 
+                              hit.charge,                           //SUMMED CHARGE. ROI
+			      hit.charge,                           //SUMMED CHARGE.HIT TO BE FIXED 
                               0,                                    //MULTIPLICITY.
                               0,                                    //LOCAL_INDEX.
                               0,                                    //WIRE ID.

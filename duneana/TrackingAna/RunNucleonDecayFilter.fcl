@@ -12,9 +12,10 @@ services:
   MemoryTracker:          {}
   FileCatalogMetadata:    @local::art_file_catalog_mc
   			  @table::dunefd_simulation_services
-  ExptGeoHelperInterface: @local::dune_geometry_helper
+  WireReadout: @local::dune_wire_readout
   GeometryConfigurationWriter: {}
-  Geometry:               @local::dune10kt_geo
+  AuxDetGeometry:         @local::dune10kt_base_auxdet_geo
+  Geometry:               @local::dune10kt_base_geo
   MagneticField:          @local::no_mag  
 }
 
