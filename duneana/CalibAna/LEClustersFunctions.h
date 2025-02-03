@@ -48,7 +48,7 @@ bool AllSame( std::vector<int> v)
   }
   return allsame;
 }
-int NearOrFar( bool IsPDVD , bool IsPDHD , const recob::Hit & hit)
+int NearOrFar( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , const recob::Hit & hit)
 {
   if (IsPDHD)
   {
@@ -60,11 +60,21 @@ int NearOrFar( bool IsPDVD , bool IsPDHD , const recob::Hit & hit)
     if (hit.WireID().TPC <= 7 ) return -1;
     if (hit.WireID().TPC  > 7 ) return 1;
   }
+  if (IsFDHD)
+  {
+    if( hit.WireID().TPC %2 ==0 ) return +1;
+    else return -1;
+  }
+  if (IsFDVD)
+  {
+    if(hit.WireID().TPC % 8 < 4) return +1;
+    else return -1;
+  }
   return -999;
 }
 
 
-void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , art::Event const & ev, art::InputTag HitLabel, float const CoincidenceWd1_l , float const CoincidenceWd1_r, float const CoincidenceWd2_l , float const CoincidenceWd2_r, const recob::Hit & HitCol, 
+void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , art::Event const & ev, art::InputTag HitLabel, float const CoincidenceWd1_l , float const CoincidenceWd1_r, float const CoincidenceWd2_l , float const CoincidenceWd2_r, const recob::Hit & HitCol, 
                                                                                   std::list<geo::WireID> & WireInd1,
                                                                                   std::list<geo::WireID> & WireInd2,
                                                                                   std::list<int>   & ChannelInd1,
@@ -90,7 +100,7 @@ void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , art::Event const &
 
   float PeakTime = -999;
   int   Plane    = -999;
-  int NoFCol = NearOrFar(IsPDVD,IsPDHD,HitCol);
+  int NoFCol = NearOrFar(IsPDVD,IsPDHD,IsFDVD,IsFDHD,HitCol);
   int NoF = -4;
 
   for (int i=0, sz=hitlist->size(); i!=sz; ++i)
@@ -99,7 +109,7 @@ void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , art::Event const &
     Plane = hit.WireID().Plane;
     if (Plane == 2) continue;
 
-    NoF = NearOrFar(IsPDVD,IsPDHD,hit);
+    NoF = NearOrFar(IsPDVD,IsPDHD,IsFDVD,IsFDHD,hit);
     if (NoF != NoFCol) continue;
 
     PeakTime = hit.PeakTime();
@@ -1106,6 +1116,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     art::InputTag fHITproducer,
     bool  IsPDVD,
     bool  IsPDHD,
+    bool  IsFDVD,
+    bool  IsFDHD,
     float fCoincidenceWd1_left,
     float fCoincidenceWd1_right,
     float fCoincidenceWd2_left,
@@ -1200,7 +1212,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     int fChannel        = hit.Channel();
     int fPlane          = hit.WireID().Plane;
 
-    int fNearOrFarToTheBeam = NearOrFar(IsPDVD , IsPDHD , hit);
+    int fNearOrFarToTheBeam = NearOrFar(IsPDVD , IsPDHD ,IsFDVD , IsFDHD, hit);
 
     //float fEnergy         = hit.ROISummedADC();///fADCtoEl;
     float fEnergy         = hit.Integral();///fADCtoEl;
@@ -1283,7 +1295,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 
     // Coincidence research
 
-    GetListOfTimeCoincidenceHit( IsPDVD, IsPDHD , e, fHITproducer, fCoincidenceWd1_left, fCoincidenceWd1_right ,fCoincidenceWd2_left, fCoincidenceWd2_right , hit, lWireInd1, lWireInd2, lChannelInd1, lChannelInd2, lEnergyInd1, lEnergyInd2, lPeakTimeInd1, lPeakTimeInd2, lPeakAmpInd1, lPeakAmpInd2);
+    GetListOfTimeCoincidenceHit( IsPDVD, IsPDHD ,IsFDVD , IsFDHD, e, fHITproducer, fCoincidenceWd1_left, fCoincidenceWd1_right ,fCoincidenceWd2_left, fCoincidenceWd2_right , hit, lWireInd1, lWireInd2, lChannelInd1, lChannelInd2, lEnergyInd1, lEnergyInd2, lPeakTimeInd1, lPeakTimeInd2, lPeakAmpInd1, lPeakAmpInd2);
 
     int fCoincidence = 0;
     if ( !lWireInd1.empty() || !lWireInd2.empty() ) fCoincidence += 1;
