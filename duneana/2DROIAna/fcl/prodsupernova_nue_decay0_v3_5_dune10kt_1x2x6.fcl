@@ -1,0 +1,58 @@
+#include "services_dune.fcl"
+#include "supernova_dune.fcl"
+#include "workflow_radiological_decay0_dune10kt.fcl"
+
+process_name: SupernovaGen
+
+services:
+{
+  TFileService:          { fileName: "prodsupernova_nue_hist.root" }
+  TimeTracker:           {}
+  MemoryTracker:         { } # default is one
+  RandomNumberGenerator: {}                 # ART native random number generator
+  FileCatalogMetadata:  @local::art_file_catalog_mc
+                        @table::dunefd_1x2x6_services
+}
+
+source:
+{
+  module_type: EmptyEvent
+  timestampPlugin: { plugin_type: "GeneratedEventTimestamp" }
+  maxEvents:   10          # Number of events to create
+  firstRun:    20000041    # Run number to use for this file
+  firstEvent:  1           # number of first event in the file
+}
+
+physics:
+{
+  producers:
+  {
+    @table::dunefd_horizdrift_1x2x6_producers
+    marley:      @local::dunefd_1x2x6_supernova
+    rns:       { module_type: "RandomNumberSaver" }
+  }
+ 
+  simulate:      [ rns, marley, @sequence::dunefd_hd_backgrounds_1x2x6_v3_5 ]
+  stream1:       [ out1 ]
+  trigger_paths: [ simulate ] 
+  end_paths:     [ stream1 ]  
+}
+
+outputs:
+{
+  out1:
+  {
+    module_type: RootOutput
+    fileName:    "prodsupernova_nue_bkg_dune10kt_1x2x6_gen.root" # Default file name, can override from command line with -o or --output
+    dataTier:    "generated"
+    compressionLevel: 1
+  }
+}
+
+services:
+{
+    @table::services
+    @table::dunefd_1x2x6_services
+}
+
+physics.producers.generator.GeneratorAlg.NumberOfNeutrinos: 10

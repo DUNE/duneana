@@ -1,0 +1,20 @@
+#include "standard_reco_dune10kt_1x2x6.fcl"
+
+physics.producers.spsolve.MinNHits: 2 #lower the threshold for low energy interactions
+
+physics.producers:
+{
+    @table::physics.producers
+    wclsmcnfsp: @local::dune10kt_1x2x6_mc_nfsp
+}
+
+physics.producers.gaushit.CalDataModuleLabel: "wclsmcnfsp:gauss"
+physics.producers.pmtrack.WireModuleLabel: "wclsmcnfsp:gauss"
+physics.producers.pmtracktc.WireModuleLabel: "wclsmcnfsp:gauss"
+physics.producers.emtrkmichelid.WireLabel: "wclsmcnfsp:gauss"
+physics.producers.energyrecnumu.WireLabel: "wclsmcnfsp:gauss"
+physics.producers.energyrecnue.WireLabel: "wclsmcnfsp:gauss"
+physics.producers.energyrecnc.WireLabel: "wclsmcnfsp:gauss"
+
+physics.reco: [ wclsmcnfsp, @sequence::dunefd_horizdrift_workflow_reco_solar ]
+# outputs.out1.dataTier: "hit-reconstructed"
