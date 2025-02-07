@@ -11,8 +11,8 @@ roiana::ROIAna::ROIAna(fhicl::ParameterSet const& pset)
   fLogLevel           = pset.get<int>("LogLevel", 10);
   fNChanPerApa        = pset.get<int>("ChannelPerApa", 2560);
   fNTicksPerWire      = pset.get<int>("TicksPerWire", 6000);
-  geo = lar::providerFrom<geo::Geometry>();
-  fNPlanes = geo->Nplanes();
+  const geo::WireReadoutGeom& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
+  fNPlanes = wireReadout.Nplanes();
 
   fLabels      = pset.get<std::vector<std::string>>("ParticleLabelVector");
   fInteraction = pset.get<std::vector<std::string>>("InteractionLabelVector");

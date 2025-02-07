@@ -34,8 +34,8 @@
 #include "lardataobj/AnalysisBase/CosmicTag.h"
 #include "lardataobj/AnalysisBase/T0.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larcore/Geometry/Geometry.h"
 #include "larcore/CoreUtils/ServiceUtil.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"
 #include "larevt/SpaceChargeServices/SpaceChargeService.h"
 
@@ -115,9 +115,6 @@ private:
     ch_w_sc;
   std::map<int, std::string> 
     trkid_to_label_map;
-
-  // Geometry services
-  const geo::GeometryCore* geo; //= lar::providerFrom<geo::Geometry>();
 
   /////////////////////////////////////////////
   // Tree Variables
