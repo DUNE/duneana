@@ -418,19 +418,19 @@ void roiana::ROIAna::ROIEfficiencies( std::map<int,bool> ret, int n_channels, st
 
   // Marley sensitivity
   float MarleyEnergyTot = fECMin;
-  float MarleyChargeTot = fECMin;
+  //float MarleyChargeTot = fECMin;
   float MarleyEnergyROI = fECMin;
-  float MarleyChargeROI = fECMin;
+  //float MarleyChargeROI = fECMin;
   for (const auto& Ch_IDE : MarleyChannels) {
     int MarleyCh = Ch_IDE.first;
     sim::IDE MarleyIDE = Ch_IDE.second;
 
     MarleyEnergyTot += MarleyIDE.energy;
-    MarleyChargeTot += MarleyIDE.numElectrons;
+    //MarleyChargeTot += MarleyIDE.numElectrons;
     if (ret[MarleyCh]) {
       //if signal channel is in ROI
       MarleyEnergyROI += MarleyIDE.energy;
-      MarleyChargeROI += MarleyIDE.numElectrons;
+      //MarleyChargeROI += MarleyIDE.numElectrons;
     } 
   }//for MarleyChannels
   std::cout << "Marley signal energy total (MeV): " << MarleyEnergyTot << std::endl;

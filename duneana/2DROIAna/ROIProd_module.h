@@ -202,7 +202,7 @@ private:
 
   /////////////////////////////////////////////
   // Declare output data
-  TTree *fTree;
+  //TTree *fTree;
   std::string fTreeName;
   TTree* fROITree;
   TTree* fMCTruthTree;
