@@ -60,6 +60,7 @@ int NearOrFar( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , const rec
     if (hit.WireID().TPC <= 7 ) return -1;
     if (hit.WireID().TPC  > 7 ) return 1;
   }
+  if (IsFDHD || IsFDVD) return 1; //to take away when geometry will 2xaxb but now only 1xaxb on both HD and VD simulation
   if (IsFDHD)
   {
     if( hit.WireID().TPC %2 ==0 ) return +1;
