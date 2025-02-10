@@ -482,7 +482,8 @@ point gen_yzt(int size , std::vector<int> vIndex , std::vector<float> vY , std::
 {
   int i = 0;
   point p, pt = ( point) malloc(sizeof( point_t) * size);
-
+  float electronDriftScale = fElectronVelocity * fTickToMus;
+	
   for (p = pt + size; p-- > pt;)
   {
     p->y = vY[vIndex[i]];
@@ -523,13 +524,14 @@ int nearest(point pt, point cent, int n_cluster, float *d2)
     if (d2) *d2 = min_d;
     return min_i;
 }
-/*
-float GetDist2D(float y0,float z0,float y1,float z1){
+
+float GetDist(float y0,float z0,float t0, float y1,float z1, float t1){
     float z = z0-z1;
     float y = y0-y1;
-    return z*z+y*y;
+    float t = t0-t1;
+    return TMath::Sqrt(z*z+y*y+t*t);
 }
-*/
+
 int reallocate(point pt, std::vector<std::vector<float>> ClusterPosition , float threshold)
 {
     int  min_i = pt->group;
@@ -645,7 +647,7 @@ std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster)
 std::vector<std::vector<float>> GetData(int len ,  point data){
 
     std::vector<std::vector<float> > dataPos;
-    std::vector<float> dataPosZ,dataPosY;
+    std::vector<float> dataPosZ,dataPosY,dataPosT;
 
 
   for(int i = 0; i < len; i++, data++) {
