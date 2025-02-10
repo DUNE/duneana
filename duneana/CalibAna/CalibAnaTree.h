@@ -433,6 +433,8 @@ private:
   bool  bIs3ViewsCoincidence;
   bool  bIsPDVD;
   bool  bIsPDHD;
+  bool  bIsFDVD;
+  bool  bIsFDHD;
 
   float fNumberInitClusters;
   float fMaxSizeCluster;
