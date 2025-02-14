@@ -5,7 +5,7 @@
 typedef struct //!< 2D point for clustering : - group (number of the associated cluster)
                  //!<                           - index (index to retreive the info like energy to the associated hit)
 {
-    float y, z; //!<  [cm]
+    float y, z, t; //!<  [cm]
     int group, index;
 } point_t, *point;
 
@@ -48,7 +48,7 @@ bool AllSame( std::vector<int> v)
   }
   return allsame;
 }
-int NearOrFar( bool IsPDVD , bool IsPDHD , const recob::Hit & hit)
+int NearOrFar( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , const recob::Hit & hit)
 {
   if (IsPDHD)
   {
@@ -60,11 +60,22 @@ int NearOrFar( bool IsPDVD , bool IsPDHD , const recob::Hit & hit)
     if (hit.WireID().TPC <= 7 ) return -1;
     if (hit.WireID().TPC  > 7 ) return 1;
   }
+  if (IsFDHD || IsFDVD) return 1; //to take away when geometry will 2xaxb but now only 1xaxb on both HD and VD simulation
+  if (IsFDHD)
+  {
+    if( hit.WireID().TPC %2 ==0 ) return +1;
+    else return -1;
+  }
+  if (IsFDVD)
+  {
+    if(hit.WireID().TPC % 8 < 4) return +1;
+    else return -1;
+  }
   return -999;
 }
 
 
-void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , art::Event const & ev, art::InputTag HitLabel, float const CoincidenceWd1_l , float const CoincidenceWd1_r, float const CoincidenceWd2_l , float const CoincidenceWd2_r, const recob::Hit & HitCol, 
+void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , art::Event const & ev, art::InputTag HitLabel, float const CoincidenceWd1_l , float const CoincidenceWd1_r, float const CoincidenceWd2_l , float const CoincidenceWd2_r, const recob::Hit & HitCol, 
                                                                                   std::list<geo::WireID> & WireInd1,
                                                                                   std::list<geo::WireID> & WireInd2,
                                                                                   std::list<int>   & ChannelInd1,
@@ -90,7 +101,7 @@ void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , art::Event const &
 
   float PeakTime = -999;
   int   Plane    = -999;
-  int NoFCol = NearOrFar(IsPDVD,IsPDHD,HitCol);
+  int NoFCol = NearOrFar(IsPDVD,IsPDHD,IsFDVD,IsFDHD,HitCol);
   int NoF = -4;
 
   for (int i=0, sz=hitlist->size(); i!=sz; ++i)
@@ -99,7 +110,7 @@ void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , art::Event const &
     Plane = hit.WireID().Plane;
     if (Plane == 2) continue;
 
-    NoF = NearOrFar(IsPDVD,IsPDHD,hit);
+    NoF = NearOrFar(IsPDVD,IsPDHD,IsFDVD,IsFDHD,hit);
     if (NoF != NoFCol) continue;
 
     PeakTime = hit.PeakTime();
@@ -459,8 +470,8 @@ std::vector<int> GetXYZIsolatedPoint( std::vector<float> vYPoint ,
 
 float dist2( point a, point b)
 {
-    float z = a->z - b->z, y = a->y - b->y;
-    return z*z + y*y;
+    float z = a->z - b->z, y = a->y - b->y , t = a->t - b->t;
+    return z*z + y*y + t*t;
 }
 
 float randf(float m)
@@ -468,16 +479,19 @@ float randf(float m)
     return m * rand() / (RAND_MAX - 1.);
 }
 
-point gen_yz(int size , std::vector<int> vIndex , std::vector<float> vY , std::vector<float> vZ , std::vector<int> vNOF, float fgeoZmax)
+point gen_yzt(int size , std::vector<int> vIndex , std::vector<float> vY , std::vector<float> vZ , std::vector<float> vT , std::vector<int> vNOF, float fElectronVelocity , float fTickToMus ,float fgeoZmax)
 {
   int i = 0;
   point p, pt = ( point) malloc(sizeof( point_t) * size);
-
+  float electronDriftScale = fElectronVelocity * fTickToMus;
+	
   for (p = pt + size; p-- > pt;)
   {
     p->y = vY[vIndex[i]];
     p->index = vIndex[i];
 
+    float time_in_cm = vT[vIndex[i]]*electronDriftScale;
+    p->t = time_in_cm;
     if (vNOF[vIndex[i]] == -1)
     {
       p->z = -1*vZ[vIndex[i]] - fgeoZmax;
@@ -512,10 +526,11 @@ int nearest(point pt, point cent, int n_cluster, float *d2)
     return min_i;
 }
 
-float GetDist2D(float y0,float z0,float y1,float z1){
+float GetDist(float y0,float z0,float t0, float y1,float z1, float t1){
     float z = z0-z1;
     float y = y0-y1;
-    return z*z+y*y;
+    float t = t0-t1;
+    return TMath::Sqrt(z*z+y*y+t*t);
 }
 
 int reallocate(point pt, std::vector<std::vector<float>> ClusterPosition , float threshold)
@@ -526,7 +541,7 @@ int reallocate(point pt, std::vector<std::vector<float>> ClusterPosition , float
     for( int k = 0 ; k < (int) ClusterPosition[0].size() ; k++) 
     {
 
-      float dist = sqrt(GetDist2D(pt->z,pt->y,ClusterPosition[0][k],ClusterPosition[1][k]));
+      float dist = GetDist(pt->z,pt->y,pt->t,ClusterPosition[0][k],ClusterPosition[1][k],ClusterPosition[2][k]);
       if (min_d > dist ) 
       {
          min_d = dist; 
@@ -584,13 +599,20 @@ std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster)
 
     do {
         /* group element for centroids are used as counters */
-        for_n { c->group = 0; c->z = c->y = 0; }
+        for_n { c->group = 0; c->z = c->y = c->t = 0; }
         for_len {
             c = cent + p->group;
             c->group++;
-            c->z += p->z; c->y += p->y;
+            c->z += p->z;
+	    c->y += p->y;
+	    c->t += p->t;
         }
-        for_n { c->z /= c->group; c->y /= c->group; }
+        for_n 
+	{ 
+	    c->z /= c->group; 
+            c->y /= c->group;
+            c->t /= c->group;
+        }
 
         changed = 0;
         /* fInd closest centroid of each point */
@@ -606,16 +628,18 @@ std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster)
     for_n { c->group = i; }
 
     std::vector<std::vector<float> > clusterPos;
-    std::vector<float> clusterPosY,clusterPosZ;
+    std::vector<float> clusterPosY,clusterPosZ,clusterPosT;
 
      point result;
 
     for(i = 0, result = cent; i < n_cluster; i++, result++) {
         clusterPosZ.push_back(result->z);
         clusterPosY.push_back(result->y);
+        clusterPosT.push_back(result->t);
     }
     clusterPos.push_back(clusterPosZ);
     clusterPos.push_back(clusterPosY);
+    clusterPos.push_back(clusterPosT);
 
     return clusterPos;
 }
@@ -624,16 +648,17 @@ std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster)
 std::vector<std::vector<float>> GetData(int len ,  point data){
 
     std::vector<std::vector<float> > dataPos;
-    std::vector<float> dataPosZ,dataPosY;
+    std::vector<float> dataPosZ,dataPosY,dataPosT;
 
 
   for(int i = 0; i < len; i++, data++) {
         dataPosZ.push_back(data->z);
         dataPosY.push_back(data->y);
+	dataPosT.push_back(data->t);
     }
     dataPos.push_back(dataPosZ);
     dataPos.push_back(dataPosY);
-
+    dataPos.push_back(dataPosT);
     return dataPos;
 }
 
@@ -653,7 +678,7 @@ std::vector<int> CheckCompletude(std::vector<std::vector<float> > &data,std::vec
         {
             if(IDin[j] == 0)
             {
-                dist = sqrt(GetDist2D(data[0][j],data[1][j],cluster[0][i],cluster[1][i]));
+                dist = GetDist(data[0][j],data[1][j],data[2][j],cluster[0][i],cluster[1][i],cluster[2][i]);
                 // printf("Distance to cluster : %f %f \n",i,Nin,Nout);
                 if(dist <= RMS){ Nin++; IDin[j] = 1;}
                 else if(dist <= mult*RMS )
@@ -696,7 +721,7 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
     if ( fVerbose) printf("Counting : %.03f %.03f %.03f sum : %.02f \n",float(Nin)/float(Npts),float(Nin2)/float(Npts),float(Nout)/float(Npts),float(Nin+Nin2+Nout)/float(Npts));
 
 
-    if((float(Nin+Nin2)/float(Npts) > tmp -0.04) && float(Nin)/float(Npts) < tmp)
+    if((float(Nin+Nin2)/float(Npts) > tmp ) && float(Nin)/float(Npts) < tmp)
     {
       v[0] = 2;
       v[1] = cluster[0].size();
@@ -721,7 +746,7 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
         {
             if(j > i)
             {
-                dist = sqrt(GetDist2D(cluster[0][j],cluster[1][j],cluster[0][i],cluster[1][i]));
+                dist = GetDist(cluster[0][j],cluster[1][j],cluster[2][j],cluster[0][i],cluster[1][i],cluster[2][i]);
                 if(dist < 2.*RMS)
                 {
                     IDoverlap[i][j] = 1;
@@ -732,19 +757,22 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
     }
     int overlap_counter = 0;
 
-    std::vector<float> newclusterZ, newclusterY;
-    float meanZ, meanY;
+    std::vector<float> newclusterZ, newclusterY, newclusterT;
+    float meanZ, meanY, meanT;
     while( (overlap_counter<10)&&(overlap>0) )
     {
       newclusterZ.clear(); 
       newclusterY.clear();
+      newclusterT.clear();	    
       meanZ = 0;
       meanY = 0;
-
+      meanT = 0;
+	    
       for(int i = 0;i<Ncls;i++)
       {
         meanZ = 0.;
         meanY = 0.;
+	meanT = 0.;      
         overlap = 0;
 
         for(int j = i;j<Ncls;j++)
@@ -753,8 +781,10 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
           {
             meanZ += mean(cluster[0][i],cluster[0][j]);
             meanY += mean(cluster[1][i],cluster[1][j]);
+	    meanT += mean(cluster[2][i],cluster[2][j]);
             cluster[0][j] = -999;
             cluster[1][j] = -999;
+	    cluster[2][j] =-999;  
             overlap++;
           }
         }
@@ -762,17 +792,20 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
         {
           newclusterZ.push_back(cluster[0][i]);
           newclusterY.push_back(cluster[1][i]);
+	  newclusterT.push_back(cluster[2][i]);
         }
         else if(cluster[0][i] != -999)
         {
           newclusterZ.push_back(meanZ/float(overlap));
           newclusterY.push_back(meanY/float(overlap));
+	  newclusterT.push_back(meanT/float(overlap));
         }
       }
 
       cluster.clear();
       cluster.push_back(newclusterZ);
       cluster.push_back(newclusterY);
+      cluster.push_back(newclusterT);
 
       if ( fVerbose) printf("%lu clusters has been removed at iteration %d \n",Ncls-cluster[0].size(),overlap_counter);
 
@@ -788,7 +821,7 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
         {
           if(j > i)
           {
-            dist = sqrt(GetDist2D(cluster[0][j],cluster[1][j],cluster[0][i],cluster[1][i]));
+            dist = GetDist(cluster[0][j],cluster[1][j],cluster[2][j],cluster[0][i],cluster[1][i],cluster[2][i]);
             if(dist < 2.*RMS)
             {
               v[j] = 1;
@@ -1086,6 +1119,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     art::InputTag fHITproducer,
     bool  IsPDVD,
     bool  IsPDHD,
+    bool  IsFDVD,
+    bool  IsFDHD,
     float fCoincidenceWd1_left,
     float fCoincidenceWd1_right,
     float fCoincidenceWd2_left,
@@ -1180,7 +1215,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     int fChannel        = hit.Channel();
     int fPlane          = hit.WireID().Plane;
 
-    int fNearOrFarToTheBeam = NearOrFar(IsPDVD , IsPDHD , hit);
+    int fNearOrFarToTheBeam = NearOrFar(IsPDVD , IsPDHD ,IsFDVD , IsFDHD, hit);
 
     //float fEnergy         = hit.ROISummedADC();///fADCtoEl;
     float fEnergy         = hit.Integral();///fADCtoEl;
@@ -1263,7 +1298,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 
     // Coincidence research
 
-    GetListOfTimeCoincidenceHit( IsPDVD, IsPDHD , e, fHITproducer, fCoincidenceWd1_left, fCoincidenceWd1_right ,fCoincidenceWd2_left, fCoincidenceWd2_right , hit, lWireInd1, lWireInd2, lChannelInd1, lChannelInd2, lEnergyInd1, lEnergyInd2, lPeakTimeInd1, lPeakTimeInd2, lPeakAmpInd1, lPeakAmpInd2);
+    GetListOfTimeCoincidenceHit( IsPDVD, IsPDHD ,IsFDVD , IsFDHD, e, fHITproducer, fCoincidenceWd1_left, fCoincidenceWd1_right ,fCoincidenceWd2_left, fCoincidenceWd2_right , hit, lWireInd1, lWireInd2, lChannelInd1, lChannelInd2, lEnergyInd1, lEnergyInd2, lPeakTimeInd1, lPeakTimeInd2, lPeakAmpInd1, lPeakAmpInd2);
 
     int fCoincidence = 0;
     if ( !lWireInd1.empty() || !lWireInd2.empty() ) fCoincidence += 1;
@@ -1386,7 +1421,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   }
 
   point v;
-  v = gen_yz( PTSIsolated , vIso , vYPointByEvent , vZPointByEvent , vNoFByEvent , fgeoZmax);
+  v = gen_yzt( PTSIsolated , vIso , vYPointByEvent , vZPointByEvent , vPeakTimeColByEvent ,vNoFByEvent , fElectronVelocity , fTickTimeInMus, fgeoZmax);
 
 
   std::vector<std::vector<float> > dataPos = GetData(PTSIsolated,v);
@@ -1423,7 +1458,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
       }
       else
       {
-        K = vchecks[1] + 1;
+        threshold = fMaxSizeCluster;
+        K = vchecks[1] + 5;
         if ( fVerbose) printf("Threshold Max reached \n");
       }
     }
