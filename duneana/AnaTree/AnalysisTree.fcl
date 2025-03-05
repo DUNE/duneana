@@ -107,8 +107,8 @@ dune10kt_analysistree: @local::dune35t_analysistree
 dune10kt_analysistree.PandoraNuVertexModuleLabel: "pandora"
 dune10kt_analysistree.LArGeantModuleLabel: "tpcrawdecoder:simpleSC"
 dune10kt_analysistree.TrackModuleLabel: ["pandoraTrack", "pmtrack", "pmtracktc", "pmtrajfit" ]
-dune10kt_analysistree.CalorimetryModuleLabel: [ "pmtrackcalo", "pmtracktccalo", "pandoracalo", "pmtrajfitcalo" ]
-dune10kt_analysistree.ParticleIDModuleLabel:       [ "pmtrackpid", "pmtracktcpid", "pandorapid", "pmtrajfitpid" ]
+dune10kt_analysistree.CalorimetryModuleLabel: [ "pandoracalo", "pmtrackcalo", "pmtracktccalo", "pmtrajfitcalo" ]
+dune10kt_analysistree.ParticleIDModuleLabel:       [ "pandorapid", "pmtrackpid", "pmtracktcpid", "pmtrajfitpid" ]
 SpacePointSolverModuleLabel: "spsolve"
 dune10kt_analysistree.FlashT0FinderLabel: [ "", "", "", "" ]
 dune10kt_analysistree.MCT0FinderLabel:   [ "", "", "", "" ]
