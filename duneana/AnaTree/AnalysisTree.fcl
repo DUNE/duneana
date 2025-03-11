@@ -107,8 +107,8 @@ dune10kt_analysistree: @local::dune35t_analysistree
 dune10kt_analysistree.PandoraNuVertexModuleLabel: "pandora"
 dune10kt_analysistree.LArGeantModuleLabel: "tpcrawdecoder:simpleSC"
 dune10kt_analysistree.TrackModuleLabel: ["pandoraTrack", "pmtrack", "pmtracktc", "pmtrajfit" ]
-dune10kt_analysistree.CalorimetryModuleLabel: [ "pmtrackcalo", "pmtracktccalo", "pandoracalo", "pmtrajfitcalo" ]
-dune10kt_analysistree.ParticleIDModuleLabel:       [ "pmtrackpid", "pmtracktcpid", "pandorapid", "pmtrajfitpid" ]
+dune10kt_analysistree.CalorimetryModuleLabel: [ "pandoracalo", "pmtrackcalo", "pmtracktccalo", "pmtrajfitcalo" ]
+dune10kt_analysistree.ParticleIDModuleLabel:       [ "pandorapid", "pmtrackpid", "pmtracktcpid", "pmtrajfitpid" ]
 SpacePointSolverModuleLabel: "spsolve"
 dune10kt_analysistree.FlashT0FinderLabel: [ "", "", "", "" ]
 dune10kt_analysistree.MCT0FinderLabel:   [ "", "", "", "" ]
@@ -124,6 +124,34 @@ dune10kt_analysistree.SaveExternCounterInfo:      false
 dune10kt_analysistree.SaveFlashInfo:              false
 dune10kt_analysistree.SaveShowerInfo:             true
 dune10kt_analysistree.SavePandoraNuVertexInfo:    true
+
+dune10kt_supernova_analysistree:                          @local::dune10kt_analysistree
+dune10kt_supernova_analysistree.MCTruthModuleLabel :      "marley"
+dune10kt_supernova_analysistree.GenieGenModuleLabel:      "marley"
+dune10kt_supernova_analysistree.SaveGeantInfo:            false
+dune10kt_supernova_analysistree.SaveVertexInfo:           false 
+dune10kt_supernova_analysistree.SaveClusterInfo:          false
+dune10kt_supernova_analysistree.SaveFlashInfo:            true
+dune10kt_supernova_analysistree.SaveShowerInfo:           false
+dune10kt_supernova_analysistree.SaveCaloCosmics:          false
+dune10kt_supernova_analysistree.SaveCnnInfo:              false
+dune10kt_supernova_analysistree.G4minE:                   -1
+dune10kt_supernova_analysistree.ShowerModuleLabel:        [ "pandoraShower", "trajcluster" ]
+dune10kt_supernova_analysistree.TrackModuleLabel:         [ "pandoraTrack, pmtracktc" ]
+dune10kt_supernova_analysistree.VertexModuleLabel:        [ "pandora", "pmtracktc" ]
+dune10kt_supernova_analysistree.ClusterModuleLabel:       "trajcluster"
+dune10kt_supernova_analysistree.CalorimetryModuleLabel:   [ "pandoracalo" ]
+dune10kt_supernova_analysistree.ParticleIDModuleLabel:    [ "pandorapid" ]
+dune10kt_supernova_analysistree.DigitModuleLabel:         "tpcrawdecoder:daq"
+dune10kt_supernova_analysistree.HitsModuleLabel:          "gaushit"
+dune10kt_supernova_analysistree.CalDataModuleLabel:       "wclsdatanfsp:gauss"
+dune10kt_supernova_analysistree.FlashT0FinderLabel:       [ "pmtracktc" ]
+dune10kt_supernova_analysistree.MVAPIDTrackModuleLabel:   [ "" ]
+dune10kt_supernova_analysistree.MVAPIDShowerModuleLabel:  [ "" ]
+dune10kt_supernova_analysistree.MCT0FinderLabel:          [ "pmtracktc" ] 
+dune10kt_supernova_analysistree.CosmicTaggerAssocLabel:   [ "" ]
+dune10kt_supernova_analysistree.ContainmentTaggerAssocLabel: [ "" ] 
+dune10kt_supernova_analysistree.FlashMatchAssocLabel:     [ "" ]
 
 fddphase_analysistree: @local::dune35t_analysistree
 fddphase_analysistree.TrackModuleLabel: [ "pmtrack" ]
