@@ -128,8 +128,6 @@ dune10kt_analysistree.SavePandoraNuVertexInfo:    true
 dune10kt_supernova_analysistree:                          @local::dune10kt_analysistree
 dune10kt_supernova_analysistree.MCTruthModuleLabel :      "marley"
 dune10kt_supernova_analysistree.GenieGenModuleLabel:      "marley"
-dune10kt_supernova_analysistree.CryGenModuleLabel:        "marley"
-dune10kt_supernova_analysistree.POTModuleLabel:           "marley"
 dune10kt_supernova_analysistree.SaveGeantInfo:            false
 dune10kt_supernova_analysistree.SaveVertexInfo:           false 
 dune10kt_supernova_analysistree.SaveClusterInfo:          false
