@@ -23,7 +23,11 @@ BEGIN_PROLOG
     DetectorSizeY:              600          # 1 TPC Y length in [cm].
     DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
     DetectorDriftTime:          4500         # Don't change this value for HD unless you know what you are doing!!!
-    
+    XACathodeX:                 0            # X position of the VD cathode XAs in [cm].
+    XAMembraneY:                0            # Y position of the VD membrane XAs in [cm].
+    XAFinalCapZ:                0            # Z position of the VD final cap XAs in [cm].
+    XAStartCapZ:                0            # Z position of the VD start cap XAs in [cm].
+
     ClusterAlgoTime:            25           # Time window to look for plane clusters in [tick] units.
     ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
@@ -91,6 +95,10 @@ BEGIN_PROLOG
   solar_nu_ana_vd.DetectorSizeY:       680 
   solar_nu_ana_vd.DetectorSizeZ:       2100
   solar_nu_ana_vd.DetectorDriftTIme:   8500
+  solar_nu_ana_vd.XACathodeX:         -327.5
+  solar_nu_ana_vd.XAMembraneY:         743.302
+  solar_nu_ana_vd.XAFinalCapZ:         2188.38
+  solar_nu_ana_vd.XAStartCapZ:        -96.5
 
   solar_nu_ana_vd.AdjOpFlashTime:      8500
 
