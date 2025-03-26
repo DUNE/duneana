@@ -79,6 +79,7 @@ private:
   // Declare member data here.
 
   TTree *fTree;
+  TTree *fTreePrimaries;
 
   unsigned int fEventID;
   unsigned int fRunID;
@@ -143,7 +144,19 @@ private:
   double fVisibleEnergy;
   double fVisibleEnergyHad;
 
+  //Variables for the Primaries tree
+  int fPrimaryPdg;
+  double fPrimaryPx;
+  double fPrimaryPy;
+  double fPrimaryPz;
+  double fPrimaryE;
+  double fPrimaryMass;
+  double fPrimaryVisibleE;
+  bool fPrimaryContained;
+  std::string fPrimaryEndProcess;
+
   std::string fMCTruthLabel;
+  std::string fG4Label;
   std::string fPandoraNuVertexModuleLabel;
   std::string fDirectionRecoLabelNuMu;
   std::string fDirectionRecoLabelNuE;
@@ -167,7 +180,7 @@ private:
   std::vector<double> getActiveBounds();
   bool isEnergyDepositedOutsideActiveVolume(const sim::SimEnergyDeposit &edep);
   bool isSpacePointOutsideFiducialVolume(const recob::SpacePoint &sp, double margin);
-  std::map<int, double> EnergyDepositSummary(const art::Event& evt);
+  std::map<int, std::tuple<double, bool, std::string>> EnergyDepositSummary(const art::Event& evt);
 };
 
 
@@ -176,6 +189,7 @@ dune::atmoAnalysis::atmoAnalysis(fhicl::ParameterSet const& p)
   : EDAnalyzer{p}
 {
   fMCTruthLabel = p.get<std::string>("MCTruthLabel");
+  fG4Label = p.get<std::string>("G4Label");
 
   fPandoraNuVertexModuleLabel = p.get<std::string>("PandoraNuVertexModuleLabel");
   fDirectionRecoLabelNuMu = p.get<std::string>("DirectionRecoLabelNuMu");
@@ -223,6 +237,46 @@ void dune::atmoAnalysis::analyze(art::Event const& evt)
   fTrueNuP_x = neutrino.Nu().Momentum().X();
   fTrueNuP_y = neutrino.Nu().Momentum().Y();
   fTrueNuP_z = neutrino.Nu().Momentum().Z();
+
+
+  //Compute visible energy
+  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  const sim::ParticleList& plist = pi_serv->ParticleList();
+
+  fVisibleEnergy = 0;
+  fVisibleEnergyHad = 0; //Visible energy not coming from the primary lepton in the case of CC interactions
+  std::map<int, std::tuple<double, bool, std::string>> edepSummary = EnergyDepositSummary(evt);
+  fIsContainedTrue = std::all_of(edepSummary.begin(), edepSummary.end(), [](const std::pair<int, std::tuple<double, bool, std::string>> &edep){return std::get<1>(edep.second);});
+  
+  for(const std::pair<const int, std::tuple<double, bool, std::string>> &edep : edepSummary){
+    fVisibleEnergy += std::get<0>(edep.second);
+    //Only add to had ebergy if not a lepton (pdg not in 11, 13, 15)
+    const simb::MCParticle* pPart = plist.at(edep.first);
+    if(pPart->PdgCode() != 11 && pPart->PdgCode() != 13 && pPart->PdgCode() != 15){
+      fVisibleEnergyHad += std::get<0>(edep.second);
+    }
+  }
+
+
+
+  //Getting some g4 particles infos
+
+  std::vector<art::Ptr<simb::MCParticle>> mc_particles = dune_ana::DUNEAnaEventUtils::GetMCParticles(evt, fG4Label);
+  for(const art::Ptr<simb::MCParticle> &part : mc_particles){
+    if (part->Mother() == 0){
+      fPrimaryPdg = part->PdgCode();
+      fPrimaryPx = part->Px();
+      fPrimaryPy = part->Py();
+      fPrimaryPz = part->Pz();
+      fPrimaryE = part->E();
+      fPrimaryMass = part->Mass();
+      fPrimaryVisibleE = edepSummary.count(part->TrackId()) ? std::get<0>(edepSummary[part->TrackId()]) : 0;
+      fPrimaryContained = edepSummary.count(part->TrackId()) ? std::get<1>(edepSummary[part->TrackId()]) : false;
+      fPrimaryEndProcess = edepSummary.count(part->TrackId()) ? std::get<2>(edepSummary[part->TrackId()]) : "";
+      fTreePrimaries->Fill();
+    }
+    
+  }
 
 
   //Reco infos
@@ -367,36 +421,6 @@ void dune::atmoAnalysis::analyze(art::Event const& evt)
           fErecNC = ereco->fNuLorentzVector.E();
         }
 
-        //Compute visible energy
-        art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-        const sim::ParticleList& plist = pi_serv->ParticleList();
-      
-        fVisibleEnergy = 0;
-        fVisibleEnergyHad = 0; //Visible energy not coming from the primary lepton in the case of CC interactions
-        auto theseProds = evt.getHandle<std::vector<sim::SimEnergyDeposit>>(fEdepLabel);
-        if(!theseProds.isValid()){
-          mf::LogWarning("CAFMaker") << "No SimEnergyDeposit found with label '" << fEdepLabel << "'";
-          
-        }
-        else{
-          std::vector<art::Ptr<sim::SimEnergyDeposit>> edeps;
-          art::fill_ptr_vector(edeps,theseProds);
-          std::cout << "Number of edeps: " << edeps.size() << std::endl;
-          for(const art::Ptr<sim::SimEnergyDeposit> &edep : edeps){
-            int g4id = std::abs(edep->TrackID());
-            const simb::MCParticle* pPart = plist.at(g4id);
-            if(!plist.IsPrimary(g4id) //Not primary
-             || (std::abs(pPart->PdgCode()) != 11 && std::abs(pPart->PdgCode()) != 13 && std::abs(pPart->PdgCode()) != 15) //Or primary but not a lepton
-            ){
-              fVisibleEnergyHad += edep->Energy();
-            }
-            fVisibleEnergy += edep->Energy();
-            fIsContainedTrue &= !isEnergyDepositedOutsideActiveVolume(*edep);
-          }
-
-          std::cout << "IsContainedTrue -> " << fIsContainedTrue << std::endl;
-        }
-
         std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaEventUtils::GetSpacePoints(evt, fSpacePointLabel);
         fNbSpacepointsOutsideFiducial += std::count_if(spacePoints.begin(), spacePoints.end(), [this](const art::Ptr<recob::SpacePoint> &sp){return isSpacePointOutsideFiducialVolume(*sp, 20);});
 
@@ -526,6 +550,47 @@ std::vector<double> dune::atmoAnalysis::getActiveBounds(){
   return bounds;
 }
 
+std::map<int, std::tuple<double, bool, std::string>>  dune::atmoAnalysis::EnergyDepositSummary(const art::Event& evt){
+  std::map<int, std::tuple<double, bool, std::string>>  summary;
+  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  const sim::ParticleList& plist = pi_serv->ParticleList();
+  auto theseProds = evt.getHandle<std::vector<sim::SimEnergyDeposit>>(fEdepLabel);
+  bool success = theseProds.isValid();
+
+  if (!success)
+  {
+      mf::LogError("DUNEAna") << " Failed to find product with label " << fEdepLabel << " ... returning empty vector" << std::endl;
+      return summary;
+  }
+
+  // We need to convert these to art pointers
+  std::vector<art::Ptr<sim::SimEnergyDeposit>> edeps;
+  art::fill_ptr_vector(edeps,theseProds);
+
+  for(const art::Ptr<sim::SimEnergyDeposit> &edep : edeps){
+    int g4id = std::abs(edep->TrackID());
+    const simb::MCParticle* pPart = plist.at(g4id);
+
+    //Getting the associated primary particle
+    while (!plist.IsPrimary(g4id)){
+      g4id = pPart->Mother();
+      pPart = plist.at(g4id);
+    }
+
+
+    if(summary.count(g4id)){
+      // summary.at(g4id) += edep->Energy();
+      std::get<0>(summary[g4id]) += edep->Energy();
+      std::get<1>(summary[g4id]) &= !isEnergyDepositedOutsideActiveVolume(*edep);
+    }
+    else{
+      summary[g4id] = std::make_tuple(edep->Energy(), !isEnergyDepositedOutsideActiveVolume(*edep), pPart->EndProcess());
+    }
+  }
+
+  return summary;
+}
+
 void dune::atmoAnalysis::beginJob()
 {
 
@@ -594,6 +659,20 @@ void dune::atmoAnalysis::beginJob()
   fTree->Branch("NbSpacepointsPandoraOutsideFiducial", &fNbSpacepointsPandoraOutsideFiducial);
   fTree->Branch("NbPFPs", &fNbPFPs);
   fTree->Branch("InterMode", &fInterMode);
+
+  fTreePrimaries = tfs->make<TTree>("primaries","Atmo Output Tree");
+  fTreePrimaries->Branch("eventID",&fEventID,"eventID/i");
+  fTreePrimaries->Branch("runID",&fRunID,"runID/i");
+  fTreePrimaries->Branch("subrunID",&fSubRunID,"subrunID/i");
+  fTreePrimaries->Branch("pdg", &fPrimaryPdg);
+  fTreePrimaries->Branch("Px", &fPrimaryPx);
+  fTreePrimaries->Branch("Py", &fPrimaryPy);
+  fTreePrimaries->Branch("Pz", &fPrimaryPz);
+  fTreePrimaries->Branch("E", &fPrimaryE);
+  fTreePrimaries->Branch("mass", &fPrimaryMass);
+  fTreePrimaries->Branch("VisibleE", &fPrimaryVisibleE);
+  fTreePrimaries->Branch("IsContained", &fPrimaryContained);
+  fTreePrimaries->Branch("EndProcess", &fPrimaryEndProcess);
 }
 void dune::atmoAnalysis::endJob()
 {
