@@ -20,6 +20,7 @@ atmoAnalysis:
    SpacePointLabelPandora:     "pandora"
    PFPLabel:                   "pandora"
    MCTruthLabel:	             "generator"
+   G4Label:                    "largeant"
 }
 
 END_PROLOG
