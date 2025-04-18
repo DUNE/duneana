@@ -81,7 +81,7 @@ namespace solar
     // --- Input settings imported from the fcl
     std::string fSignalLabel, fGeometry;
     int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut;
-    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
+    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels, fBackgroundLabels;
     float fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
@@ -99,23 +99,25 @@ namespace solar
     float SignalParticleE, SignalParticleP, SignalParticleK, SignalParticleX, SignalParticleY, SignalParticleZ, SignalParticleTime, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
     float MInd0dTime, MInd1dTime, MInd0RecoY, MInd1RecoY, MRecX, MRecY, MRecZ, MPur, MGenPur, MMainE, MMainP, MMainK, MMainTime, MMainParentE, MMainParentP, MMainParentK, MMainParentTime, MTrackChi2;
     std::vector<int> MAdjClGen, MAdjClMainID, TPart, SignalPDGList, SignalPDGDepList, SignalIDList, SignalMotherList, SignalIDDepList, MAdjClMainPDG, HitNum, ClusterNum, SignalElectronDepList;
+    std::vector<int> SOpHitPlane;
     std::vector<float> SignalEDepList, SignalXDepList, SignalYDepList, SignalZDepList;
     std::vector<float> SOpHitPur, SOpHitPE, SOpHitX, SOpHitY, SOpHitZ, SOpHitTime, SOpHitChannel, SOpHitFlashID;
     std::vector<float> MAdjClTime, MAdjClCharge, MAdjClInd0Charge, MAdjClInd1Charge, MAdjClMaxCharge, MAdjClInd0MaxCharge, MAdjClInd1MaxCharge;
     std::vector<float> MAdjClNHits, MAdjClInd0NHits, MAdjClInd1NHits, MAdjClRecoY, MAdjClRecoZ, MAdjClR, MAdjClPur, MAdjClGenPur, MAdjClMainE, MAdjClMainP, MAdjClMainK;
     std::vector<float> MAdjClMainX, MAdjClMainY, MAdjClMainZ, MAdjClEndX, MAdjClEndY, MAdjClEndZ, MSignalFrac, MGenFrac;
-    std::vector<float> MAdjFlashTime, MAdjFlashResidual, MAdjFlashPE, MAdjFlashNHits, MAdjFlashMaxPE, MAdjFlashRecoX, MAdjFlashRecoY, MAdjFlashRecoZ, MAdjFlashR, MAdjFlashPur, MAdjFlashSTD, MAdjFlashFast;
+    std::vector<int>  MAdjFlashPlane, MAdjFlashNHits;
+    std::vector<float> MAdjFlashTime, MAdjFlashResidual, MAdjFlashPE, MAdjFlashMaxPE, MAdjFlashRecoX, MAdjFlashRecoY, MAdjFlashRecoZ, MAdjFlashR, MAdjFlashPur, MAdjFlashSTD, MAdjFlashFast;
     std::vector<float> SignalEList, SignalPList, SignalKList, SignalTimeList, SignalEndXList, SignalEndYList, SignalEndZList, SignalMaxEDepList, SignalMaxEDepXList, SignalMaxEDepYList, SignalMaxEDepZList;
     std::vector<double> MMainVertex, MEndVertex, MMainParentVertex;
     std::vector<double> MTrackStart, MTrackEnd;
     bool MPrimary;
 
     // --- OpFlash Variables
-    std::vector<int> OpFlashID, OpFlashNHits;
+    std::vector<int> OpFlashID, OpFlashNHits, OpFlashPlane;
     std::vector<float> OpFlashPur, OpFlashPE, OpFlashMaxPE, OpFlashX, OpFlashY, OpFlashZ, OpFlashTime, OpFlashDeltaT, OpFlashSTD, OpFlashFast;
 
     // --- MatchedFlash Variables
-    int MFlashNHits;
+    int MFlashNHits, MFlashPlane;
     float MFlashR, MFlashPE, MFlashMaxPE, MFlashPur, MFlashFast, MFlashTime, MFlashSTD, MFlashRecoX, MFlashRecoY, MFlashRecoZ, MFlashResidual;
     bool MFlashCorrect;
 
@@ -187,6 +189,7 @@ namespace solar
     fOpFlashAlgoHotVertexThld = p.get<float>("OpFlashAlgoHotVertexThld");
     // fOpFlashAlgoCentroid = p.get<bool>("OpFlashAlgoCentroid");
     fAdjOpFlashTime = p.get<float>("AdjOpFlashTime");
+    fAdjOpFlashX = p.get<float>("AdjOpFlashX");
     fAdjOpFlashY = p.get<float>("AdjOpFlashY");
     fAdjOpFlashZ = p.get<float>("AdjOpFlashZ");
     fAdjOpFlashMaxPERatioCut = p.get<float>("AdjOpFlashMaxPERatioCut");
@@ -250,6 +253,7 @@ namespace solar
     fConfigTree->Branch("OpFlashAlgoHotVertexThld", &fOpFlashAlgoHotVertexThld);
     // fConfigTree->Branch("OpFlashAlgoCentroid", &fOpFlashAlgoCentroid);
     fConfigTree->Branch("AdjOpFlashTime", &fAdjOpFlashTime);
+    fConfigTree->Branch("AdjOpFlashX", &fAdjOpFlashX);
     fConfigTree->Branch("AdjOpFlashY", &fAdjOpFlashY);
     fConfigTree->Branch("AdjOpFlashZ", &fAdjOpFlashZ);
     fConfigTree->Branch("AdjOpFlashMaxPERatioCut", &fAdjOpFlashMaxPERatioCut);
@@ -310,6 +314,7 @@ namespace solar
     if (fSaveSignalOpHits)
     { // Save OpHits. (Can be very heavy for background productions)
       fMCTruthTree->Branch("OpHitPur", &SOpHitPur);         // OpHit Purity
+      fMCTruthTree->Branch("OpHitPlane", &SOpHitPlane);     // OpHit Plane
       fMCTruthTree->Branch("OpHitPE", &SOpHitPE);           // OpHit PE
       fMCTruthTree->Branch("OpHitX", &SOpHitX);             // OpHit X
       fMCTruthTree->Branch("OpHitY", &SOpHitY);             // OpHit Y
@@ -329,6 +334,7 @@ namespace solar
       fMCTruthTree->Branch("OpFlashTime", &OpFlashTime);   // OpFlash Time
       fMCTruthTree->Branch("OpFlashSTD", &OpFlashSTD);     // OpFlash STD
       fMCTruthTree->Branch("OpFlashNHits", &OpFlashNHits); // OpFlash NHit
+      fMCTruthTree->Branch("OpFlashPlane", &OpFlashPlane); // OpFlash Plane
       fMCTruthTree->Branch("OpFlashMaxPE", &OpFlashMaxPE); // OpFlash Max PE
     }
 
@@ -451,6 +457,7 @@ namespace solar
       fSolarNuAnaTree->Branch("AdjOpFlashFast", &MAdjFlashFast);         // Adj. flash' Fast Component
       fSolarNuAnaTree->Branch("AdjOpFlashTime", &MAdjFlashTime);         // Adj. flash' time [ticks]
       fSolarNuAnaTree->Branch("AdjOpFlashNHits", &MAdjFlashNHits);       // Adj. flash' #hits
+      fSolarNuAnaTree->Branch("AdjOpFlashPlane", &MAdjFlashPlane);       // Adj. flash' Plane
       fSolarNuAnaTree->Branch("AdjOpFlashMaxPE", &MAdjFlashMaxPE);       // Adj. flash' max #PE [ADC*ticks]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoX", &MAdjFlashRecoX);       // Adj. flash' reco X [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoY);       // Adj. flash' reco Y [cm]
@@ -466,6 +473,7 @@ namespace solar
     fSolarNuAnaTree->Branch("MatchedOpFlashFast", &MFlashFast, "MatchedOpFlashFast/F");             // Matched flash' Fast Component
     fSolarNuAnaTree->Branch("MatchedOpFlashTime", &MFlashTime, "MatchedOpFlashTime/F");             // Matched flash' time [ticks]
     fSolarNuAnaTree->Branch("MatchedOpFlashNHits", &MFlashNHits, "MatchedOpFlashNHits/I");          // Matched flash' #hits
+    fSolarNuAnaTree->Branch("MatchedOpFlashPlane", &MFlashPlane, "MatchedOpFlashPlane/I");          // Matched flash' Plane
     fSolarNuAnaTree->Branch("MatchedOpFlashMaxPE", &MFlashMaxPE, "MatchedOpFlashMaxPE/F");          // Matched flash' max #PE [ADC*ticks]
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoX", &MFlashRecoX, "MatchedOpFlashRecoX/F");          // Matched flash' reco X [cm]
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoY", &MFlashRecoY, "MatchedOpFlashRecoY/F");          // Matched flash' reco Y [cm]
@@ -781,17 +789,18 @@ namespace solar
       {
         AdjOpHitsUtils::FlashInfo TheFlash = FlashVec[i];
         double ThisOpFlashPur = 0;
+        OpFlashPlane.push_back(TheFlash.Plane);
+        OpFlashNHits.push_back(TheFlash.NHit);
+        OpFlashTime.push_back(TheFlash.Time);
+        OpFlashDeltaT.push_back(TheFlash.TimeWidth);
+        OpFlashPE.push_back(TheFlash.PE);
         OpFlashMaxPE.push_back(TheFlash.MaxPE);
-        OpFlashSTD.push_back(TheFlash.STD);
         OpFlashFast.push_back(TheFlash.FastToTotal);
         OpFlashID.push_back(i);
-        OpFlashPE.push_back(TheFlash.PE);
         OpFlashX.push_back(TheFlash.X);
         OpFlashY.push_back(TheFlash.Y);
         OpFlashZ.push_back(TheFlash.Z);
-        OpFlashTime.push_back(TheFlash.Time);
-        OpFlashDeltaT.push_back(TheFlash.TimeWidth);
-        OpFlashNHits.push_back(TheFlash.NHit);
+        OpFlashSTD.push_back(TheFlash.STD);
         for (int j = 0; j < int(OpHitVec[i].size()); j++)
         {
           recob::OpHit OpHit = *OpHitVec[i][j];
@@ -823,6 +832,7 @@ namespace solar
           SOpHitY.push_back(OpHitXYZ.Y());
           SOpHitZ.push_back(OpHitXYZ.Z());
           SOpHitFlashID.push_back(i);
+          SOpHitPlane.push_back(TheFlash.Plane);
         }
         // Check if OpHitVec[i] is empty
         if (OpHitVec[i].size() == 0)
@@ -837,7 +847,8 @@ namespace solar
         if (abs(TheFlash.Time) < 5)
         {
           mf::LogDebug("SolarNuAna") << "Signal OpFlash PE (fast/ratio/tot/STD) " << TheFlash.FastToTotal << "/" << TheFlash.MaxPE / TheFlash.PE << "/" << TheFlash.PE << "/" << TheFlash.STD << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time;
-          sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.PE) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time) + " vertex (" + SolarAuxUtils::str(TheFlash.X) + ", " + SolarAuxUtils::str(TheFlash.Y) + ", " + SolarAuxUtils::str(TheFlash.Z) + ")\n";
+          sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.PE) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time) + " plane " + SolarAuxUtils::str(TheFlash.Plane) + "\n";
+          sOpFlashTruth += " - Vertex (" + SolarAuxUtils::str(TheFlash.X) + ", " + SolarAuxUtils::str(TheFlash.Y) + ", " + SolarAuxUtils::str(TheFlash.Z) + ")\n";
           sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + SolarAuxUtils::str(TheFlash.MaxPE / TheFlash.PE) + " <= " + SolarAuxUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
           sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + SolarAuxUtils::str(int(OpHitVec[i].size())) + " >= " + SolarAuxUtils::str(TheFlash.NHit) + "\n";
         }
@@ -861,11 +872,14 @@ namespace solar
         recob::OpFlash TheFlash = *OpFlashList[i];
         std::vector<art::Ptr<recob::OpHit>> MatchedHits = OpAssns.at(i);
         int NMatchedHits = MatchedHits.size();
-        double FlashStdDev = 0.0, varY = 0.0, varZ = 0.0, TotalFlashPE = 0, MaxOpHitPE = 0, FlashTime = 0;
+        double FlashStdDev = 0.0, TotalFlashPE = 0, MaxOpHitPE = 0, FlashTime = 0;
+        std::vector<float> varXY, varYZ, varXZ;
+        varXY = varYZ = varXZ = {};
 
         for (int j = 0; j < NMatchedHits; j++)
         { // Loop over OpHits in the flash
           recob::OpHit OpHit = *MatchedHits[j];
+          art::Ptr<recob::OpHit> OpHitPtr = MatchedHits[j];
           mf::LogDebug("SolarNuAna") << "Assigning OpHit to Flash";
           const std::vector<int> ThisOpHitTrackIds = pbt->OpHitToTrackIds(OpHit);
           float ThisOphitPurity = 0;
@@ -878,8 +892,9 @@ namespace solar
           }
           auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
           TotalFlashPE += OpHit.PE();
-          varY += pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2) * OpHit.PE();
-          varZ += pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2) * OpHit.PE();
+          varXY.push_back(sqrt(pow(TheFlash.XCenter() - OpHitXYZ.X(), 2) +  pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2)) * OpHit.PE());
+          varYZ.push_back(sqrt(pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2) +  pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2)) * OpHit.PE());
+          varXZ.push_back(sqrt(pow(TheFlash.XCenter() - OpHitXYZ.X(), 2) +  pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2)) * OpHit.PE());
           FlashTime += OpHit.PeakTime() * OpHit.PE();
           SOpHitPur.push_back(ThisOphitPurity / int(ThisOpHitTrackIds.size()));
           if (OpHit.PE() > MaxOpHitPE)
@@ -893,13 +908,28 @@ namespace solar
           SOpHitY.push_back(OpHitXYZ.Y());
           SOpHitZ.push_back(OpHitXYZ.Z());
           SOpHitFlashID.push_back(i);
+          SOpHitPlane.push_back(adjophits->GetOpHitPlane(OpHitPtr));
         } // End of OpHit loop
 
+        // Check that all OpHits are assigned to the same plane
+        int FlashPlane = -1;
+        for (int j = 0; j < int(SOpHitPlane.size()); j++)
+        {
+          if (SOpHitPlane[j] != SOpHitPlane[0])
+          {
+            FlashPlane = -1;
+            mf::LogError("SolarNuAna") << "OpHits are not assigned to the same plane!";
+          }
+          else
+          {
+            FlashPlane = SOpHitPlane[0];
+          }
+        }
+
         OpHitVec.push_back(MatchedHits);
-        varY = varY / TotalFlashPE;
-        varZ = varZ / TotalFlashPE;
         FlashTime = FlashTime / TotalFlashPE;
-        FlashStdDev = sqrt(varY + varZ);
+        
+        FlashStdDev = adjophits->GetOpFlashPlaneSTD(FlashPlane, varXY, varYZ, varXZ);
 
         mf::LogDebug("SolarNuAna") << "Evaluating Flash purity";
         int TerminalOutput = SolarAuxUtils::supress_stdout();
@@ -909,6 +939,7 @@ namespace solar
 
         // Calculate the flash purity, only for the Signal events
         OpFlashID.push_back(i);
+        OpFlashPlane.push_back(FlashPlane);
         OpFlashPur.push_back(ThisOpFlashPur);
         OpFlashMaxPE.push_back(MaxOpHitPE);
         OpFlashSTD.push_back(FlashStdDev);
@@ -923,7 +954,8 @@ namespace solar
         if (abs(TheFlash.Time()) < 5)
         {
           mf::LogDebug("SolarNuAna") << "OpFlash PE " << TheFlash.TotalPE() << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time();
-          sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.TotalPE()) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time()) + " vertex (" + SolarAuxUtils::str(TheFlash.YCenter()) + ", " + SolarAuxUtils::str(TheFlash.ZCenter()) + ")\n";
+          sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.TotalPE()) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time()) + " plane " + SolarAuxUtils::str(FlashPlane) + "\n";
+          sOpFlashTruth += " - Vertex (" + SolarAuxUtils::str(TheFlash.XCenter()) + ", " + SolarAuxUtils::str(TheFlash.YCenter()) + ", " + SolarAuxUtils::str(TheFlash.ZCenter()) + ")\n";
           sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + SolarAuxUtils::str(MaxOpHitPE / TotalFlashPE) + " <= " + SolarAuxUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
           sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + SolarAuxUtils::str(int(NMatchedHits)) + " >= " + SolarAuxUtils::str(int(TheFlash.PEs().size())) + "\n";
         }
@@ -1355,6 +1387,7 @@ namespace solar
         MAdjFlashSTD = {};
         MAdjFlashTime = {};
         MAdjFlashNHits = {};
+        MAdjFlashPlane = {};
         MAdjFlashFast = {};
         MAdjFlashMaxPE = {};
         MAdjFlashRecoX = {};
@@ -1461,7 +1494,8 @@ namespace solar
           {
             sClusterReco += " - Gen ?? -> Unknown\n";
           }
-          sClusterReco += " - RecoY, RecoZ (" + SolarAuxUtils::str(MVecRecY[i]) + ", " + SolarAuxUtils::str(MVecRecZ[i]) + ") Time " + SolarAuxUtils::str(MVecTime[i]) + "\n\n";
+          // sClusterReco += " - Truth X,Y,Z (" + SolarAuxUtils::str(MVecMainX[i]) + ", " + SolarAuxUtils::str(MVecMainY[i]) + ", " + SolarAuxUtils::str(MVecMainZ[i]) + ")\n";
+          sClusterReco += " - Reco Time,Y,Z (" + SolarAuxUtils::str(MVecTime[i]) + ", " + SolarAuxUtils::str(MVecRecY[i]) + ", " + SolarAuxUtils::str(MVecRecZ[i]) + ")\n";
           
           if (fSaveTrackInfo){
             TVector3 ThisClVertex = {0, MVecRecY[i], MVecRecZ[i]};
@@ -1499,23 +1533,66 @@ namespace solar
           {
             continue;
           }
-          // Make an eliptical cut on the flash position
-          if (pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
-          {
-            continue;
-          }
+          
           // Compute the time distance between the cluster and the flash. Use factor 2 to convert us to TPC tics
           double MAdjFlashX = 0;
-          solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
+          
           // For HD 1x2x6 (only 1 APA) the x coordinate is determined by the TPC number
-          if (MVecTPC[i]%2 != 0)
+          if (fGeometry == "HD" && MVecTPC[i]%2 != 0)
           {
+            solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
             MAdjFlashX = -MAdjFlashX;
           }
+          else if (fGeometry == "HD" && MVecTPC[i]%2 == 0)
+          {
+            solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
+          }
+          else if (fGeometry == "VD")
+          {
+            solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
+          }
+          else
+          {
+            solaraux->PrintInColor("Unknown geometry " + fGeometry, SolarAuxUtils::GetColor("red"));
+            solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
+          }
+
+          // Make an eliptical cut on the flash position based on the clusters plane
+          if (fGeometry == "VD" && OpFlashPlane[i] == 0)
+          {
+            if (pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
+            {
+              continue;
+            }
+          }
+          else if (fGeometry == "VD" && (OpFlashPlane[i] == 1 || OpFlashPlane[i] == 2))
+          {
+            if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
+            {
+              continue;
+            }
+          } 
+          else if (fGeometry == "VD" && (OpFlashPlane[i] == 3 || OpFlashPlane[i] == 4))
+          {
+            if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1)
+            {
+              continue;
+            }
+          }
+
+          if (fGeometry == "HD")
+          {
+            if (pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
+            {
+              continue;
+            }
+          }
+
           float OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
+          MAdjFlashNHits.push_back(OpFlashNHits[j]);
+          MAdjFlashPlane.push_back(OpFlashPlane[j]);
           MAdjFlashTime.push_back(OpFlashTime[j]);
           MAdjFlashPE.push_back(OpFlashPE[j]);
-          MAdjFlashNHits.push_back(OpFlashNHits[j]);
           MAdjFlashMaxPE.push_back(OpFlashMaxPE[j]);
           MAdjFlashSTD.push_back(OpFlashSTD[j]);
           MAdjFlashFast.push_back(OpFlashFast[j]);
@@ -1545,6 +1622,7 @@ namespace solar
             MFlashPE = OpFlashPE[j];
             MFlashFast = OpFlashFast[j];
             MFlashNHits = OpFlashNHits[j];
+            MFlashPlane = OpFlashPlane[j];
             MFlashMaxPE = OpFlashMaxPE[j];
             MFlashPur = OpFlashPur[j];
             MFlashSTD = OpFlashSTD[j];
@@ -1556,6 +1634,7 @@ namespace solar
 
             // Create an output string with the flash information
             sFlashReco = "*** Matched flash: \n - Purity " + SolarAuxUtils::str(OpFlashPur[j]) +
+              " Plane " + SolarAuxUtils::str(OpFlashPlane[j]) +
               " #Hits " + SolarAuxUtils::str(OpFlashNHits[j]) +
               " PE " + SolarAuxUtils::str(OpFlashPE[j]) +
               " MaxPE " + SolarAuxUtils::str(OpFlashMaxPE[j]) + "\n" +
@@ -1708,7 +1787,8 @@ namespace solar
     MTrackChi2 = 0;
     MFlashPE = -1e6;
     MFlashFast = -1e6;
-    MFlashNHits = -1e6;
+    MFlashNHits = -1;
+    MFlashPlane = -1;
     MFlashMaxPE = -1e6;
     MFlashPur = -1e6;
     MFlashSTD = -1e6;
@@ -1728,6 +1808,7 @@ namespace solar
     SignalEDepList = {}, SignalXDepList = {}, SignalYDepList = {}, SignalZDepList = {};
     SignalMaxEDepList = {}, SignalMaxEDepXList = {}, SignalMaxEDepYList = {}, SignalMaxEDepZList = {};
     SOpHitChannel = {}, SOpHitPur = {}, SOpHitPE = {}, SOpHitX = {}, SOpHitY = {}, SOpHitZ = {}, SOpHitTime = {}, SOpHitFlashID = {};
+    SOpHitPlane = {};
     TPart = {}, GeneratorParticles = {};
     HitNum = {};
     ClusterNum = {};
@@ -1743,6 +1824,7 @@ namespace solar
     OpFlashTime.clear();
     OpFlashDeltaT.clear();
     OpFlashNHits.clear();
+    OpFlashPlane.clear();
   }
 } // namespace solar
 DEFINE_ART_MODULE(solar::SolarNuAna)
