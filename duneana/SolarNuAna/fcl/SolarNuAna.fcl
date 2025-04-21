@@ -19,6 +19,8 @@ BEGIN_PROLOG
     BackgroundLabelVector: []
 
     Geometry:                   "HD"
+    OpDetGeoFromOpDet:          false        # Use the OpDet geometry from the OpDet object.
+    OpDetGeoFromOpChannel:      true         # Use the OpDet geometry from the OpChannel object.
     DetectorSizeX:              360          # 1 TPC drift (X) length in [cm].
     DetectorSizeY:              600          # 1 TPC Y length in [cm].
     DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
@@ -28,6 +30,7 @@ BEGIN_PROLOG
     XAMembraneY:                0            # Y position of the VD membrane XAs in [cm].
     XAFinalCapZ:                0            # Z position of the VD final cap XAs in [cm].
     XAStartCapZ:                0            # Z position of the VD start cap XAs in [cm].
+
     ClusterAlgoTime:            25           # Time window to look for plane clusters in [tick] units.
     ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
@@ -70,7 +73,6 @@ BEGIN_PROLOG
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
     SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
-
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
@@ -96,6 +98,7 @@ BEGIN_PROLOG
   solar_nu_ana_vd.DetectorSizeY:       680 
   solar_nu_ana_vd.DetectorSizeZ:       2100
   solar_nu_ana_vd.DetectorDriftTime:   8500
+  
   solar_nu_ana_vd.XACathodeX:         -327.5
   solar_nu_ana_vd.XAMembraneY:         743.302
   solar_nu_ana_vd.XAFinalCapZ:         2188.38
