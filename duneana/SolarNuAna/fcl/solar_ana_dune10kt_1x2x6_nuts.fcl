@@ -1,0 +1,15 @@
+# Specific configuration for signal+bkg events with coustom flash generation
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
+
+#include "solar_ana_radiological_decay0_dune10kt_1x2x6_lateralAPA.fcl"
+
+services.BackTrackerService.BackTracker.SimChannelModuleLabel: "elecDrift"
+services.Geometry.GDML: "dune10kt_v6_refactored_1x2x6_modded_dbDrift_cpaPDS_singleVol.gdml"
+services.Geometry.Name: "dune10kt_v6_refactored_1x2x6_modded_dbDrift_cpaPDS_singleVol"
+
+services.message.destinations.LogStandardOut.threshold: "INFO"
+services.message.destinations.LogStandardOut.type: "cout"
+
+physics.analyzers.solarnuana.SaveSignalDaughters: true
+physics.analyzers.solarnuana.OpDetGeoFromOpDet: true
+physics.analyzers.solarnuana.OpDetGeoFromOpChannel: false
