@@ -235,7 +235,7 @@ private:
 
   float fRadiusInt;
   float fRadiusExt;
-  float fElectronVelocity;
+  //float fElectronVelocity; //You have a local variable of the same name, and it's only used in analyze().  So commenting this out to make Clang happy.
   float fCoincidenceWd1_left;
   float fCoincidenceWd1_right;
   float fCoincidenceWd2_left;
