@@ -2,8 +2,8 @@ BEGIN_PROLOG
 
 dune_calibanatree: {
    module_type:                  CalibAnaTree
-   RadiusInt:                    1
-   RadiusExt:                    20
+   RadiusInt:                    4
+   RadiusExt:                    10
    CALOproducer:                 "pandoracalo"
    TRKproducer:                  "pandoraTrack"
    TRKHMproducer:                "" # Track Hit Metadata module; same as TRKproducer by default
@@ -85,8 +85,8 @@ dune_calibanatree_cluster.TrackAnalysis:              false
 dune_calibanatree_cluster.G4producer:                 "largeant"
 dune_calibanatree_cluster.HITproducer:                "hitpdune"
 dune_calibanatree_cluster.RDTLabel:                   "tpcrawdecoder:daq"
-dune_calibanatree_cluster.RadiusInt:                  1 
-dune_calibanatree_cluster.RadiusExt:                  20
+dune_calibanatree_cluster.RadiusInt:                  4 
+dune_calibanatree_cluster.RadiusExt:                  10
 dune_calibanatree_cluster.CoincidenceWindow1_right:   5   # in mus
 dune_calibanatree_cluster.CoincidenceWindow1_left:    5    # in mus
 dune_calibanatree_cluster.CoincidenceWindow2_left:    5    # in mus

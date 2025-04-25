@@ -69,8 +69,8 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
   fLowEnergyClusterAnalysis     = p.get<bool>("LowEnergyClusterAnalysis", true);
   fRDTLabel                     = p.get<std::string>("RDTLabel","tpcrawdecoder:daq");
 
-  fRadiusInt                    = p.get<float>("RadiusInt");
-  fRadiusExt                    = p.get<float>("RadiusExt");
+  fRadiusInt                    = p.get<float>("RadiusInt",4);
+  fRadiusExt                    = p.get<float>("RadiusExt",10);
 
   fCoincidenceWd1_left          = p.get<float>("CoincidenceWindow1_left"  ,3); //in mus,
   fCoincidenceWd1_right         = p.get<float>("CoincidenceWindow1_right",3); //in mus,
@@ -80,7 +80,7 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
   fPitch                        = p.get<float>("Pitch",0.5); //cm
   fPitchMultiplier              = p.get<float>("PitchMultiplier",1.2); // 20% error    
 
-  bIs3ViewsCoincidence          = p.get<bool>("Is3ViewsCoincidence");
+  bIs3ViewsCoincidence          = p.get<bool>("Is3ViewsCoincidence",false);
   bIsPDVD                       = p.get<bool>("IsPDVD",false);
   bIsPDHD                       = p.get<bool>("IsPDHD",false);
   bIsFDVD                       = p.get<bool>("IsFDVD",false);
@@ -272,6 +272,50 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
       std::cout<<"Received "<<simchannels.size()<<" SimChannels for this event."<<std::endl;
   }
 
+  // Collect raw digits for saving hits
+  std::vector<art::Ptr<raw::RawDigit>> rawdigitlist;
+  for (const art::InputTag &t: fRawDigitproducers) {
+    try {
+      art::ValidHandle<std::vector<raw::RawDigit>> thisdigits = e.getValidHandle<std::vector<raw::RawDigit>>(t);
+      art::fill_ptr_vector(rawdigitlist, thisdigits);
+    }
+    catch(...) {
+      if (!fSilenceMissingDataProducts) throw;
+      else { if (fVerbose) {std::cout<<" no raw digits " <<std::endl;}} // Allow Raw Digits to not be present
+    }
+  }
+
+  // The raw digit list is not sorted, so make it into a map on the WireID
+  std::map<geo::WireID, art::Ptr<raw::RawDigit>> rawdigits;
+  for (const art::Ptr<raw::RawDigit> &d: rawdigitlist) {
+
+    std::vector<geo::WireID> wids;
+    // Handle bad channel ID
+    try {
+      wids = wireReadout->ChannelToWire(d->Channel());
+    }
+    catch(...) {
+      //Fail if something...fails...
+      throw cet::exception("CalibAnaTree_module") << "Raw digit " <<
+            d->Channel() << " has no wires";
+    }
+
+    //We shouldn't ever have a raw digit NOT mapped to a wire
+    if (wids.size() == 0) {
+      throw cet::exception("CalibAnaTree_module") << "Raw digit " <<
+            d->Channel() << " has no wires";
+    }
+
+    //A raw digit can come from multiple wire segments because some wires
+    //are wrapped
+    for (const auto & w : wids) {
+      // Ignore wires that are already mapped
+      if (rawdigits.count(w)) continue;
+      rawdigits[w] = d;
+    }
+  }
+
+
   if (fLowEnergyClusterAnalysis)
   {
     if (fVerbose)
@@ -297,6 +341,9 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
       {
 	fCluster = vCluster[i];
 	fCluster->meta = fMeta;
+	//if (fVerbose) std::cout<< " tick window " << fRadiusExt/fElectronVelocity << " wire window " << fHitRawDigitsWireCollectWidth <<std::endl;
+	FillWireInfoForLECluster(fCluster , fWireReadout , rawdigits , fRadiusExt/fElectronVelocity , fHitRawDigitsWireCollectWidth); 
+	// fRadiusExt/fElectronVelocity is the size (in tt) of the full (cluster + veto)
         fTree_LE->Fill();
       }
     }
@@ -334,49 +381,6 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
   art::InputTag thm_label = fTRKHMproducer.empty() ? fTRKproducer : fTRKHMproducer;
   art::FindManyP<recob::Hit, recob::TrackHitMeta> fmtrkHits(tracks, e, thm_label);
   art::FindManyP<anab::Calorimetry> fmCalo(tracks, e, fCALOproducer);
-
-  // Collect raw digits for saving hits
-  std::vector<art::Ptr<raw::RawDigit>> rawdigitlist;
-  for (const art::InputTag &t: fRawDigitproducers) {
-    try {
-      art::ValidHandle<std::vector<raw::RawDigit>> thisdigits = e.getValidHandle<std::vector<raw::RawDigit>>(t);
-      art::fill_ptr_vector(rawdigitlist, thisdigits);
-    }
-    catch(...) {
-      if (!fSilenceMissingDataProducts) throw;
-      else {} // Allow Raw Digits to not be present
-    }
-  }
-
-  // The raw digit list is not sorted, so make it into a map on the WireID
-  std::map<geo::WireID, art::Ptr<raw::RawDigit>> rawdigits;
-  for (const art::Ptr<raw::RawDigit> &d: rawdigitlist) {
-
-    std::vector<geo::WireID> wids;
-    // Handle bad channel ID
-    try {
-      wids = wireReadout->ChannelToWire(d->Channel());
-    }
-    catch(...) {
-      //Fail if something...fails...
-      throw cet::exception("CalibAnaTree_module") << "Raw digit " <<
-            d->Channel() << " has no wires";
-    }
-
-    //We shouldn't ever have a raw digit NOT mapped to a wire
-    if (wids.size() == 0) {
-      throw cet::exception("CalibAnaTree_module") << "Raw digit " <<
-            d->Channel() << " has no wires";
-    }
-
-    //A raw digit can come from multiple wire segments because some wires
-    //are wrapped
-    for (const auto & w : wids) {
-      // Ignore wires that are already mapped
-      if (rawdigits.count(w)) continue;
-      rawdigits[w] = d;
-    }
-  }
 
   // Collect all hits
   art::ValidHandle<std::vector<recob::Hit>> allhit_handle = e.getValidHandle<std::vector<recob::Hit>>(fHITproducer);

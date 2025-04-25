@@ -74,6 +74,16 @@ namespace dune {
       end(-1) {}
   };
 
+  struct ClusterHitInfo {
+    HitInfo h; //!< Hit information by itself
+    std::vector<Vector3D> vSpacePoint; //!< Associated LE-SpacePoint created with SingleHit method
+                                       //!< Several LE-SpacePoint can be associated to one hit 
+				       //!< x coordinate is not reliable x = PeakTime*V_drift
+    ClusterHitInfo():
+      vSpacePoint( {Vector3D()} ) {}
+
+  };
+
   struct TrackHitInfo {
     HitInfo h; //!< Hit information by itself
     float pitch; //!< Pitch of track across wire the hit is on [cm]
@@ -329,6 +339,17 @@ namespace dune {
      int NumberOfCollection; //!< number of collection wires/channels in cluster
      int NumberOfInduction1; //!< number of induction1 wires/channels in cluster
      int NumberOfInduction2; //!< number of induction2 wires/channels in cluster
+
+
+     std::vector<ClusterHitInfo> vHitsInfo; //!< vector of HitInfo for all collection hits in the LE-Cluster
+                                            //!< verif vHisInfo.size() = NumberOfCollection
+
+     //Wire information/Wave-Forms
+     //<! time window for wave-form = peaktime +/- Rext/V_drift 
+     //<! wire windows spreading of cluster +/- fHitRawDigitsWireCollectWidth (same as for track)
+     std::vector<WireInfo> wires0; //!< induction 1
+     std::vector<WireInfo> wires1; //!< induction 2
+     std::vector<WireInfo> wires2; //!< collection
 
      //truth info
      bool               truth;      //!< yes if truth info no if not
