@@ -95,7 +95,7 @@ namespace solar
     TTree *fSolarNuAnaTree;
     std::string TNuInteraction;
     std::vector<std::map<int, simb::MCParticle>> GeneratorParticles = {};
-    int Event, Flag, MNHit, MGen, MTPC, MInd0TPC, MInd1TPC, MInd0NHits, MInd1NHits, MMainID, MMainPDG, MMainParentPDG, TrackNum, OpHitNum, OpFlashNum, MTrackNPoints, MAdjClNum, SignalParticlePDG;
+    int Event, Flag, MNHit, MGen, MTPC, MInd0TPC, MInd1TPC, MInd0NHits, MInd1NHits, MMainID, MMainPDG, MMainParentPDG, TrackNum, OpHitNum, OpFlashNum, MTrackNPoints, MAdjClNum, MSignalAdjClNum, SignalParticlePDG;
     float SignalParticleE, SignalParticleP, SignalParticleK, SignalParticleX, SignalParticleY, SignalParticleZ, SignalParticleTime, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
     float MInd0dTime, MInd1dTime, MInd0RecoY, MInd1RecoY, MRecX, MRecY, MRecZ, MPur, MGenPur, MMainE, MMainP, MMainK, MMainTime, MMainParentE, MMainParentP, MMainParentK, MMainParentTime, MTrackChi2;
     std::vector<int> MAdjClGen, MAdjClMainID, TPart, SignalPDGList, SignalPDGDepList, SignalIDList, SignalMotherList, SignalIDDepList, MAdjClMainPDG, HitNum, ClusterNum, SignalElectronDepList;
@@ -1355,6 +1355,7 @@ namespace solar
       {
         MPrimary = true;
         MAdjClNum = 0;
+        MSignalAdjClNum = 0;
         MAdjClTime = {};
         MAdjClCharge = {};
         MAdjClInd0Charge = {};
@@ -1423,6 +1424,10 @@ namespace solar
           }
 
           MAdjClNum += 1;
+          if (MVecGen[i] == MVecGen[j])
+          {
+            MSignalAdjClNum += 1;
+          }
           MAdjClTime.push_back(MVecTime[j]);
           MAdjClCharge.push_back(MVecCharge[j]);
           MAdjClInd0Charge.push_back(MVecInd0Charge[j]);
@@ -1488,7 +1493,7 @@ namespace solar
           sClusterReco += "*** Matched preselection cluster: \n";
           sClusterReco += " - MainTrackID " + SolarAuxUtils::str(MVecMainID[i]) + "\n";
           sClusterReco += " - Purity " + SolarAuxUtils::str(MVecGenPur[i]) + " Hits " + SolarAuxUtils::str(MVecNHit[i]) + "\n";
-          sClusterReco += " - #AdjCl " + SolarAuxUtils::str(MAdjClNum) + "\n";
+          sClusterReco += " - #AdjCl " + SolarAuxUtils::str(MAdjClNum) + "(from which " + SolarAuxUtils::str(MSignalAdjClNum) + " are signal)\n";
           if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1))
           {
             sClusterReco += " - Gen " + SolarAuxUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1] + "\n";
