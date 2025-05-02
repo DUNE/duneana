@@ -14,10 +14,15 @@
   <class name="dune::TrackInfo" ClassVersion="10" >
    <version ClassVersion="10" checksum="1022826678"/>
   </class>
-  <class name="dune::ClusterInfo" ClassVersion="12" >
+  <class name="dune::ClusterInfo" ClassVersion="13" >
+   <version ClassVersion="13" checksum="3281310285"/>
    <version ClassVersion="12" checksum="129734508"/>
    <version ClassVersion="11" checksum="2297744983"/>
    <version ClassVersion="10" checksum="1022826678"/>
+  </class>
+  <class name="dune::ClusterHitInfo" ClassVersion="14" >
+   <version ClassVersion="14" checksum="723329557"/>
+  <version ClassVersion="13" checksum="3281310285"/>
   </class>
   <class name="dune::MetaInfo" ClassVersion="11" >
    <version ClassVersion="11" checksum="328235296"/>

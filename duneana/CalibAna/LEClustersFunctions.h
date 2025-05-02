@@ -14,6 +14,7 @@ typedef struct //!< Temporary Clusters used to construct the Clusters (ClusterIn
     float Sumy , Sumz , ECol , EInd1 , EInd2 , PeakTime;
     int Npoint, NCol , NInd1 , NInd2;
     std::list<int> lChannelCol , lChannelInd1 , lChannelInd2;
+    std::vector<dune::ClusterHitInfo> vCHitInfo;
     std::vector<int> vMCPDG , vMCMOMpdg , vNOF;
     std::vector<float> vMCWEI;
     std::vector<float> vMCX , vMCY , vMCZ;
@@ -48,50 +49,62 @@ bool AllSame( std::vector<int> v)
   }
   return allsame;
 }
-int NearOrFar( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , const recob::Hit & hit)
+
+int NearOrFar( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , const art::Ptr<recob::Hit>  hit)
 {
   if (IsPDHD)
   {
-    if ( (hit.WireID().TPC == 2)|| (hit.WireID().TPC == 6) || (hit.WireID().TPC == 3) || (hit.WireID().TPC == 7) ) return  -1; // 3 and 7 are dumie TPC
-    if ( (hit.WireID().TPC == 1)|| (hit.WireID().TPC == 5) || (hit.WireID().TPC == 0) || (hit.WireID().TPC == 4) ) return  1;  // 0 and 4 are dumie TPC
+    if ( (hit->WireID().TPC == 2)|| (hit->WireID().TPC == 6) || (hit->WireID().TPC == 3) || (hit->WireID().TPC == 7) ) return  -1; // 3 and 7 are dumie TPC
+    if ( (hit->WireID().TPC == 1)|| (hit->WireID().TPC == 5) || (hit->WireID().TPC == 0) || (hit->WireID().TPC == 4) ) return  1;  // 0 and 4 are dumie TPC
   }
   if (IsPDVD)
   {
-    if (hit.WireID().TPC <= 7 ) return -1;
-    if (hit.WireID().TPC  > 7 ) return 1;
+    if (hit->WireID().TPC <= 7 ) return -1;
+    if (hit->WireID().TPC  > 7 ) return 1;
   }
   if (IsFDHD || IsFDVD) return 1; //to take away when geometry will 2xaxb but now only 1xaxb on both HD and VD simulation
   if (IsFDHD)
   {
-    if( hit.WireID().TPC %2 ==0 ) return +1;
+    if( hit->WireID().TPC %2 ==0 ) return +1;
     else return -1;
   }
   if (IsFDVD)
   {
-    if(hit.WireID().TPC % 8 < 4) return +1;
+    if(hit->WireID().TPC % 8 < 4) return +1;
     else return -1;
   }
   return -999;
 }
 
 
-void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , art::Event const & ev, art::InputTag HitLabel, float const CoincidenceWd1_l , float const CoincidenceWd1_r, float const CoincidenceWd2_l , float const CoincidenceWd2_r, const recob::Hit & HitCol, 
-                                                                                  std::list<geo::WireID> & WireInd1,
-                                                                                  std::list<geo::WireID> & WireInd2,
-                                                                                  std::list<int>   & ChannelInd1,
-                                                                                  std::list<int>   & ChannelInd2,
-                                                                                  std::list<float> & EInd1,
-                                                                                  std::list<float> & EInd2,
-                                                                                  std::list<float> & PTInd1,
-                                                                                  std::list<float> & PTInd2,
-										  std::list<float> & PAInd1,
-                                                                                  std::list<float> & PAInd2)
+void GetListOfTimeCoincidenceHit( 
+		bool IsPDVD , 
+		bool IsPDHD , 
+		bool IsFDVD , 
+		bool IsFDHD , 
+		art::Event const & ev, 
+		art::InputTag HitLabel, 
+		float const CoincidenceWd1_l , 
+		float const CoincidenceWd1_r, 
+		float const CoincidenceWd2_l , 
+		float const CoincidenceWd2_r, 
+		const art::Ptr<recob::Hit> HitCol, 
+		std::list<geo::WireID> & WireInd1,
+		std::list<geo::WireID> & WireInd2,
+		std::list<int>   & ChannelInd1,
+		std::list<int>   & ChannelInd2,
+		std::list<float> & EInd1,
+		std::list<float> & EInd2,
+		std::list<float> & PTInd1,
+		std::list<float> & PTInd2,
+		std::list<float> & PAInd1,
+		std::list<float> & PAInd2)
 {
-  auto const hitlist = ev.getValidHandle<std::vector<recob::Hit>>(HitLabel);
+  auto const hitlist_handle = ev.getValidHandle<std::vector<recob::Hit>>(HitLabel);
+  std::vector<art::Ptr<recob::Hit>> hitlist;
+  art::fill_ptr_vector(hitlist, hitlist_handle);
 
-  recob::Hit hit = hitlist->at(0);
-
-  float PeakTimeCol    = HitCol.PeakTime();
+  float PeakTimeCol    = HitCol->PeakTime();
   //float RMSPeakTimeCol = HitCol.RMS();
 
   float EndTime1   = PeakTimeCol + CoincidenceWd1_r;
@@ -104,38 +117,42 @@ void GetListOfTimeCoincidenceHit( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool
   int NoFCol = NearOrFar(IsPDVD,IsPDHD,IsFDVD,IsFDHD,HitCol);
   int NoF = -4;
 
-  for (int i=0, sz=hitlist->size(); i!=sz; ++i)
+  for (const art::Ptr<recob::Hit> &hit: hitlist)
   { 
-    hit   = hitlist->at(i);
-    Plane = hit.WireID().Plane;
+   
+    Plane = hit->WireID().Plane;
     if (Plane == 2) continue;
 
     NoF = NearOrFar(IsPDVD,IsPDHD,IsFDVD,IsFDHD,hit);
     if (NoF != NoFCol) continue;
 
-    PeakTime = hit.PeakTime();
+    PeakTime = hit->PeakTime();
     if (Plane == 0)
     {
       if ((PeakTime < StartTime1)||(PeakTime > EndTime1)) continue;
 
-      WireInd1.push_back(hit.WireID());
-      ChannelInd1.push_back(hit.Channel());
-      //EInd1.push_back(hit.ROISummedADC());
-      EInd1.push_back(hit.Integral());
+      WireInd1.push_back(hit->WireID());
+      ChannelInd1.push_back(hit->Channel());
+
+      if ( hit->ROISummedADC()) EInd1.push_back(hit->ROISummedADC());
+      else EInd1.push_back(hit->Integral());
+
       PTInd1.push_back(PeakTime);
-      PAInd1.push_back(hit.PeakAmplitude());
+      PAInd1.push_back(hit->PeakAmplitude());
       continue;
     }
     if (Plane == 1)
     {
       if ((PeakTime < StartTime2)||(PeakTime > EndTime2)) continue;
 
-      WireInd2.push_back(hit.WireID());
-      ChannelInd2.push_back(hit.Channel());
-      //EInd2.push_back(hit.ROISummedADC());
-      EInd2.push_back(hit.Integral());
+      WireInd2.push_back(hit->WireID());
+      ChannelInd2.push_back(hit->Channel());
+      
+      if ( hit->ROISummedADC()) EInd2.push_back(hit->ROISummedADC());
+      else EInd2.push_back(hit->Integral());
+
       PTInd2.push_back(PeakTime);
-      PAInd2.push_back(hit.PeakAmplitude());
+      PAInd2.push_back(hit->PeakAmplitude());
     }
   }
 }
@@ -866,7 +883,8 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
                                             std::vector<float> vEInd1PointByEvent , std::vector<float> vEInd2PointByEvent , 
                                             std::vector<int> vChInd1PointByEvent , std::vector<int> vChInd2PointByEvent ,  
                                             std::vector<float> vEnergyColByEvent , std::vector<float> vPeakTimeColByEvent ,
-					    std::vector<int> vChannelColByEvent ,  
+					    std::vector<int> vChannelColByEvent , 
+					    std::vector<dune::ClusterHitInfo> vCHitInfoByEvent ,
 					    bool truth,
                                             std::vector<int> vMCPDGByEvent , std::vector<int> vMCMOMpdgByEvent ,
 					    std::vector<float> vMCWeightByEvent ,  
@@ -878,6 +896,8 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
 					    float fgeoZmax)
 {
 
+
+  // assure the temporary clusters created are empty and null 
   int k;
   point vp;
   TempCluster NullCluster;
@@ -904,10 +924,14 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
   NullCluster.lChannelInd2.clear();
   NullCluster.EInd2 = 0;
   NullCluster.NInd2= 0;
-    
+  NullCluster.vCHitInfo.clear();
+
   std::vector<TempCluster> vTempCluster(n_cluster, NullCluster);
  
   int out = 0;
+
+  // for loop on isolated and now clustered point 
+  // this loop create Temporary cluster used to assure no doble counting on any plane
 
   if( fVerbose) std::cout << "there are " << n_cluster << " clusters to check" << std::endl;
   for( k = 0 , vp=p ; k<n_point ; k++ , vp++)
@@ -923,6 +947,8 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
     int ChannelInd2 = vChInd2PointByEvent[index];
     float ECol      = vEnergyColByEvent[index];
     float PeakTime  = vPeakTimeColByEvent[index];
+
+    dune::ClusterHitInfo  chitinfo = vCHitInfoByEvent[index];
 
     int MCPart_pdg = vMCPDGByEvent[index];
     int MCPart_mompdg = vMCMOMpdgByEvent[index];
@@ -957,6 +983,7 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
       vTempCluster[ClusterID].ECol += ECol;
       vTempCluster[ClusterID].PeakTime += PeakTime;
       vTempCluster[ClusterID].NCol += 1;
+      
       if (truth)
       {
         (vTempCluster[ClusterID].vMCPDG).push_back( MCPart_pdg );
@@ -969,6 +996,9 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
 	(vTempCluster[ClusterID].vMCE).push_back( MCPart_E );
 	(vTempCluster[ClusterID].vMCNe).push_back( MCPart_Ne );
       }
+      
+      (vTempCluster[ClusterID].vCHitInfo).push_back( chitinfo );
+
       (vTempCluster[ClusterID].lChannelCol).push_back( ChannelCol );
       (vTempCluster[ClusterID].vNOF).push_back( NoF );
     }
@@ -990,6 +1020,9 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
 
   std::vector<dune::ClusterInfo*> vCluster(n_cluster);
 
+  // loop to create ClusterInfo (nearly same infor as temporary cluster but 
+  // with barycenter for position 
+
   for( int j = 0 ; j < n_cluster ; j++ )
   {
 
@@ -998,6 +1031,7 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
     vCluster[j]->truth                 = truth;
     vCluster[j]->CRP_T0                = CRP_T0;
 
+    // Avoid empty clusters
     if (vTempCluster[j].ECol) 
     {
       vCluster[j]->z = ( vTempCluster[j].Sumz )/(vTempCluster[j].ECol);
@@ -1015,6 +1049,7 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
     vCluster[j]->NumberOfInduction1  = vTempCluster[j].NInd1;
     vCluster[j]->NumberOfInduction2  = vTempCluster[j].NInd2;
 
+    // security to assure all hits in cluster are on the same anode plane
     std::vector<int> vtemp_NOF = vTempCluster[j].vNOF;
     if ( AllSame( vtemp_NOF ) )  vCluster[j]->nof = vTempCluster[j].vNOF[0];
     else 
@@ -1026,12 +1061,17 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
     vCluster[j]->ChargeCollection    = vTempCluster[j].ECol;
     vCluster[j]->ChargeInduction1    = vTempCluster[j].EInd1;
     vCluster[j]->ChargeInduction2    = vTempCluster[j].EInd2;
+
+    // again security for empty cluster
     if (vTempCluster[j].NCol) vCluster[j]->peaktime = vTempCluster[j].PeakTime/vTempCluster[j].NCol;
     else
     {
       vCluster[j]->peaktime = -999.;
       if ( fVerbose) std::cout << "cluster with no hits on colection" << std::endl;
     }
+
+    // Adding ClusterhitInfo Vector to the vecotr of ClusterInfo
+    vCluster[j]->vHitsInfo = vTempCluster[j].vCHitInfo;
 
     if (truth)
     {
@@ -1182,6 +1222,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   std::vector<int>   vChInd1PointByEvent;
   std::vector<int>   vChInd2PointByEvent;
   std::vector<int>   vNoFByEvent;
+  
+  std::vector<dune::ClusterHitInfo> vCHitInfoByEvent;
 
   std::vector<int>   vMCMOMpdgByEvent;
   std::vector<int>   vMCPDGByEvent;
@@ -1198,28 +1240,54 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   if (!e.isRealData()) vTrackIDToGeneratorTag = GetGeneratorTag( e , fG4producer , bt_serv , fVerbose);
  
   //retrieve hit list
-  auto const HitList = e.getValidHandle<std::vector<recob::Hit>>(fHITproducer);
-  int fNHits = HitList->size();
+  auto const HitListHandle = e.getValidHandle<std::vector<recob::Hit>>(fHITproducer);
+  std::vector<art::Ptr<recob::Hit>> HitList;
+  art::fill_ptr_vector(HitList, HitListHandle);
+
+  int fNHits = HitListHandle->size();
  
   if (fNHits == 0)
   {
     return vec;
   }
 
-  for(int index =0 ; index<fNHits; index++)
+  if ( fVerbose) std::cout << " start hit loop, " << fNHits << " hits to analyse"<< std::endl;
+  for(const art::Ptr<recob::Hit> &hit: HitList)
   {
 
-    const recob::Hit& hit = HitList->at(index);
+    //const recob::Hit& hit = HitList->at(index);
 
-    geo::WireID fWire   = hit.WireID();
-    int fChannel        = hit.Channel();
-    int fPlane          = hit.WireID().Plane;
+    //if ( fVerbose) std::cout << " start hit: " << hit.key() << std::endl;
+    geo::WireID fWire   = hit->WireID();
+    int   fChannel      = hit->Channel();
+    int   fPlane        = hit->WireID().Plane;
+    float fPeakTime     = hit->PeakTime();
 
     int fNearOrFarToTheBeam = NearOrFar(IsPDVD , IsPDHD ,IsFDVD , IsFDHD, hit);
 
-    //float fEnergy         = hit.ROISummedADC();///fADCtoEl;
-    float fEnergy         = hit.Integral();///fADCtoEl;
-    float fPeakTime       = hit.PeakTime();//*ftick_in_mus;
+    float fEnergy = -999;
+    if ( hit->ROISummedADC() ) fEnergy = hit->ROISummedADC();
+    else                      fEnergy = hit->Integral();
+    
+    dune::ClusterHitInfo chitinfo;
+
+    chitinfo.h.integral = hit->Integral();
+    chitinfo.h.sumadc   = hit->ROISummedADC();
+    chitinfo.h.width    = hit->RMS();
+    chitinfo.h.time     = hit->PeakTime();
+    chitinfo.h.mult     = hit->Multiplicity();
+    chitinfo.h.wire     = hit->WireID().Wire;
+    chitinfo.h.plane    = hit->WireID().Plane;
+    chitinfo.h.tpc      = hit->WireID().TPC;
+    chitinfo.h.end      = hit->EndTick();
+    chitinfo.h.start    = hit->StartTick();
+    chitinfo.h.id       = hit.key();
+    chitinfo.h.channel  = hit->Channel();
+
+    chitinfo.h.truth.e     = -1;
+    chitinfo.h.truth.nelec = -1;
+
+    //if ( fVerbose) std::cout << " hit info retreived "<< std::endl;
 
     if (fPlane != 2) continue;
 
@@ -1264,7 +1332,10 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
         const simb::MCParticle* curr_part_mom = pi_serv->TrackIdToParticle_P((p.first)->Mother());
         vMCPart_motherPdg.push_back( curr_part_mom->PdgCode() );
       }
-      
+     
+      chitinfo.h.truth.e     = sumMCEnergy;
+      chitinfo.h.truth.nelec = totElec;
+
       
     }// end if event != real data
 
@@ -1296,6 +1367,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     std::list<float>         lEInd1Point;
     std::list<float>         lEInd2Point;
 
+    std::list<float>         lYPoint_hit;
+    std::list<float>         lZPoint_hit;
     // Coincidence research
 
     GetListOfTimeCoincidenceHit( IsPDVD, IsPDHD ,IsFDVD , IsFDHD, e, fHITproducer, fCoincidenceWd1_left, fCoincidenceWd1_right ,fCoincidenceWd2_left, fCoincidenceWd2_right , hit, lWireInd1, lWireInd2, lChannelInd1, lChannelInd2, lEnergyInd1, lEnergyInd2, lPeakTimeInd1, lPeakTimeInd2, lPeakAmpInd1, lPeakAmpInd2);
@@ -1310,7 +1383,17 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 			          lChannelInd1 , lEnergyInd1 , lYInd1 , lZInd1 , lChIntersectInd1 , lEIntersectInd1 , 
 				  lChannelInd2 , lEnergyInd2 , lYInd2 , lZInd2 , lChIntersectInd2 , lEIntersectInd2,
 				  fWireReadout); 
-      if ( bIs3ViewsCoincidence ) GetListOf3ViewsPoint( fPitch , fPitchMultiplier , lChIntersectInd1 , lYInd1 , lZInd1 , lEIntersectInd1 , lChIntersectInd2 , lYInd2 , lZInd2 , lEIntersectInd2 , lYPoint , lZPoint , lEInd1Point , lEInd2Point , lChInd1Point , lChInd2Point);
+      GetListOf3ViewsPoint( fPitch , fPitchMultiplier , 
+		      lChIntersectInd1 , lYInd1 , lZInd1 , lEIntersectInd1 , 
+		      lChIntersectInd2 , lYInd2 , lZInd2 , lEIntersectInd2 , 
+		      lYPoint_hit , lZPoint_hit , 
+		      lEInd1Point , lEInd2Point , 
+		      lChInd1Point , lChInd2Point);
+      if ( bIs3ViewsCoincidence ) 
+      {
+	lYPoint = lYPoint_hit;
+        lZPoint = lYPoint_hit;
+      }
       else
       {
         //induction 1
@@ -1335,7 +1418,37 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     }
     
 
+    //if ( fVerbose) std::cout << " hit spatial info retreived "<< std::endl;
     // Retreiving hit info by event
+
+    // Setting vector of point for ClusterHitInfo
+
+    std::list<float>::iterator z0  = lZPoint_hit.begin();
+    std::vector<dune::Vector3D>      vSP;
+
+    //if ( fVerbose) std::cout << " hit has " << lYPoint_hit.size() << " y points and " << lZPoint_hit.size() << " z point" << std::endl;
+    for ( auto const y : lYPoint_hit)
+    {
+        if(( y == -999) || (*z0 == -999))
+        {
+            z0++;
+	    continue;
+	}
+	dune::Vector3D pos;
+        pos.x = fPeakTime*fElectronVelocity*fTickTimeInMus;
+        pos.y = y;
+        pos.z = *z0;
+
+	vSP.push_back(pos);
+	z0++;
+    }
+
+
+    chitinfo.h.hasSP = vSP.size();
+    //if ( fVerbose) std::cout << " hit has : " << vSP.size() << " space-point" << std::endl;
+    if ( vSP.size() ) chitinfo.vSpacePoint = vSP;
+
+    //if ( fVerbose) std::cout << " hit vector of space point made "<< std::endl;
 
     std::list<int>::iterator ch1  = lChInd1Point.begin();
     std::list<int>::iterator ch2  = lChInd2Point.begin();
@@ -1343,7 +1456,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     std::list<float>::iterator e2 = lEInd2Point.begin();
     std::list<float>::iterator z  = lZPoint.begin();
 
-    
+
     for ( auto const y : lYPoint)
     {
       if(( y == -999) || (*z == -999) || (*e1 == -999) || (*e2 == -999) || (*ch1 == -999) || (*ch2 == -999))
@@ -1366,6 +1479,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
       vEnergyColByEvent.push_back( fEnergy   );
       vPeakTimeColByEvent.push_back(  fPeakTime );
       vChannelColByEvent.push_back( fChannel );
+
+      vCHitInfoByEvent.push_back( chitinfo );
 
       // take first origin MC truth for now
       if (( truth )&&( !vMCPart_pdgCode.empty() ))
@@ -1403,8 +1518,10 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 
     }
 
+    //if ( fVerbose) std::cout << "hit number: "<< hit.key() << " done" << std::endl;
   }// end hit loop
 
+  if ( fVerbose) std::cout << "hit loop ended" << std::endl;
   std::vector<int> vIso = GetXYZIsolatedPoint( vYPointByEvent , vZPointByEvent , vPeakTimeColByEvent , vNoFByEvent , fElectronVelocity , fTickTimeInMus , fRadiusInt , fRadiusExt , fVerbose);
   int PTSIsolated = (int) vIso.size();
 
@@ -1429,7 +1546,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 
   std::vector<int> vchecks(2,0);
 
-  int K = fNumberInitClusters;
+  int IsoPt = (int) 2*PTSIsolated/3;
+  int K = TMath::Max( (int) fNumberInitClusters , IsoPt);
 
   int check = 0;
   float threshold = fMinSizeCluster;
@@ -1479,9 +1597,104 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   }
   if (fVerbose) std::cout<< " reallocation done " << std::endl;
 
-  vec = GetCluster( fAsConverged, CRP_T0, PTSIsolated , clustersPos[0].size() , v , vEInd1PointByEvent , vEInd2PointByEvent , vChInd1PointByEvent , vChInd2PointByEvent , vEnergyColByEvent , vPeakTimeColByEvent , vChannelColByEvent , truth , vMCPDGByEvent , vMCMOMpdgByEvent , vMCWeightByEvent , vGeneratorTagByEvent , vMCXByEvent , vMCYByEvent , vMCZByEvent , vNoFByEvent , vMCEByEvent , vMCNeByEvent, fVerbose, fgeoZmax);
+  vec = GetCluster( fAsConverged, CRP_T0, PTSIsolated , clustersPos[0].size() , v , vEInd1PointByEvent , vEInd2PointByEvent , vChInd1PointByEvent , vChInd2PointByEvent , vEnergyColByEvent , vPeakTimeColByEvent , vChannelColByEvent , vCHitInfoByEvent , truth , vMCPDGByEvent , vMCMOMpdgByEvent , vMCWeightByEvent , vGeneratorTagByEvent , vMCXByEvent , vMCYByEvent , vMCZByEvent , vNoFByEvent , vMCEByEvent , vMCNeByEvent, fVerbose, fgeoZmax);
   //NCluster = vCluster.size();
 
   return vec;
 }
+
+void FillWireInfoForLECluster( 
+		dune::ClusterInfo* cluster , 
+		const geo::WireReadoutGeom& wireReadout , 
+		std::map<geo::WireID, art::Ptr<raw::RawDigit>>& rawdigits ,
+		float HitTimeWindowSize ,
+	       	int HitWireWindowSize)
+{
+
+    std::vector<dune::ClusterHitInfo> vCHitInfo = cluster->vHitsInfo;
+    std::map<geo::WireID, std::pair<int, int>> fWiresToSave;
+
+    for( auto chitinfo : vCHitInfo )
+    {
+	float peakTime = chitinfo.h.time;
+
+        int min_tick = peakTime - HitTimeWindowSize;
+        int max_tick = peakTime + HitTimeWindowSize;	
+	
+	for (int wire = chitinfo.h.wire - HitWireWindowSize; wire <= chitinfo.h.wire + HitWireWindowSize ; wire++) 
+	{
+	    std::vector<geo::WireID> wids = wireReadout.ChannelToWire(chitinfo.h.channel);
+	    geo::WireID w(wids[0], wire);
+
+            if (fWiresToSave.count(w)) 
+	    {
+                fWiresToSave.at(w).first = std::min(fWiresToSave.at(w).first, min_tick);
+	  	fWiresToSave.at(w).second = std::max(fWiresToSave.at(w).second, max_tick);
+	    }
+	    else 
+	    {
+                fWiresToSave[w] = {min_tick, max_tick};
+	    }
+         }
+    }
+
+    /*for (const auto& entry : fWiresToSave) 
+    {
+       const auto& wireID = entry.first;
+       const auto& values = entry.second;
+
+       std::cout << wireID.Wire << "\t\t"
+                  << values.first << "\t"
+                  << values.second << "\n";
+    }*/
+    
+    for (auto const &w_pair: fWiresToSave) 
+    {
+        
+	geo::WireID wire = w_pair.first;
+
+    	if (rawdigits.count(wire)) 
+	{
+            std::cout << " found wire in raw digit " << std::endl;
+            const raw::RawDigit &thisdigit = *rawdigits.at(wire);
+      	    int min_tick_2 = std::max(0, w_pair.second.first);
+      	    int max_tick_2 = std::min((int)thisdigit.NADC(), w_pair.second.second);
+
+      	    // collect the adcs
+	    std::vector<short> adcs;
+      
+	    for (int t = min_tick_2; t < max_tick_2; t++) 
+	    {
+	        adcs.push_back(thisdigit.ADC(t));
+      	    }
+       
+	    dune::WireInfo winfo;
+      	    winfo.wire = wire.Wire;
+      	    winfo.plane = wire.Plane;
+      	    winfo.tpc = wire.TPC;
+      	    winfo.channel = wireReadout.PlaneWireToChannel(wire);
+      	    winfo.tdc0 = min_tick_2;
+      	    winfo.adcs = adcs;
+
+            if (winfo.plane == 0) 
+	    {
+	        cluster->wires0.push_back(winfo);
+      	    }
+            else if (winfo.plane == 1) 
+	    {
+	        cluster->wires1.push_back(winfo);
+      	    }
+            else if (winfo.plane == 2) 
+	    {
+	        cluster->wires2.push_back(winfo);
+            }
+	    
+        }
+    }
+
+}
+
+
+	    
+
 
