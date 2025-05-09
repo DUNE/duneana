@@ -17,8 +17,9 @@ dunefd_cafmaker:
     EnergyRecoECaloLabel:       "energyrecnue"
     DirectionRecoLabelNue:      "anglereconuepfps"
     DirectionRecoLabelNumu:     "anglereconumupfps"
+    DirectionRecoLabelCalo:     "anglerecohits"
     PandoraLabel:               "pandora"
-    ParticleIDLabel:            "pmtrackpid"
+    ParticleIDLabel:            "pandorapid"
     MCTruthLabel:               "generator"
     GTruthLabel:                "generator"
     MCFluxLabel:                "generator"
@@ -26,9 +27,9 @@ dunefd_cafmaker:
     TrackLabel:                 "pandoraTrack"
     ShowerLabel:                "pandoraShower"
     SpacePointLabel:            "pandora"
-    HitLabel:                   "TODO:LABEL"
+    HitLabel:                   "hitfd"
 
-    FiducialVolumeCut:          [ 20, 20, 20, 20, 20, 20 ] #FV cut margins for all directions minX, maxX, minY, maxY, minZ, maxZ (in cm)
+    VertexFiducialVolumeCut:    [ 20, 20, 20, 20, 20, 20 ] #FV cut margins for all directions minX, maxX, minY, maxY, minZ, maxZ (in cm)
     ContainedDistThreshold:     20 #Distance from the edge of the AV to be considered contained (in cm)
 
     CalorimetryAlg:             @local::dune10kt_calorimetryalgmc
