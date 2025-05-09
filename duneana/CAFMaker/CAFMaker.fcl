@@ -1,3 +1,5 @@
+#include "calorimetry_dune10kt.fcl"
+
 BEGIN_PROLOG
 
 dunefd_cafmaker:
@@ -15,15 +17,22 @@ dunefd_cafmaker:
     EnergyRecoECaloLabel:       "energyrecnue"
     DirectionRecoLabelNue:      "anglereconuepfps"
     DirectionRecoLabelNumu:     "anglereconumupfps"
-    PandoraNuVertexModuleLabel: "pandora"
+    PandoraLabel:               "pandora"
+    ParticleIDLabel:            "pmtrackpid"
     MCTruthLabel:               "generator"
     GTruthLabel:                "generator"
     MCFluxLabel:                "generator"
     POTSummaryLabel:            "generator"
+    TrackLabel:                 "pandoraTrack"
+    ShowerLabel:                "pandoraShower"
+    SpacePointLabel:            "pandora"
+    HitLabel:                   "TODO:LABEL"
 
-    FidVolCut:	             3.0
-    NuECut:                  0.8
-    NuMuCut:                 0.8
+    FiducialVolumeCut:          [ 20, 20, 20, 20, 20, 20 ] #FV cut margins for all directions minX, maxX, minY, maxY, minZ, maxZ (in cm)
+    ContainedDistThreshold:     20 #Distance from the edge of the AV to be considered contained (in cm)
+
+    CalorimetryAlg:             @local::dune10kt_calorimetryalgmc
+    RecombFactor:               0.63 #Average recombination factor used the the hits not attached to a PFP
     
 }
 
