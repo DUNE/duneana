@@ -102,12 +102,12 @@ namespace caf {
       void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
       void FillDirectionInfo(caf::SRDirectionBranch &dirBranch, const art::Event &evt) const;
       int FillGENIERecord(simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
-      float GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
+      double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       // std::tuple<int, float> GetTruthMatchingAndOverlap(recob::PFParticle const& pfp, const art::Event &evt) const;
-      float GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const;
-      float GetWallDistance(recob::SpacePoint const& sp) const;
+      double GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const;
+      double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
-      float GetSingleHitsEnergy(art::Event const& evt) const;
+      double GetSingleHitsEnergy(art::Event const& evt, int plane) const;
       bool IsVertexContained(caf::SRVector3D const& vtx) const;
 
       std::string fCVNLabel;
@@ -153,7 +153,7 @@ namespace caf {
       std::vector<double> fVertexFiducialVolumeCut;
 
       calo::CalorimetryAlg fCalorimetryAlg;                    ///< the calorimetry algorithm
-      float fRecombFactor; ///< recombination factor for the isolated hits
+      double fRecombFactor; ///< recombination factor for the isolated hits
       
       //TODO: Ask to add all the generators in the StandardRecord if needed at some point
       const std::map<simb::Generator_t, caf::Generator> fgenMap = {
@@ -201,7 +201,7 @@ namespace caf {
       fGeom(&*art::ServiceHandle<geo::Geometry>()),
       fVertexFiducialVolumeCut(pset.get<std::vector<double>>("VertexFiducialVolumeCut")),
       fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")),
-      fRecombFactor(pset.get<float>("RecombFactor"))
+      fRecombFactor(pset.get<double>("RecombFactor"))
   {
 
     if(pset.get<bool>("CreateFlatCAF")){
@@ -279,7 +279,7 @@ namespace caf {
       inter.mode = static_cast<caf::ScatteringMode>(neutrino.Mode());
       inter.targetPDG = gtruth[i].ftgtPDG;
       inter.hitnuc = neutrino.HitNuc(); //gtruth[i].fHitNucPDG seems not to be set properly so using the MCNeutrino info
-      float nucMass = genie::PDGLibrary::Instance()->Find(inter.hitnuc)->Mass();
+      double nucMass = genie::PDGLibrary::Instance()->Find(inter.hitnuc)->Mass();
       inter.removalE = nucMass - gtruth[i].fHitNucP4.E(); //Estimating the removal energy as hitNucleonMass - hitNucleonEnergy as the actual value is not stored...
       inter.E = neutrino.Nu().E();
 
@@ -376,7 +376,7 @@ namespace caf {
           part.daughters.push_back(daughter);
         }
 
-        //start and end processes/subprocesses are currently not filled as we are working with GENIE particles here
+        //start and end processes/subprocesses are currently not filled as they are strings and it's tricky to convert them back to uint
 
         if( mcpart.StatusCode() == genie::EGHepStatus::kIStStableFinalState )
         {
@@ -481,14 +481,14 @@ namespace caf {
   //------------------------------------------------------------------------------
 
 
-  float CAFMaker::GetWallDistance(recob::SpacePoint const& sp) const{
+  double CAFMaker::GetWallDistance(recob::SpacePoint const& sp) const{
     //Get the position of the space point in world coordinates
     double x = sp.XYZ()[0];
     double y = sp.XYZ()[1];
     double z = sp.XYZ()[2];
 
     //Get the distance to the wall
-    double dist = 99999;
+    double dist = std::numeric_limits<double>::max();
 
     dist = std::min(dist, x - fActiveBounds[0]);
     dist = std::min(dist, fActiveBounds[1] - x);
@@ -502,8 +502,8 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  float CAFMaker::GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const{
-    float minDist = 99999;
+  double CAFMaker::GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const{
+    double minDist = std::numeric_limits<double>::max();
     std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaEventUtils::GetSpacePoints(evt, fSpacePointLabel);
 
     if(spacePoints.empty()){
@@ -514,7 +514,7 @@ namespace caf {
     //Returning the minimum distance to the wall
     
     for(auto const& sp: spacePoints){
-      float dist = GetWallDistance(*sp);
+      double dist = GetWallDistance(*sp);
       if(dist < minDist){
         minDist = dist;
       }
@@ -553,10 +553,10 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  float CAFMaker::GetSingleHitsEnergy(art::Event const& evt) const{
+  double CAFMaker::GetSingleHitsEnergy(art::Event const& evt, int plane) const{
     std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaEventUtils::GetHits(evt, fHitLabel);
 
-    std::vector<art::Ptr<recob::Hit>> collection_plane_hits = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, 2);
+    std::vector<art::Ptr<recob::Hit>> collection_plane_hits = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, plane);
 
     const art::FindManyP<recob::SpacePoint> sp_assoc(hits, evt, fSpacePointLabel);
 
@@ -568,7 +568,7 @@ namespace caf {
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService>()->DataFor(evt);
     auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService>()->DataFor(evt, clockData);
 
-    float charge = 0;
+    double charge = 0;
 
     for (uint i = 0; i < collection_plane_hits.size(); i++){
       std::vector<art::Ptr<recob::SpacePoint>> matching_sps = sp_assoc.at(collection_plane_hits[i].key());
@@ -817,12 +817,12 @@ namespace caf {
       SRShower srshower;
 
       //We define Evis at the PFP level as the hits are the same for shower and track
-      float Evis = GetVisibleEnergy(particle, evt);
+      double Evis = GetVisibleEnergy(particle, evt);
 
       //This variable will be updated correctly during the recob::Track processing and will be used to fill the reco particle energy method if isTrack.
       caf::PartEMethod trackErecoMethod = caf::PartEMethod::kUnknownMethod;
 
-      if(track){
+      if(track.isNonnull()){
         srtrack.start.SetX(track->Start().X());
         srtrack.start.SetY(track->Start().Y());
         srtrack.start.SetZ(track->Start().Z());
@@ -874,7 +874,8 @@ namespace caf {
         }
       }
 
-      if(shower){
+      if(shower.isNonnull()){
+        //Filling the shower information
         srshower.start.SetX(shower->ShowerStart().X());
         srshower.start.SetY(shower->ShowerStart().Y());
         srshower.start.SetZ(shower->ShowerStart().Z());
@@ -891,7 +892,7 @@ namespace caf {
       }
 
       if(isTrack){
-        if(track){ //I hope this condition is always fullfilled is the particle is tagged at track, but who knows...
+        if(track.isNonnull()){ //I hope this condition is always fullfilled is the particle is tagged at track, but who knows...
           particle_record.start = SRVector3D(track->Start().X(), track->Start().Y(), track->Start().Z());
           particle_record.end = SRVector3D(track->End().X(), track->End().Y(), track->End().Z());
           particle_record.E = srtrack.E;
@@ -900,7 +901,7 @@ namespace caf {
         particle_record.origRecoObjType = caf::RecoObjType::kTrack;
       }
       else{
-        if(shower){ //I hope this condition is always fullfilled is the particle is tagged at shower, but who knows...
+        if(shower.isNonnull()){ //I hope this condition is always fullfilled is the particle is tagged at shower, but who knows...
           particle_record.start = SRVector3D(shower->ShowerStart().X(), shower->ShowerStart().Y(), shower->ShowerStart().Z());
           //Only filling the start, no defined end for a shower
 
@@ -933,7 +934,7 @@ namespace caf {
     single_hits.primary = false;
     single_hits.pdg = 0; //Not a real particle
     single_hits.tgtA = 40; //Interaction on Ar40.
-    single_hits.E = GetSingleHitsEnergy(evt);
+    single_hits.E = GetSingleHitsEnergy(evt, 2); //Using the collection plane for now
     single_hits.origRecoObjType = caf::RecoObjType::kHitCollection;
 
     recoParticlesBranch.pandora.push_back(std::move(single_hits));
@@ -946,7 +947,7 @@ namespace caf {
   //------------------------------------------------------------------------------
 
 
-  float CAFMaker::GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const
+  double CAFMaker::GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const
   {
     //Using the shower version of the PFP to compute the visible energy for the particle
     art::Ptr<recob::Shower> shower = dune_ana::DUNEAnaPFParticleUtils::GetShower(pfp, evt, fPandoraLabel, fShowerLabel);
