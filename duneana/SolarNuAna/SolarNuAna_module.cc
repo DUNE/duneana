@@ -1497,7 +1497,7 @@ namespace solar
           sClusterReco += "*** Matched preselection cluster: \n";
           sClusterReco += " - MainTrackID " + SolarAuxUtils::str(MVecMainID[i]) + "\n";
           sClusterReco += " - Purity " + SolarAuxUtils::str(MVecGenPur[i]) + " Hits " + SolarAuxUtils::str(MVecNHit[i]) + "\n";
-          sClusterReco += " - #AdjCl " + SolarAuxUtils::str(MAdjClNum) + "from which " + SolarAuxUtils::str(MSignalAdjClNum) + " are signal)\n";
+          sClusterReco += " - #AdjCl " + SolarAuxUtils::str(MAdjClNum) + " ( " + SolarAuxUtils::str(MSignalAdjClNum) + " signal )\n";
           if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1))
           {
             sClusterReco += " - Gen " + SolarAuxUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1] + "\n";
