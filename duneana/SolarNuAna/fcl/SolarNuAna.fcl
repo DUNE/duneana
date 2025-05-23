@@ -70,7 +70,6 @@ BEGIN_PROLOG
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
     SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
-
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
@@ -90,7 +89,6 @@ BEGIN_PROLOG
   solar_nu_ana_vd.OpHitLabel:          "ophit10ppm"
   solar_nu_ana_vd.OpFlashLabel:        "solarflash"
   solar_nu_ana_vd.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
-
   solar_nu_ana_vd.Geometry:            "VD"
   solar_nu_ana_vd.DetectorSizeX:       330
   solar_nu_ana_vd.DetectorSizeY:       680 
@@ -100,10 +98,14 @@ BEGIN_PROLOG
   solar_nu_ana_vd.XAMembraneY:         743.302
   solar_nu_ana_vd.XAFinalCapZ:         2188.38
   solar_nu_ana_vd.XAStartCapZ:        -96.5
-
+  solar_nu_ana_vd.ClusterMatchNHit:    10
   solar_nu_ana_vd.AdjOpFlashTime:      8500
+
+  solar_nu_ana_vd_1x8x14_optimistic: @local::solar_nu_ana_vd
+  solar_nu_ana_vd_1x8x14_optimistic.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_optimistic
 
   solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x6.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
+
 
 END_PROLOG
