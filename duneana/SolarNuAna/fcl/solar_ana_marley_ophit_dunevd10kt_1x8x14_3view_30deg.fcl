@@ -1,0 +1,6 @@
+# Specific configuration for signal+bkg events with coustom flash generation
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
+
+#include "solar_ana_marley_flash_dunevd10kt_1x8x14_3view_30deg.fcl"
+
+physics.analyzers.solarnuana.SaveSignalOpHits:   true

@@ -97,7 +97,7 @@ namespace solar
     std::vector<std::map<int, simb::MCParticle>> GeneratorParticles = {};
     int Event, Flag, MNHit, MGen, MTPC, MInd0TPC, MInd1TPC, MInd0NHits, MInd1NHits, MMainID, MMainPDG, MMainParentPDG, TrackNum, OpHitNum, OpFlashNum, MTrackNPoints, MAdjClNum, MSignalAdjClNum, SignalParticlePDG;
     float SignalParticleE, SignalParticleP, SignalParticleK, SignalParticleX, SignalParticleY, SignalParticleZ, SignalParticleTime, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
-    float MInd0dTime, MInd1dTime, MInd0RecoY, MInd1RecoY, MRecX, MRecY, MRecZ, MPur, MGenPur, MMainE, MMainP, MMainK, MMainTime, MMainParentE, MMainParentP, MMainParentK, MMainParentTime, MTrackChi2;
+    float MInd0dTime, MInd1dTime, MInd0RecoY, MInd1RecoY, MRecX, MRecY, MRecZ, MPur, MInd0Pur, MInd1Pur, MGenPur, MMainE, MMainP, MMainK, MMainTime, MMainParentE, MMainParentP, MMainParentK, MMainParentTime, MTrackChi2;
     std::vector<int> MAdjClGen, MAdjClMainID, TPart, SignalPDGList, SignalPDGDepList, SignalIDList, SignalMotherList, SignalIDDepList, MAdjClMainPDG, HitNum, ClusterNum, SignalElectronDepList;
     std::vector<int> SOpHitPlane;
     std::vector<float> SignalEDepList, SignalXDepList, SignalYDepList, SignalZDepList;
@@ -370,6 +370,8 @@ namespace solar
 
     // Main Cluster info.
     fSolarNuAnaTree->Branch("Primary", &MPrimary);                                   // Cluster hasn't any adjcl with AdjClCharge > MCharge (bool)
+    fSolarNuAnaTree->Branch("Ind0Purity", &MInd0Pur, "Ind0Purity/F");                // Main cluster ind0 reco signal purity
+    fSolarNuAnaTree->Branch("Ind1Purity", &MInd1Pur, "Ind1Purity/F");                // Main cluster ind1 reco signal purity
     fSolarNuAnaTree->Branch("Purity", &MPur, "Purity/F");                            // Main cluster reco signal purity
     fSolarNuAnaTree->Branch("Generator", &MGen, "Generator/I");                      // Main cluster generator idx
     fSolarNuAnaTree->Branch("GenPurity", &MGenPur, "GenPurity/F");                   // Main cluster reco generator purity
@@ -1192,7 +1194,7 @@ namespace solar
     std::vector<int> MVecNHit = {}, MVecInd0NHits = {}, MVecInd1NHits = {}, MVecMainID = {}, MVecTPC = {}, MVecInd0TPC = {}, MVecInd1TPC = {};
     std::vector<float> MVecTime = {}, MVecCharge = {}, MVecMaxCharge = {}, MVecInd0Charge = {}, MVecInd1Charge = {}, MVecInd0MaxCharge = {}, MVecInd1MaxCharge = {}, MVecInd0dT = {}, MVecInd1dT = {};
     std::vector<float> MVecInd0RecoY = {}, MVecInd1RecoY = {}, MVecRecY = {}, MVecRecZ = {};
-    std::vector<float> MVecFracE = {}, MVecFracGa = {}, MVecFracNe = {}, MVecFracRest = {}, MVecPur = {}, MVecGenPur = {};
+    std::vector<float> MVecFracE = {}, MVecFracGa = {}, MVecFracNe = {}, MVecFracRest = {}, MVecPur = {}, MVecInd0Pur = {}, MVecInd1Pur = {}, MVecGenPur = {};
 
     for (int ii = 0; ii < int(AllPlaneClusters[2].size()); ii++)
     {
@@ -1292,6 +1294,8 @@ namespace solar
         MVecFracNe.push_back(ClFracNe[2][ii]);
         MVecFracRest.push_back(ClFracRest[2][ii]);
         // Cluster Signal Purity
+        MVecInd0Pur.push_back(ClPur[0][ii]);
+        MVecInd1Pur.push_back(ClPur[1][ii]);
         MVecPur.push_back(ClPur[2][ii]);
         // Cluster Gen and GenFraction
         MVecMainID.push_back(ClMainID[2][ii]);
@@ -1493,7 +1497,7 @@ namespace solar
           sClusterReco += "*** Matched preselection cluster: \n";
           sClusterReco += " - MainTrackID " + SolarAuxUtils::str(MVecMainID[i]) + "\n";
           sClusterReco += " - Purity " + SolarAuxUtils::str(MVecGenPur[i]) + " Hits " + SolarAuxUtils::str(MVecNHit[i]) + "\n";
-          sClusterReco += " - #AdjCl " + SolarAuxUtils::str(MAdjClNum) + "(from which " + SolarAuxUtils::str(MSignalAdjClNum) + " are signal)\n";
+          sClusterReco += " - #AdjCl " + SolarAuxUtils::str(MAdjClNum) + " ( " + SolarAuxUtils::str(MSignalAdjClNum) + " signal )\n";
           if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1))
           {
             sClusterReco += " - Gen " + SolarAuxUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1] + "\n";
@@ -1536,6 +1540,7 @@ namespace solar
 
         for (int j = 0; j < int(OpFlashPE.size()); j++)
         {
+          float OpFlashR = -1e6;
           // Skip flashes with time outside the cluster time window
           if ((MVecTime[i] - OpFlashTime[j]) < 0 || (MVecTime[i] - OpFlashTime[j]) > fAdjOpFlashTime)
           {
@@ -1566,26 +1571,33 @@ namespace solar
           }
 
           // Make an eliptical cut on the flash position based on the clusters plane
-          if (fGeometry == "VD" && OpFlashPlane[i] == 0)
+          if (fGeometry == "VD" && OpFlashPlane[j] == 0) // Cathode flashes
           {
             if (pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
             {
               continue;
             }
+            OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
           }
-          else if (fGeometry == "VD" && (OpFlashPlane[i] == 1 || OpFlashPlane[i] == 2))
+          else if (fGeometry == "VD" && (OpFlashPlane[j] == 1 || OpFlashPlane[j] == 2)) // Membrane flashes
           {
             if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
             {
               continue;
             }
+            OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
           } 
-          else if (fGeometry == "VD" && (OpFlashPlane[i] == 3 || OpFlashPlane[i] == 4))
+          else if (fGeometry == "VD" && (OpFlashPlane[j] == 3 || OpFlashPlane[j] == 4)) // End-Cap flashes
           {
             if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1)
             {
               continue;
             }
+            OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecY[i] - OpFlashY[j], 2));
+          }
+          else if (fGeometry == "VD" && OpFlashPlane[j] == -1)
+          {
+            continue;
           }
 
           if (fGeometry == "HD")
@@ -1594,20 +1606,20 @@ namespace solar
             {
               continue;
             }
+            OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
           }
 
-          float OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
+          MAdjFlashR.push_back(OpFlashR);
+          MAdjFlashPE.push_back(OpFlashPE[j]);
+          MAdjFlashTime.push_back(OpFlashTime[j]);
           MAdjFlashNHits.push_back(OpFlashNHits[j]);
           MAdjFlashPlane.push_back(OpFlashPlane[j]);
-          MAdjFlashTime.push_back(OpFlashTime[j]);
-          MAdjFlashPE.push_back(OpFlashPE[j]);
           MAdjFlashMaxPE.push_back(OpFlashMaxPE[j]);
-          MAdjFlashSTD.push_back(OpFlashSTD[j]);
           MAdjFlashFast.push_back(OpFlashFast[j]);
           MAdjFlashRecoX.push_back(OpFlashX[j]);
           MAdjFlashRecoY.push_back(OpFlashY[j]);
           MAdjFlashRecoZ.push_back(OpFlashZ[j]);
-          MAdjFlashR.push_back(OpFlashR);
+          MAdjFlashSTD.push_back(OpFlashSTD[j]);
           MAdjFlashPur.push_back(OpFlashPur[j]);
           // Compute the residual between the predicted cluster signal and the flash
           std::string sFlashMatching = "Testing flash " + SolarAuxUtils::str(j) + " with time " + SolarAuxUtils::str(OpFlashTime[j]) + " and PE " + SolarAuxUtils::str(OpFlashPE[j]);
@@ -1663,6 +1675,8 @@ namespace solar
           continue;
         } 
         // Fill the tree with the cluster information and the adjacent clusters and flashes
+        MInd0Pur = MVecInd0Pur[i];
+        MInd1Pur = MVecInd1Pur[i];
         MPur = MVecPur[i];
         MGen = MVecGen[i];
         MGenPur = MVecGenPur[i];
