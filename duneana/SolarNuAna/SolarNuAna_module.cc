@@ -1540,6 +1540,7 @@ namespace solar
 
         for (int j = 0; j < int(OpFlashPE.size()); j++)
         {
+          float OpFlashR = -1e6;
           // Skip flashes with time outside the cluster time window
           if ((MVecTime[i] - OpFlashTime[j]) < 0 || (MVecTime[i] - OpFlashTime[j]) > fAdjOpFlashTime)
           {
@@ -1570,26 +1571,29 @@ namespace solar
           }
 
           // Make an eliptical cut on the flash position based on the clusters plane
-          if (fGeometry == "VD" && OpFlashPlane[i] == 0)
+          if (fGeometry == "VD" && OpFlashPlane[i] == 0) // Cathode flashes
           {
             if (pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
             {
               continue;
             }
+            OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
           }
-          else if (fGeometry == "VD" && (OpFlashPlane[i] == 1 || OpFlashPlane[i] == 2))
+          else if (fGeometry == "VD" && (OpFlashPlane[i] == 1 || OpFlashPlane[i] == 2)) // Membrane flashes
           {
             if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
             {
               continue;
             }
+            OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
           } 
-          else if (fGeometry == "VD" && (OpFlashPlane[i] == 3 || OpFlashPlane[i] == 4))
+          else if (fGeometry == "VD" && (OpFlashPlane[i] == 3 || OpFlashPlane[i] == 4)) // End-Cap flashes
           {
             if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1)
             {
               continue;
             }
+            OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecY[i] - OpFlashY[j], 2));
           }
 
           if (fGeometry == "HD")
@@ -1598,20 +1602,20 @@ namespace solar
             {
               continue;
             }
+            OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
           }
 
-          float OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
+          MAdjFlashR.push_back(OpFlashR);
+          MAdjFlashPE.push_back(OpFlashPE[j]);
+          MAdjFlashTime.push_back(OpFlashTime[j]);
           MAdjFlashNHits.push_back(OpFlashNHits[j]);
           MAdjFlashPlane.push_back(OpFlashPlane[j]);
-          MAdjFlashTime.push_back(OpFlashTime[j]);
-          MAdjFlashPE.push_back(OpFlashPE[j]);
           MAdjFlashMaxPE.push_back(OpFlashMaxPE[j]);
-          MAdjFlashSTD.push_back(OpFlashSTD[j]);
           MAdjFlashFast.push_back(OpFlashFast[j]);
           MAdjFlashRecoX.push_back(OpFlashX[j]);
           MAdjFlashRecoY.push_back(OpFlashY[j]);
           MAdjFlashRecoZ.push_back(OpFlashZ[j]);
-          MAdjFlashR.push_back(OpFlashR);
+          MAdjFlashSTD.push_back(OpFlashSTD[j]);
           MAdjFlashPur.push_back(OpFlashPur[j]);
           // Compute the residual between the predicted cluster signal and the flash
           std::string sFlashMatching = "Testing flash " + SolarAuxUtils::str(j) + " with time " + SolarAuxUtils::str(OpFlashTime[j]) + " and PE " + SolarAuxUtils::str(OpFlashPE[j]);
