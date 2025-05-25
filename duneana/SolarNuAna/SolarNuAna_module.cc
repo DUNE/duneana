@@ -1338,7 +1338,7 @@ namespace solar
     } // Loop over collection plane clusters
 
     //-------------------------------------------------------------------- Cluster Tree Export -------------------------------------------------------------------------//
-    // Loop over matched clusters and export to tree if number of hits is above threshold
+    // Loop over matched clusters and export to tree if all conditions are satisfied
     for (int i = 0; i < int(MVecNHit.size()); i++)
     {
       if (fClusterPreselectionSignal && MVecPur[i] == 0)
@@ -1774,9 +1774,9 @@ namespace solar
 
         fSolarNuAnaTree->Fill();
         hDriftTime->Fill(MainElectronEndPointX, MTime);
-        hXTruth->Fill(MVecRecY[i] - SignalParticleY, SignalParticleX);
-        hYTruth->Fill(MVecRecY[i] - SignalParticleY, SignalParticleY);
-        hZTruth->Fill(MVecRecZ[i] - SignalParticleZ, SignalParticleZ);
+        hXTruth->Fill(MRecX - SignalParticleX, SignalParticleX);
+        hYTruth->Fill(MRecY - SignalParticleY, SignalParticleY);
+        hZTruth->Fill(MRecZ - SignalParticleZ, SignalParticleZ);
       }
       // Check if the string sClusterReco is not empty and print it in color
       if (sClusterReco != "")
