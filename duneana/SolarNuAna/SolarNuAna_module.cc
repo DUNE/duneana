@@ -80,7 +80,7 @@ namespace solar
 
     // --- Input settings imported from the fcl
     std::string fSignalLabel, fGeometry;
-    int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut;
+    int fDetectorSizeY, fDetectorSizeZ, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut;
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels, fBackgroundLabels;
     float fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
@@ -132,10 +132,12 @@ namespace solar
 
     // --- Declare our services
     geo::WireReadoutGeom const &wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
+    art::ServiceHandle<geo::Geometry> geom;
     art::ServiceHandle<cheat::BackTrackerService> bt_serv;
     art::ServiceHandle<cheat::PhotonBackTrackerService> pbt;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     std::unique_ptr<solar::SolarAuxUtils> solaraux;
+    std::unique_ptr<producer::ProducerUtils> producer;
     std::unique_ptr<solar::AdjOpHitsUtils> adjophits;
     std::unique_ptr<solar::LowEUtils> lowe;
   };
@@ -145,6 +147,7 @@ namespace solar
   SolarNuAna::SolarNuAna(fhicl::ParameterSet const &p)
       : EDAnalyzer(p),
         solaraux(new solar::SolarAuxUtils(p)),
+        producer(new producer::ProducerUtils(p)),
         adjophits(new solar::AdjOpHitsUtils(p)),
         lowe(new solar::LowEUtils(p))
   {
@@ -162,10 +165,10 @@ namespace solar
     fTrackLabel = p.get<std::string>("TrackLabel");
     fGEANTLabel = p.get<std::string>("GEANT4Label");
     fGeometry = p.get<std::string>("Geometry");
-    fDetectorSizeX = p.get<int>("DetectorSizeX");
+    // fDetectorSizeX = p.get<double>("DetectorSizeX");
     fDetectorSizeY = p.get<int>("DetectorSizeY");
     fDetectorSizeZ = p.get<int>("DetectorSizeZ");
-    fDetectorDriftTime = p.get<int>("DetectorDriftTime");
+    // fDetectorDriftTime = p.get<double>("DetectorDriftTime");
     fClusterAlgoTime = p.get<float>("ClusterAlgoTime");
     fClusterAlgoAdjChannel = p.get<int>("ClusterAlgoAdjChannel");
     fClusterMatchNHit = p.get<float>("ClusterMatchNHit");
@@ -226,10 +229,10 @@ namespace solar
     fConfigTree->Branch("OpHitLabel", &fOpHitLabel);
     fConfigTree->Branch("OpFlashLabel", &fOpFlashLabel);
     fConfigTree->Branch("Geometry", &fGeometry);
-    fConfigTree->Branch("DetectorSizeX", &fDetectorSizeX);
+    // fConfigTree->Branch("DetectorSizeX", &driftLength);
     fConfigTree->Branch("DetectorSizeY", &fDetectorSizeY);
     fConfigTree->Branch("DetectorSizeZ", &fDetectorSizeZ);
-    fConfigTree->Branch("DetectorDriftTime", &fDetectorDriftTime);
+    // fConfigTree->Branch("DetectorDriftTime", &driftTime);
     fConfigTree->Branch("ClusterAlgoTime", &fClusterAlgoTime);
     fConfigTree->Branch("ClusterAlgoAdjChannel", &fClusterAlgoAdjChannel);
     fConfigTree->Branch("ClusterMatchNHit", &fClusterMatchNHit);
@@ -513,10 +516,20 @@ namespace solar
     ThisGeneratorParts.clear();
     Event = evt.event();
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+    auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
     Flag = rand() % 10000000000;
+    geo::CryostatID c(0);
+    
+    const geo::CryostatGeo& cryostat = geom->Cryostat(c);
+    const geo::TPCGeo& tpcg = cryostat.TPC(0);
+    const double driftLength = tpcg.DriftDistance();
+    const double driftTime = driftLength / art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData).DriftVelocity();
+
     std::string sHead = "";
     sHead = sHead + "\nTPC Frequency in [MHz]: " + SolarAuxUtils::str(clockData.TPCClock().Frequency());
     sHead = sHead + "\nTPC Tick in [us]: " + SolarAuxUtils::str(clockData.TPCClock().TickPeriod());
+    sHead = sHead + "\nTPC DriftLength in [cm]: " + SolarAuxUtils::str(driftLength);
+    sHead = sHead + "\nTPC DriftTime in [us]: " + SolarAuxUtils::str(driftTime);
     sHead = sHead + "\nEvent Flag: " + SolarAuxUtils::str(Flag);
     sHead = sHead + "\nSuccesfull reset of variables for evt " + SolarAuxUtils::str(Event);
     sHead = sHead + "\n#########################################";
@@ -677,7 +690,7 @@ namespace solar
           std::vector<const sim::IDE *> ides = bt_serv->TrackIdToSimIDEs_Ps((*SignalParticle)->TrackId());
           for (auto const &ide : ides)
           {
-            if (ide->numElectrons < 1 || ide->energy < 1e-6 || abs(ide->x) > fDetectorSizeX || abs(ide->y) > fDetectorSizeY || abs(ide->z) > fDetectorSizeZ)
+            if (ide->numElectrons < 1 || ide->energy < 1e-6 || abs(ide->x) > driftLength || abs(ide->y) > fDetectorSizeY || abs(ide->z) > fDetectorSizeZ)
             {
               continue;
             } 
@@ -1411,7 +1424,7 @@ namespace solar
           }
 
           double ClusterDistance = 0;
-          solaraux->ComputeDistance3D(ClusterDistance, MVecTime[i], MVecRecY[i], MVecRecZ[i], MVecTime[j], MVecRecY[j], MVecRecZ[j]);
+          producer->ComputeDistance3D(ClusterDistance, MVecTime[i], MVecRecY[i], MVecRecZ[i], MVecTime[j], MVecRecY[j], MVecRecZ[j], clockData, evt);
           if (ClusterDistance > fAdjClusterRad)
           {
             continue;
@@ -1553,21 +1566,23 @@ namespace solar
           // For HD 1x2x6 (only 1 APA) the x coordinate is determined by the TPC number
           if (fGeometry == "HD" && MVecTPC[i]%2 != 0)
           {
-            solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j], clockData, evt);
             MAdjFlashX = -MAdjFlashX;
           }
           else if (fGeometry == "HD" && MVecTPC[i]%2 == 0)
           {
-            solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j], clockData, evt);
           }
           else if (fGeometry == "VD")
           {
-            solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j], clockData, evt);
+            // Change the x distance to the x coordinate of the VD geometry [-driftLength/2, driftLength/2]
+            // MAdjFlashX = MAdjFlashX - driftLength / 2;
           }
           else
           {
             solaraux->PrintInColor("Unknown geometry " + fGeometry, SolarAuxUtils::GetColor("red"));
-            solaraux->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j]);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j], clockData, evt);
           }
 
           // Make an eliptical cut on the flash position based on the clusters plane
