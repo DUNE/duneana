@@ -557,7 +557,7 @@ namespace solar
 
     std::string sHead = "";
     sHead = sHead + "\n#########################################";
-    sHead = sHead + "\nEvent: "+ + SolarAuxUtils::str(Event) +" Flag: " + SolarAuxUtils::str(Flag);
+    sHead = sHead + "\nEvent: " + SolarAuxUtils::str(Event) + " Flag: " + SolarAuxUtils::str(Flag);
     sHead = sHead + "\nTPC Frequency in [MHz]: " + SolarAuxUtils::str(clockData.TPCClock().Frequency());
     sHead = sHead + "\nTPC Tick in [us]: " + SolarAuxUtils::str(clockData.TPCClock().TickPeriod());
     sHead = sHead + "\nTPC DriftLength in [cm]: " + SolarAuxUtils::str(TPCIDdriftLength[0]);
@@ -889,7 +889,7 @@ namespace solar
           ThisOpFlashPur /= TheFlash.PE;
         }
         OpFlashPur.push_back(ThisOpFlashPur);
-        if (abs(TheFlash.Time) < 5)
+        if (abs(TheFlash.Time) < 3)
         {
           mf::LogDebug("SolarNuAna") << "Signal OpFlash PE (fast/ratio/tot/STD) " << TheFlash.FastToTotal << "/" << TheFlash.MaxPE / TheFlash.PE << "/" << TheFlash.PE << "/" << TheFlash.STD << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time;
           sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.PE) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time) + " plane " + SolarAuxUtils::str(TheFlash.Plane) + "\n";
@@ -996,7 +996,7 @@ namespace solar
         OpFlashFast.push_back(TheFlash.FastToTotal());
         OpFlashDeltaT.push_back(TheFlash.TimeWidth());
         OpFlashNHits.push_back(MatchedHits.size());
-        if (abs(TheFlash.Time()) < 5)
+        if (abs(TheFlash.Time()) < 3)
         {
           mf::LogDebug("SolarNuAna") << "OpFlash PE " << TheFlash.TotalPE() << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time();
           sOpFlashTruth += "OpFlash PE " + SolarAuxUtils::str(TheFlash.TotalPE()) + " with purity " + SolarAuxUtils::str(ThisOpFlashPur) + " time " + SolarAuxUtils::str(TheFlash.Time()) + " plane " + SolarAuxUtils::str(FlashPlane) + "\n";
