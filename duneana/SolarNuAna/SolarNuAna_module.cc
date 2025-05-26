@@ -121,6 +121,11 @@ namespace solar
     float MFlashR, MFlashPE, MFlashMaxPE, MFlashPur, MFlashFast, MFlashTime, MFlashSTD, MFlashRecoX, MFlashRecoY, MFlashRecoZ, MFlashResidual;
     bool MFlashCorrect;
 
+    // --- Maps to hold the geo::TPCID object for each TPCid
+    std::map<unsigned int, geo::TPCID> TPCIDMap; // Key is the TPC index, value is the TPCID object
+    std::map<unsigned int, float> TPCIDdriftLength; // Key is the TPC index, value is the drift length in cm
+    std::map<unsigned int, float> TPCIDdriftTime; // Key is the TPC index, value is the drift time in us
+
     // --- Histograms to fill about collection plane hits
     float MainElectronEndPointX;
     TH2F *hXTruth;
@@ -521,15 +526,41 @@ namespace solar
     geo::CryostatID c(0);
     
     const geo::CryostatGeo& cryostat = geom->Cryostat(c);
-    const geo::TPCGeo& tpcg = cryostat.TPC(0);
-    const double driftLength = tpcg.DriftDistance();
-    const double driftTime = driftLength / art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData).DriftVelocity();
+
+    // Loop over all TPCs in the cryostat and fill the map
+    std::string sTPCMap = "";
+    unsigned int maxTPC = 0;
+    for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
+      if (tpcid.isValid) {
+        // Fill the TPC map with the TPC ID
+        const double driftLength = cryostat.TPC(tpcid).DriftDistance();
+        const double driftTime = driftLength / art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData).DriftVelocity();
+        TPCIDMap[tpcid.TPC] = tpcid;
+        TPCIDdriftLength[tpcid.TPC] = driftLength;
+        TPCIDdriftTime[tpcid.TPC] = driftTime;
+        if (tpcid.TPC > maxTPC) {
+          maxTPC = tpcid.TPC; // Keep track of the maximum TPC ID
+        }
+        sTPCMap += "Found TPC ID: " + std::to_string(tpcid.TPC) + " in Cryostat: " + std::to_string(c.Cryostat) + 
+                   " with Drift Length: " + SolarAuxUtils::str(driftLength) + 
+                   " cm and Drift Time: " + SolarAuxUtils::str(driftTime) + " us\n";
+      }
+    }
+    // Add extra TPCID entry -1 for all clusters that are not associated with a TPC
+    TPCIDMap[-1] = geo::TPCID(); // Invalid TPC ID
+    // Set the drift length and time for the invalid TPC ID to the first valid TPC ID
+    TPCIDdriftLength[-1] = TPCIDdriftLength.begin()->second; // Use the first valid TPC's drift length
+    TPCIDdriftTime[-1] = TPCIDdriftTime.begin()->second;     // Use the first valid TPC's drift time
+    solaraux->PrintInColor(sTPCMap, SolarAuxUtils::GetColor("yellow"), "Debug");
+
+
 
     std::string sHead = "";
+    sHead = sHead + "\n#########################################";
     sHead = sHead + "\nTPC Frequency in [MHz]: " + SolarAuxUtils::str(clockData.TPCClock().Frequency());
     sHead = sHead + "\nTPC Tick in [us]: " + SolarAuxUtils::str(clockData.TPCClock().TickPeriod());
-    sHead = sHead + "\nTPC DriftLength in [cm]: " + SolarAuxUtils::str(driftLength);
-    sHead = sHead + "\nTPC DriftTime in [us]: " + SolarAuxUtils::str(driftTime);
+    sHead = sHead + "\nTPC DriftLength in [cm]: " + SolarAuxUtils::str(TPCIDdriftLength[0]);
+    sHead = sHead + "\nTPC DriftTime in [us]: " + SolarAuxUtils::str(TPCIDdriftTime[0]);
     sHead = sHead + "\nEvent Flag: " + SolarAuxUtils::str(Flag);
     sHead = sHead + "\nSuccesfull reset of variables for evt " + SolarAuxUtils::str(Event);
     sHead = sHead + "\n#########################################";
@@ -665,7 +696,7 @@ namespace solar
         }
       }
       art::FindManyP<simb::MCParticle> SignalAssn(Signal, evt, fGEANTLabel);
-      sSignalTruth = sSignalTruth + "\n\tGen.\tPdgCode\t\tEnergy\t\tEndPosition\t\tMother";
+      sSignalTruth = sSignalTruth + "\nGen.\tPdgCode\t\tEnergy\t\tEndPosition\t\tMother";
       sSignalTruth = sSignalTruth + "\n------------------------------------------------------------------------";
 
       for (size_t i = 0; i < SignalAssn.size(); i++)
@@ -690,7 +721,7 @@ namespace solar
           std::vector<const sim::IDE *> ides = bt_serv->TrackIdToSimIDEs_Ps((*SignalParticle)->TrackId());
           for (auto const &ide : ides)
           {
-            if (ide->numElectrons < 1 || ide->energy < 1e-6 || abs(ide->x) > driftLength || abs(ide->y) > fDetectorSizeY || abs(ide->z) > fDetectorSizeZ)
+            if (ide->numElectrons < 1 || ide->energy < 1e-6 || abs(ide->x) > TPCIDdriftLength[0] || abs(ide->y) > fDetectorSizeY || abs(ide->z) > fDetectorSizeZ)
             {
               continue;
             } 
@@ -806,7 +837,7 @@ namespace solar
         double ThisOpFlashPur = 0;
         OpFlashPlane.push_back(TheFlash.Plane);
         OpFlashNHits.push_back(TheFlash.NHit);
-        OpFlashTime.push_back(TheFlash.Time);
+        OpFlashTime.push_back(TheFlash.Time * clockData.TPCClock().TickPeriod()); // Convert to microseconds
         OpFlashDeltaT.push_back(TheFlash.TimeWidth);
         OpFlashPE.push_back(TheFlash.PE);
         OpFlashMaxPE.push_back(TheFlash.MaxPE);
@@ -958,7 +989,7 @@ namespace solar
         OpFlashPur.push_back(ThisOpFlashPur);
         OpFlashMaxPE.push_back(MaxOpHitPE);
         OpFlashSTD.push_back(FlashStdDev);
-        OpFlashTime.push_back(TheFlash.Time());
+        OpFlashTime.push_back(TheFlash.Time() * clockData.TPCClock().TickPeriod()); // Convert to microseconds
         OpFlashX.push_back(TheFlash.XCenter());
         OpFlashY.push_back(TheFlash.YCenter());
         OpFlashZ.push_back(TheFlash.ZCenter());
@@ -1082,7 +1113,6 @@ namespace solar
           thisdzdy.push_back(dzds / dyds);
 
           int TPC = TPCHit.WireID().TPC;
-          clustTPC += TPCHit.Integral() * TPC;
           clustX += TPCHit.Integral() * hXYZ.X();
           clustY += TPCHit.Integral() * hXYZ.Y();
           clustZ += TPCHit.Integral() * hXYZ.Z();
@@ -1090,8 +1120,15 @@ namespace solar
 
           if (TPCHit.Integral() > maxHit)
           {
-            maxHit = TPCHit.Integral();
-          } // Look for maxHit inside cluster
+            clustTPC = TPC;
+            // If clusterTPC not in TPCIDMap, set it to -1
+            if (TPCIDMap.find(TPC) == TPCIDMap.end())
+            {
+              clustTPC = -1;
+            }
+            // Look for maxHit inside cluster
+            maxHit = TPCHit.Integral();            
+          }
 
           MainTrID = 0;
           double TopEFrac = 0;
@@ -1166,7 +1203,6 @@ namespace solar
         FracGa /= ncharge;
         FracNe /= ncharge;
         FracRest /= ncharge;
-        clustTPC /= ncharge;
         clustX /= ncharge;
         clustY /= ncharge;
         clustZ /= ncharge;
@@ -1293,7 +1329,7 @@ namespace solar
         MVecInd0TPC.push_back(ind0clustTPC);
         MVecInd1TPC.push_back(ind1clustTPC);
         // Cluster Time
-        MVecTime.push_back(ClT[2][ii]);
+        MVecTime.push_back(ClT[2][ii] * clockData.TPCClock().TickPeriod()); // Convert to us
         MVecInd0dT.push_back(ind0clustdT);
         MVecInd1dT.push_back(ind1clustdT);
         // Cluster RecoY
@@ -1361,6 +1397,7 @@ namespace solar
 
       bool TrackMatch = false;
       std::string sFlashReco = "";
+      std::string sVertexReco = "";
       std::string sClusterReco = "";
       std::string sResultColor = "white";
       float OpFlashResidual = 0;
@@ -1424,7 +1461,10 @@ namespace solar
           }
 
           double ClusterDistance = 0;
-          producer->ComputeDistance3D(ClusterDistance, MVecTime[i], MVecRecY[i], MVecRecZ[i], MVecTime[j], MVecRecY[j], MVecRecZ[j], clockData, evt);
+          // std::cout << "Printing cluster TPCs: " << MVecTPC[i] << ", " << MVecTPC[j] << std::endl;
+          // std::cout << "Printing associated TPC drift lengths: " << TPCIDdriftLength[MVecTPC[i]] << ", " << TPCIDdriftLength[MVecTPC[j]] << std::endl;
+          // std::cout << "Printing associated TPC drift times: " << TPCIDdriftTime[MVecTPC[i]] << ", " << TPCIDdriftTime[MVecTPC[j]] << std::endl;
+          producer->ComputeDistance3D(ClusterDistance, MVecTime[i], MVecRecY[i], MVecRecZ[i], MVecTime[j], MVecRecY[j], MVecRecZ[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
           if (ClusterDistance > fAdjClusterRad)
           {
             continue;
@@ -1520,7 +1560,7 @@ namespace solar
             sClusterReco += " - Gen ?? -> Unknown\n";
           }
           // sClusterReco += " - Truth X,Y,Z (" + SolarAuxUtils::str(MVecMainX[i]) + ", " + SolarAuxUtils::str(MVecMainY[i]) + ", " + SolarAuxUtils::str(MVecMainZ[i]) + ")\n";
-          sClusterReco += " - Reco Time,Y,Z (" + SolarAuxUtils::str(MVecTime[i]) + ", " + SolarAuxUtils::str(MVecRecY[i]) + ", " + SolarAuxUtils::str(MVecRecZ[i]) + ")\n";
+          sClusterReco += " - Reco Time,Y,Z ( " + SolarAuxUtils::str(MVecTime[i]) + ", " + SolarAuxUtils::str(MVecRecY[i]) + ", " + SolarAuxUtils::str(MVecRecZ[i]) + " )\n";
           
           if (fSaveTrackInfo){
             TVector3 ThisClVertex = {0, MVecRecY[i], MVecRecZ[i]};
@@ -1540,8 +1580,8 @@ namespace solar
               MTrackEnd = {trk.End().X(), trk.End().Y(), trk.End().Z()};
               MTrackChi2 = trk.Chi2();
               sClusterReco += "*** Matched pmtrack: \n";
-              sClusterReco += " - Track has start (" + SolarAuxUtils::str(trk.Start().X()) + ", " + SolarAuxUtils::str(trk.Start().Y()) + ", " + SolarAuxUtils::str(trk.Start().Z()) + ")\n";
-              sClusterReco += " - Track has end   (" + SolarAuxUtils::str(trk.End().X()) + ", " + SolarAuxUtils::str(trk.End().Y()) + ", " + SolarAuxUtils::str(trk.End().Z()) + ")\n\n";
+              sClusterReco += " - Track has start ( " + SolarAuxUtils::str(trk.Start().X()) + ", " + SolarAuxUtils::str(trk.Start().Y()) + ", " + SolarAuxUtils::str(trk.Start().Z()) + " )\n";
+              sClusterReco += " - Track has end   ( " + SolarAuxUtils::str(trk.End().X()) + ", " + SolarAuxUtils::str(trk.End().Y()) + ", " + SolarAuxUtils::str(trk.End().Z()) + " )\n\n";
               TrackMatch = true;
             }; // Loop over tracks
           }; // if (fSaveTrackInfo)
@@ -1566,23 +1606,23 @@ namespace solar
           // For HD 1x2x6 (only 1 APA) the x coordinate is determined by the TPC number
           if (fGeometry == "HD" && MVecTPC[i]%2 != 0)
           {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j], clockData, evt);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
             MAdjFlashX = -MAdjFlashX;
           }
           else if (fGeometry == "HD" && MVecTPC[i]%2 == 0)
           {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j], clockData, evt);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
           }
           else if (fGeometry == "VD")
           {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j], clockData, evt);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
             // Change the x distance to the x coordinate of the VD geometry [-driftLength/2, driftLength/2]
-            // MAdjFlashX = MAdjFlashX - driftLength / 2;
+            MAdjFlashX = TPCIDdriftLength[MVecTPC[i]] / 2 - MAdjFlashX;
           }
           else
           {
             solaraux->PrintInColor("Unknown geometry " + fGeometry, SolarAuxUtils::GetColor("red"));
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], 2 * OpFlashTime[j], clockData, evt);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
           }
 
           // Make an eliptical cut on the flash position based on the clusters plane
@@ -1673,7 +1713,7 @@ namespace solar
               " #Hits " + SolarAuxUtils::str(OpFlashNHits[j]) +
               " PE " + SolarAuxUtils::str(OpFlashPE[j]) +
               " MaxPE " + SolarAuxUtils::str(OpFlashMaxPE[j]) + "\n" +
-              " - Reco X,Y,Z (" + SolarAuxUtils::str(MAdjFlashX) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + ")" + "\n" +
+              " - Reco Time,Y,Z ( " + SolarAuxUtils::str(MFlashTime) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + " )" + "\n" +
               " - Time " + SolarAuxUtils::str(OpFlashTime[j]) +
               " Fast " + SolarAuxUtils::str(OpFlashFast[j]) +
               " Residual " + SolarAuxUtils::str(OpFlashResidual) + "\n";
@@ -1683,8 +1723,11 @@ namespace solar
             MatchedOpFlashPE = MFlashPE;
           }
           MAdjFlashResidual.push_back(OpFlashResidual);
+          sVertexReco += "*** Reconstructed Interaction Vertex: \n";
+          sVertexReco += " - Reco X,Y,Z ( " + SolarAuxUtils::str(MatchedOpFlashX) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + " )";
         }
         sClusterReco += sFlashReco;
+        sClusterReco += sVertexReco;
         if (fClusterPreselectionFlashMatch && MatchedOpFlashPE < 0)
         {
           continue;
