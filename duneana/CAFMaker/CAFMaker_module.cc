@@ -88,6 +88,7 @@ namespace caf {
 
 
     private:
+      void PreLoadMCParticlesInfo(art::Event const& evt);
       void FillTruthInfo(caf::SRTruthBranch& sr,
                          std::vector<simb::MCTruth> const& mctruth,
                          std::vector<simb::GTruth> const& gtruth,
@@ -103,7 +104,8 @@ namespace caf {
       void FillDirectionInfo(caf::SRDirectionBranch &dirBranch, const art::Event &evt) const;
       int FillGENIERecord(simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
-      // std::tuple<int, float> GetTruthMatchingAndOverlap(recob::PFParticle const& pfp, const art::Event &evt) const;
+      void FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const;
+      void FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
@@ -134,6 +136,12 @@ namespace caf {
       std::string fSpacePointLabel;
       std::string fContainedDistThreshold;
       std::string fHitLabel;
+      std::string fG4Label;
+
+
+      std::map<int, std::tuple<art::Ptr<simb::MCParticle>, bool, int>> fMCParticlesMap; //[tid] = (MCParticle, isPrimary, SRParticle ID)
+      uint fNprimaries = 0;
+      uint fNsecondaries = 0;
 
       TTree* fTree = nullptr;
       TTree* fMetaTree = nullptr;
@@ -155,17 +163,16 @@ namespace caf {
       calo::CalorimetryAlg fCalorimetryAlg;                    ///< the calorimetry algorithm
       double fRecombFactor; ///< recombination factor for the isolated hits
       
-      //TODO: Ask to add all the generators in the StandardRecord if needed at some point
       const std::map<simb::Generator_t, caf::Generator> fgenMap = {
         {simb::Generator_t::kUnknown, caf::Generator::kUnknownGenerator},
         {simb::Generator_t::kGENIE,   caf::Generator::kGENIE},
-        {simb::Generator_t::kCRY,     caf::Generator::kUnknownGenerator},
+        {simb::Generator_t::kCRY,     caf::Generator::kCRY},
         {simb::Generator_t::kGIBUU,   caf::Generator::kGIBUU},
-        {simb::Generator_t::kNuWro,   caf::Generator::kUnknownGenerator},
-        {simb::Generator_t::kMARLEY,  caf::Generator::kUnknownGenerator},
+        {simb::Generator_t::kNuWro,   caf::Generator::kNuWro},
+        {simb::Generator_t::kMARLEY,  caf::Generator::kMARLEY},
         {simb::Generator_t::kNEUT,    caf::Generator::kNEUT},
-        {simb::Generator_t::kCORSIKA, caf::Generator::kUnknownGenerator},
-        {simb::Generator_t::kGEANT,   caf::Generator::kUnknownGenerator}
+        {simb::Generator_t::kCORSIKA, caf::Generator::kCORSIKA},
+        {simb::Generator_t::kGEANT,   caf::Generator::kGEANT}
       };
 
 
@@ -197,6 +204,7 @@ namespace caf {
       fSpacePointLabel(pset.get< std::string >("SpacePointLabel")),
       fContainedDistThreshold(pset.get< std::string >("ContainedDistThreshold")),
       fHitLabel(pset.get< std::string >("HitLabel")),
+      fG4Label(pset.get< std::string >("G4Label")),
       fEventRecord(new genie::NtpMCEventRecord),
       fGeom(&*art::ServiceHandle<geo::Geometry>()),
       fVertexFiducialVolumeCut(pset.get<std::vector<double>>("VertexFiducialVolumeCut")),
@@ -256,6 +264,30 @@ namespace caf {
 
   }
 
+  //------------------------------------------------------------------------------
+
+  void CAFMaker::PreLoadMCParticlesInfo(art::Event const& evt)
+  {
+    //Preloading the MCParticles info to be able to access them later
+    std::vector<art::Ptr< simb::MCParticle>> mcparticles = dune_ana::DUNEAnaEventUtils::GetMCParticles(evt, fG4Label);
+
+    //Creating a map of the MC particles to easily access them by their TrackId
+    fMCParticlesMap.clear();
+    //Not the most efficient way, but I prefer good readibility over performance here
+    fNprimaries = 0;
+    fNsecondaries = 0;
+    for(art::Ptr<simb::MCParticle> const& mcpart: mcparticles) {
+      if(mcpart->TrackId() == 0) continue; //Skip the neutrino particle (TrackId 0)
+      bool isPrimary = (mcpart->Mother() == 0);
+      if(isPrimary) {
+        fMCParticlesMap[mcpart->TrackId()] = {mcpart, true, fNprimaries};
+        fNprimaries++;
+      } else {
+        fMCParticlesMap[mcpart->TrackId()] = {mcpart, false, fNsecondaries};
+        fNsecondaries++;
+      } 
+    }
+  }
 
   //------------------------------------------------------------------------------
 
@@ -354,11 +386,10 @@ namespace caf {
       inter.nprefsi = 0;
       inter.nsec = 0;
 
-      //Filling the same fields as ND-CAFMaker. Some fields are not filled at this stage
+      //Looping on the particles in the MC truth to get the prefsi particles only
       for( int p = 0; p < mctruth[i].NParticles(); p++ ) {
         const simb::MCParticle &mcpart = mctruth[i].GetParticle(p);
-        if( mcpart.StatusCode() != genie::EGHepStatus::kIStStableFinalState
-          && mcpart.StatusCode() != genie::EGHepStatus::kIStHadronInTheNucleus) continue;
+        if( mcpart.StatusCode() != genie::EGHepStatus::kIStHadronInTheNucleus) continue; //We only fill the prefsi particles here, the primaries will be filled later
 
         caf::SRTrueParticle part;
         int pdg = mcpart.PdgCode();
@@ -371,28 +402,75 @@ namespace caf {
         part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
         part.parent = mcpart.Mother();
 
-        for(int daughterID = 0; daughterID < mcpart.NumberDaughters(); daughterID++){
-          int daughter = mcpart.Daughter(daughterID);
+        inter.prefsi.push_back(std::move(part));
+        inter.nprefsi++;
+
+        //start and end processes/subprocesses are currently not filled as they are strings and it's tricky to convert them back to uint
+      }
+
+      //Now filling the primaries and secondaries infos
+      inter.prim.resize(fNprimaries);
+      inter.nprim = fNprimaries;
+      inter.sec.resize(fNsecondaries);
+      inter.nsec = fNsecondaries;
+
+      for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
+        art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
+        uint srID = std::get<2>(mcpart_tuple);
+        bool isPrimary = (mcpart->Mother() == 0);
+        SRTrueParticle part;
+        part.pdg = mcpart->PdgCode();
+        part.G4ID = mcpart->TrackId();
+        part.interaction_id = 0; //TODO: Only considering a single interaction in the FD currently
+        part.time = mcpart->T();
+        part.p = SRLorentzVector(mcpart->Momentum());
+        part.start_pos = SRVector3D(mcpart->Position().Vect());
+        part.end_pos = SRVector3D(mcpart->EndPosition().Vect());
+        part.parent = mcpart->Mother();
+
+        for(int i = 0; i < mcpart->NumberDaughters(); i++){
+          int daughter = mcpart->Daughter(i);
           part.daughters.push_back(daughter);
         }
 
-        //start and end processes/subprocesses are currently not filled as they are strings and it's tricky to convert them back to uint
+        caf::TrueParticleID ancestor;
+        if(fMCParticlesMap.count(mcpart->Mother()) > 0){
+          art::Ptr<simb::MCParticle> ancestor_ptr;
+          bool ancestor_is_primary;
+          int ancestor_id;
+          std::tie(ancestor_ptr, ancestor_is_primary, ancestor_id) = fMCParticlesMap[mcpart->Mother()];
 
-        if( mcpart.StatusCode() == genie::EGHepStatus::kIStStableFinalState )
-        {
-          inter.prim.push_back(std::move(part));
-          inter.nprim++;
+          ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary : caf::TrueParticleID::kSecondary;
+          ancestor.ixn = part.interaction_id; //Same interaction as the secondary particle
+          ancestor.part = ancestor_id; //The ID of the ancestor particle in the StandardRecord
 
-          if( pdg == 2212 ) inter.nproton++;
-            else if( pdg == 2112 ) inter.nneutron++;
-            else if( pdg ==  211 ) inter.npip++;
-            else if( pdg == -211 ) inter.npim++;
-            else if( pdg ==  111 ) inter.npi0++;
+          part.ancestor_id = ancestor;
+        }
+
+        //TODO: Not filling the start and end processes/subprocesses as they are strings and it's tricky to convert them back to uint
+        if(isPrimary){
+          inter.prim[srID] = std::move(part);
+
+          switch(mcpart->PdgCode()){
+            case 2212: // Proton
+              inter.nproton++;
+              break;
+            case 2112: // Neutron
+              inter.nneutron++;
+              break;
+            case 211: // Pi+
+              inter.npip++;
+              break;
+            case -211: // Pi-
+              inter.npim++;
+              break;
+            case 111: // Pi0
+              inter.npi0++;
+              break;
           }
-          else // kIStHadronInTheNucleus
-          {
-            inter.prefsi.push_back(std::move(part));
-            inter.nprefsi++;
+        }
+        else{
+          inter.sec[srID] = std::move(part);
         }
 
       }
@@ -402,6 +480,55 @@ namespace caf {
 
     truthBranch.nnu = mctruth.size();
   }
+
+  //------------------------------------------------------------------------------
+
+  void CAFMaker::FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const {
+    art::Ptr<larpandoraobj::PFParticleMetadata> metadata = dune_ana::DUNEAnaPFParticleUtils::GetMetadata(pfp, evt, fPandoraLabel);
+      if(metadata.isNull()){
+        mf::LogWarning("CAFMaker") << "No metadata found for PFP with ID " << pfp->Self();
+        return;
+      }
+
+      std::map<std::string, float> properties = metadata->GetPropertiesMap();
+
+      std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaPFParticleUtils::GetHits(pfp, evt, fPandoraLabel);
+      std::vector<art::Ptr<recob::Hit>> hits_U = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, 0);
+      std::vector<art::Ptr<recob::Hit>> hits_V = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, 1);
+      std::vector<art::Ptr<recob::Hit>> hits_W = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, 2);
+      std::vector<art::Ptr<recob::SpacePoint>> sps = dune_ana::DUNEAnaPFParticleUtils::GetSpacePoints(pfp, evt, fSpacePointLabel);
+
+      pfpBranch.nhits_U = hits_U.size();
+      pfpBranch.nhits_V = hits_V.size();
+      pfpBranch.nhits_W = hits_W.size();
+      pfpBranch.nhits_3D = sps.size();
+
+      std::map<std::string, float*> property_mapping = {
+        {"LArPfoHierarchyFeatureTool_DaughterParentHitRatio", &pfpBranch.daughter_parent_hit_ratio},
+        {"LArPfoHierarchyFeatureTool_NDaughterHits3D", &pfpBranch.ndaughters_hit_3d},
+        {"LArThreeDChargeFeatureTool_EndFraction", &pfpBranch.charge_end_fraction},
+        {"LArThreeDChargeFeatureTool_FractionalSpread", &pfpBranch.charge_fractional_spread},
+        {"LArThreeDLinearFitFeatureTool_DiffStraightLineMean", &pfpBranch.diff_straight_line_mean},
+        {"LArThreeDLinearFitFeatureTool_Length", &pfpBranch.line_length},
+        {"LArThreeDLinearFitFeatureTool_MaxFitGapLength", &pfpBranch.max_fit_gap_length},
+        {"LArThreeDLinearFitFeatureTool_SlidingLinearFitRMS", &pfpBranch.sliding_linear_fit_rms},
+        {"LArThreeDOpeningAngleFeatureTool_AngleDiff", &pfpBranch.angle_diff_3d},
+        {"LArThreeDPCAFeatureTool_SecondaryPCARatio", &pfpBranch.secondary_pca_ratio},
+        {"LArThreeDPCAFeatureTool_TertiaryPCARatio", &pfpBranch.tertiary_pca_ratio},
+        {"LArThreeDVertexDistanceFeatureTool_VertexDistance", &pfpBranch.vertex_distance},
+        {"TrackScore", &pfpBranch.track_score},
+      };
+
+      for(const auto& [property_name, property_value] : property_mapping) {
+        if(properties.find(property_name) != properties.end()) {
+          *(property_value) = properties[property_name];
+        } else {
+          mf::LogWarning("CAFMaker") << "Unknown property '" << property_name << "' for PFP with ID " << pfp->Self();
+        }
+      }
+
+  }
+
 
   //------------------------------------------------------------------------------
 
@@ -469,14 +596,49 @@ namespace caf {
   //------------------------------------------------------------------------------
 
 
-  // std::tuple<int, float> CAFMaker::GetTruthMatchingAndOverlap(recob::PFParticle const& pfp, const art::Event &evt) const{
-  //   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService>()->DataFor(evt);
+  void CAFMaker::FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const{
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService>()->DataFor(evt);
 
-  //   //First getting all the hits belonging to that PFP
-  //   std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaPFParticleUtils::GetHits(pfp, evt, fPandoraLabel);
+    //First getting all the hits belonging to that PFP
+    std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaPFParticleUtils::GetHits(pfp, evt, fPandoraLabel);
 
-  //   TruthMatchUtils::G4ID g4ID(TruthMatchUtils::TrueParticleIDFromTotalRecoHits(clockData, hits, true));
-  // }
+    TruthMatchUtils::IDToEDepositMap idToEDepositMap;
+    for (const art::Ptr<recob::Hit>& pHit : hits){
+      TruthMatchUtils::FillG4IDToEnergyDepositMap(idToEDepositMap, clockData, pHit, true);
+    }
+
+    float totalEDeposit = 0;
+    for (const auto& [id, eDeposit] : idToEDepositMap) {
+      totalEDeposit += eDeposit;
+    }
+
+    if (totalEDeposit <= 0) {
+      mf::LogWarning("CAFMaker") << "No energy deposit found for PFP with ID " << pfp->Self() << ". Skipping truth matching.";
+      return;
+    }
+
+    for (const auto& [id, eDeposit] : idToEDepositMap) {
+      if (fMCParticlesMap.count(id) == 0) {
+        mf::LogWarning("CAFMaker") << "No MCParticle found with ID " << id << " for PFP with ID " << pfp->Self() << ". Skipping.";
+        continue;
+      }
+
+      art::Ptr<simb::MCParticle> mcpart;
+      bool isPrimary;
+      int srID;
+      std::tie(mcpart, isPrimary, srID) = fMCParticlesMap.at(id);
+
+      TrueParticleID truePart;
+      truePart.type = isPrimary ? TrueParticleID::kPrimary : TrueParticleID::kSecondary;
+      truePart.ixn = 0; //Assuming a single interaction for now
+      truePart.part = srID;
+
+      truth.push_back(truePart);
+      truthOverlap.push_back(eDeposit / totalEDeposit);
+    }
+
+
+  }
 
   //------------------------------------------------------------------------------
 
@@ -795,9 +957,7 @@ namespace caf {
       //TODO: Not filling the momentum information as it requires some specific PID to be made.
       // particle_record.p;
 
-      //TODO: Pain/Usefulness ratio too bad to implement truth matching for now
-      // particle_record.truth;
-      // particle_record.truthOverlap;
+      FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
       particle_record.walldist = GetWallDistance(*particle, evt); //Getting the distance to the wall for this PFP
       particle_record.contained = (particle_record.walldist < fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
 
@@ -850,7 +1010,7 @@ namespace caf {
         srtrack.E = Evis;
         trackErecoMethod = caf::PartEMethod::kCalorimetry; //Using the visible energy of the PFP
 
-        //TODO: Pain/Usefulness ratio too bad to implement truth matching for now
+        //Truth matching already filled at the PFP level, no need to do it again here
         //srtrack.truth
         //srtrack.truthOverlap
 
@@ -886,7 +1046,7 @@ namespace caf {
         
         srshower.Evis = Evis; //Using the visible energy of the PFP
 
-        //TODO: Pain/Usefulness ratio too bad to implement truth matching for now
+        //Truth matching already filled at the PFP level, no need to do it again here
         //srshower.truth
         //srshower.truthOverlap
       }
@@ -919,10 +1079,17 @@ namespace caf {
       //Saving the shower record
       fdIxn.showers.push_back(std::move(srshower));
       fdIxn.nshowers++;
+
+      //Also saving PFP metadata
+      caf::SRPFP pfp_metarecord;
+      FillPFPMetadata(pfp_metarecord, particle, evt);
+      fdIxn.pfps.push_back(std::move(pfp_metarecord));
+      fdIxn.npfps++;
         
       //Saving the particle record for this PFP
       recoParticlesBranch.pandora.push_back(std::move(particle_record));
       recoParticlesBranch.npandora++;
+
     }
 
     //Saving the FD interaction record
@@ -995,6 +1162,8 @@ namespace caf {
   {
     caf::StandardRecord sr;
     caf::StandardRecord* psr = &sr;
+
+    PreLoadMCParticlesInfo(evt);
     
 
     if(fTree){
