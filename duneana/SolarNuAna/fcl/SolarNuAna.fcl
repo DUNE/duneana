@@ -19,10 +19,8 @@ BEGIN_PROLOG
     BackgroundLabelVector: []
 
     Geometry:                   "HD"
-    DetectorSizeX:              360          # 1 TPC drift (X) length in [cm].
     DetectorSizeY:              600          # 1 TPC Y length in [cm].
     DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
-    DetectorDriftTime:          4500         # Don't change this value for HD unless you know what you are doing!!!
     ClusterChargeVariable:      "Integral"   # Charge variable to use for cluster matching: "Integral" or "SummedADC".
     XACathodeX:                 0            # X position of the VD cathode XAs in [cm].
     XAMembraneY:                0            # Y position of the VD membrane XAs in [cm].
@@ -89,10 +87,8 @@ BEGIN_PROLOG
   solar_nu_ana_vd.OpFlashLabel:        "solarflash"
   solar_nu_ana_vd.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
   solar_nu_ana_vd.Geometry:            "VD"
-  solar_nu_ana_vd.DetectorSizeX:       330
   solar_nu_ana_vd.DetectorSizeY:       680 
   solar_nu_ana_vd.DetectorSizeZ:       2100
-  solar_nu_ana_vd.DetectorDriftTime:   8500
   solar_nu_ana_vd.XACathodeX:         -327.5
   solar_nu_ana_vd.XAMembraneY:         743.302
   solar_nu_ana_vd.XAFinalCapZ:         2188.38
