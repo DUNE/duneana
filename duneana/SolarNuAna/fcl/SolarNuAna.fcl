@@ -56,13 +56,12 @@ BEGIN_PROLOG
     OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
     # OpFlashAlgoCentroid:        false        # Use the centroid computation of the flash based on a likelihood estimation.
 
-    AdjOpFlashTime:             4500         # Time window to look for adjacent flashes in [tick] units should be one full drift length.
     AdjOpFlashX:                100.         # X distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashY:                100.         # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashZ:                100.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE. From average bkg rate of ~20 PE per tick.
-    AdjOpFlashMinNHitCut:       10           # Cut on the minimum number of OpHits in the OpFlash.
+    AdjOpFlashMinNHitCut:       3            # Cut on the minimum number of OpHits in the OpFlash.
     FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
     SaveSignalDaughters:        false        # Save the daughters of the signal particles.
@@ -98,8 +97,7 @@ BEGIN_PROLOG
   solar_nu_ana_vd.XAMembraneY:         743.302
   solar_nu_ana_vd.XAFinalCapZ:         2188.38
   solar_nu_ana_vd.XAStartCapZ:        -96.5
-  solar_nu_ana_vd.ClusterMatchNHit:    10
-  solar_nu_ana_vd.AdjOpFlashTime:      8500
+  solar_nu_ana_vd.ClusterMatchNHit:    3
 
   solar_nu_ana_vd_1x8x14_optimistic: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x14_optimistic.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_optimistic

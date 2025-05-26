@@ -81,7 +81,7 @@ namespace solar
     // --- Input settings imported from the fcl
     std::string fSignalLabel, fGeometry;
     int fDetectorSizeY, fDetectorSizeZ, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut;
-    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashTime, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
+    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels, fBackgroundLabels;
     float fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
@@ -196,7 +196,7 @@ namespace solar
     fOpFlashAlgoTriggerPE = p.get<float>("OpFlashAlgoTriggerPE");
     fOpFlashAlgoHotVertexThld = p.get<float>("OpFlashAlgoHotVertexThld");
     // fOpFlashAlgoCentroid = p.get<bool>("OpFlashAlgoCentroid");
-    fAdjOpFlashTime = p.get<float>("AdjOpFlashTime");
+    // fAdjOpFlashTime = p.get<float>("AdjOpFlashTime");
     fAdjOpFlashX = p.get<float>("AdjOpFlashX");
     fAdjOpFlashY = p.get<float>("AdjOpFlashY");
     fAdjOpFlashZ = p.get<float>("AdjOpFlashZ");
@@ -260,7 +260,7 @@ namespace solar
     fConfigTree->Branch("OpFlashAlgoTriggerPE", &fOpFlashAlgoTriggerPE);
     fConfigTree->Branch("OpFlashAlgoHotVertexThld", &fOpFlashAlgoHotVertexThld);
     // fConfigTree->Branch("OpFlashAlgoCentroid", &fOpFlashAlgoCentroid);
-    fConfigTree->Branch("AdjOpFlashTime", &fAdjOpFlashTime);
+    // fConfigTree->Branch("AdjOpFlashTime", &fAdjOpFlashTime);
     fConfigTree->Branch("AdjOpFlashX", &fAdjOpFlashX);
     fConfigTree->Branch("AdjOpFlashY", &fAdjOpFlashY);
     fConfigTree->Branch("AdjOpFlashZ", &fAdjOpFlashZ);
@@ -557,12 +557,11 @@ namespace solar
 
     std::string sHead = "";
     sHead = sHead + "\n#########################################";
+    sHead = sHead + "\nEvent: "+ + SolarAuxUtils::str(Event) +" Flag: " + SolarAuxUtils::str(Flag);
     sHead = sHead + "\nTPC Frequency in [MHz]: " + SolarAuxUtils::str(clockData.TPCClock().Frequency());
     sHead = sHead + "\nTPC Tick in [us]: " + SolarAuxUtils::str(clockData.TPCClock().TickPeriod());
     sHead = sHead + "\nTPC DriftLength in [cm]: " + SolarAuxUtils::str(TPCIDdriftLength[0]);
     sHead = sHead + "\nTPC DriftTime in [us]: " + SolarAuxUtils::str(TPCIDdriftTime[0]);
-    sHead = sHead + "\nEvent Flag: " + SolarAuxUtils::str(Flag);
-    sHead = sHead + "\nSuccesfull reset of variables for evt " + SolarAuxUtils::str(Event);
     sHead = sHead + "\n#########################################";
     solaraux->PrintInColor(sHead, SolarAuxUtils::GetColor("magenta"));
 
@@ -1550,7 +1549,6 @@ namespace solar
           sClusterReco += "*** Matched preselection cluster: \n";
           sClusterReco += " - MainTrackID " + SolarAuxUtils::str(MVecMainID[i]) + "\n";
           sClusterReco += " - Purity " + SolarAuxUtils::str(MVecGenPur[i]) + " Hits " + SolarAuxUtils::str(MVecNHit[i]) + "\n";
-          sClusterReco += " - #AdjCl " + SolarAuxUtils::str(MAdjClNum) + " ( " + SolarAuxUtils::str(MSignalAdjClNum) + " signal )\n";
           if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1))
           {
             sClusterReco += " - Gen " + SolarAuxUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1] + "\n";
@@ -1559,7 +1557,9 @@ namespace solar
           {
             sClusterReco += " - Gen ?? -> Unknown\n";
           }
-          // sClusterReco += " - Truth X,Y,Z (" + SolarAuxUtils::str(MVecMainX[i]) + ", " + SolarAuxUtils::str(MVecMainY[i]) + ", " + SolarAuxUtils::str(MVecMainZ[i]) + ")\n";
+          // sClusterReco += " - Truth X,Y,Z ( " + SolarAuxUtils::str(MVecMainX[i]) + ", " + SolarAuxUtils::str(MVecMainY[i]) + ", " + SolarAuxUtils::str(MVecMainZ[i]) + " )\n";
+          sClusterReco += " - TPC " + SolarAuxUtils::str(MVecTPC[i]) + "\n";
+          sClusterReco += " - #AdjCl " + SolarAuxUtils::str(MAdjClNum) + " ( " + SolarAuxUtils::str(MSignalAdjClNum) + " signal )\n";
           sClusterReco += " - Reco Time,Y,Z ( " + SolarAuxUtils::str(MVecTime[i]) + ", " + SolarAuxUtils::str(MVecRecY[i]) + ", " + SolarAuxUtils::str(MVecRecZ[i]) + " )\n";
           
           if (fSaveTrackInfo){
@@ -1595,7 +1595,7 @@ namespace solar
         {
           float OpFlashR = -1e6;
           // Skip flashes with time outside the cluster time window
-          if ((MVecTime[i] - OpFlashTime[j]) < 0 || (MVecTime[i] - OpFlashTime[j]) > fAdjOpFlashTime)
+          if ((MVecTime[i] - OpFlashTime[j]) < 0 || (MVecTime[i] - OpFlashTime[j]) > TPCIDdriftTime[MVecTPC[i]])
           {
             continue;
           }
@@ -1607,11 +1607,11 @@ namespace solar
           if (fGeometry == "HD" && MVecTPC[i]%2 != 0)
           {
             producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
-            MAdjFlashX = -MAdjFlashX;
           }
           else if (fGeometry == "HD" && MVecTPC[i]%2 == 0)
           {
             producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
+            MAdjFlashX = -MAdjFlashX;
           }
           else if (fGeometry == "VD")
           {
@@ -1713,19 +1713,20 @@ namespace solar
               " #Hits " + SolarAuxUtils::str(OpFlashNHits[j]) +
               " PE " + SolarAuxUtils::str(OpFlashPE[j]) +
               " MaxPE " + SolarAuxUtils::str(OpFlashMaxPE[j]) + "\n" +
-              " - Reco Time,Y,Z ( " + SolarAuxUtils::str(MFlashTime) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + " )" + "\n" +
               " - Time " + SolarAuxUtils::str(OpFlashTime[j]) +
               " Fast " + SolarAuxUtils::str(OpFlashFast[j]) +
-              " Residual " + SolarAuxUtils::str(OpFlashResidual) + "\n";
+              " Residual " + SolarAuxUtils::str(OpFlashResidual) + "\n" +
+              " - Reco Time,Y,Z ( " + SolarAuxUtils::str(MFlashTime) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + " )" + "\n";
 
             MatchedOpFlashX = MAdjFlashX;
             MatchedOpFlashResidual = OpFlashResidual;
             MatchedOpFlashPE = MFlashPE;
           }
           MAdjFlashResidual.push_back(OpFlashResidual);
-          sVertexReco += "*** Reconstructed Interaction Vertex: \n";
-          sVertexReco += " - Reco X,Y,Z ( " + SolarAuxUtils::str(MatchedOpFlashX) + ", " + SolarAuxUtils::str(OpFlashY[j]) + ", " + SolarAuxUtils::str(OpFlashZ[j]) + " )";
         }
+        sVertexReco += "*** Reconstructed Interaction Vertex: \n";
+        sVertexReco += " - True X,Y,Z ( " + SolarAuxUtils::str(SignalParticleX) + ", " + SolarAuxUtils::str(SignalParticleY) + ", " + SolarAuxUtils::str(SignalParticleZ) + " )" + "\n";
+        sVertexReco += " - Reco X,Y,Z ( " + SolarAuxUtils::str(MatchedOpFlashX) + ", " + SolarAuxUtils::str(MVecRecY[i]) + ", " + SolarAuxUtils::str(MVecRecZ[i]) + " )";
         sClusterReco += sFlashReco;
         sClusterReco += sVertexReco;
         if (fClusterPreselectionFlashMatch && MatchedOpFlashPE < 0)
