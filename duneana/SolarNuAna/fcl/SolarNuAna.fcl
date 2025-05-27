@@ -19,10 +19,8 @@ BEGIN_PROLOG
     BackgroundLabelVector: []
 
     Geometry:                   "HD"
-    DetectorSizeX:              360          # 1 TPC drift (X) length in [cm].
     DetectorSizeY:              600          # 1 TPC Y length in [cm].
     DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
-    DetectorDriftTime:          4500         # Don't change this value for HD unless you know what you are doing!!!
     ClusterChargeVariable:      "Integral"   # Charge variable to use for cluster matching: "Integral" or "SummedADC".
     XACathodeX:                 0            # X position of the VD cathode XAs in [cm].
     XAMembraneY:                0            # Y position of the VD membrane XAs in [cm].
@@ -56,13 +54,12 @@ BEGIN_PROLOG
     OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
     # OpFlashAlgoCentroid:        false        # Use the centroid computation of the flash based on a likelihood estimation.
 
-    AdjOpFlashTime:             4500         # Time window to look for adjacent flashes in [tick] units should be one full drift length.
     AdjOpFlashX:                100.         # X distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashY:                100.         # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashZ:                100.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashMaxPERatioCut:    1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:         20.0         # Cut on the minimum OpHit PE. From average bkg rate of ~20 PE per tick.
-    AdjOpFlashMinNHitCut:       10           # Cut on the minimum number of OpHits in the OpFlash.
+    AdjOpFlashMinNHitCut:       3            # Cut on the minimum number of OpHits in the OpFlash.
     FlashMatchByResidual:       false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
     SaveSignalDaughters:        false        # Save the daughters of the signal particles.
@@ -70,7 +67,6 @@ BEGIN_PROLOG
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
     SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
-
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
@@ -90,20 +86,20 @@ BEGIN_PROLOG
   solar_nu_ana_vd.OpHitLabel:          "ophit10ppm"
   solar_nu_ana_vd.OpFlashLabel:        "solarflash"
   solar_nu_ana_vd.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
-
   solar_nu_ana_vd.Geometry:            "VD"
-  solar_nu_ana_vd.DetectorSizeX:       330
   solar_nu_ana_vd.DetectorSizeY:       680 
   solar_nu_ana_vd.DetectorSizeZ:       2100
-  solar_nu_ana_vd.DetectorDriftTime:   8500
   solar_nu_ana_vd.XACathodeX:         -327.5
   solar_nu_ana_vd.XAMembraneY:         743.302
   solar_nu_ana_vd.XAFinalCapZ:         2188.38
   solar_nu_ana_vd.XAStartCapZ:        -96.5
+  solar_nu_ana_vd.ClusterMatchNHit:    3
 
-  solar_nu_ana_vd.AdjOpFlashTime:      8500
+  solar_nu_ana_vd_1x8x14_optimistic: @local::solar_nu_ana_vd
+  solar_nu_ana_vd_1x8x14_optimistic.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_optimistic
 
   solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x6.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
+
 
 END_PROLOG
