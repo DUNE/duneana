@@ -134,7 +134,7 @@ namespace solar
     // --- Input settings imported from the fcl
     std::string fGeometry;
     std::vector<std::string> fLabels, fInteraction;
-    int fClusterAlgoAdjChannel, fDetectorSizeX, fDetectorSizeY, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHit;
+    int fClusterAlgoAdjChannel, fDetectorSizeY, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHit;
     float fClusterMatchTime, fClusterMatchNHit, fClusterMatchCharge, fAdjClusterTime, fAdjClusterRad, fAdjOpFlashRad, fAdjOpFlashTime, fAdjOpFlashMaxPECut, fAdjOpFlashMinPECut;
     double fClusterAlgoTime;
     bool /*fTestNewClReco, */ fDebug;
@@ -205,7 +205,6 @@ namespace solar
     fOpHitLabel = p.get<std::string>("OpHitLabel");
     fGEANTLabel = p.get<std::string>("GEANT4Label");
     fGeometry = p.get<std::string>("Geometry");
-    fDetectorSizeX = p.get<int>("DetectorSizeX");
     fDetectorSizeY = p.get<int>("DetectorSizeY");
     fClusterMatchNHit = p.get<float>("ClusterMatchNHit");
     fClusterMatchCharge = p.get<float>("ClusterMatchCharge");

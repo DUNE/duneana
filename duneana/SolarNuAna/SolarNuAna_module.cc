@@ -170,10 +170,8 @@ namespace solar
     fTrackLabel = p.get<std::string>("TrackLabel");
     fGEANTLabel = p.get<std::string>("GEANT4Label");
     fGeometry = p.get<std::string>("Geometry");
-    // fDetectorSizeX = p.get<double>("DetectorSizeX");
     fDetectorSizeY = p.get<int>("DetectorSizeY");
     fDetectorSizeZ = p.get<int>("DetectorSizeZ");
-    // fDetectorDriftTime = p.get<double>("DetectorDriftTime");
     fClusterAlgoTime = p.get<float>("ClusterAlgoTime");
     fClusterAlgoAdjChannel = p.get<int>("ClusterAlgoAdjChannel");
     fClusterMatchNHit = p.get<float>("ClusterMatchNHit");
@@ -234,10 +232,8 @@ namespace solar
     fConfigTree->Branch("OpHitLabel", &fOpHitLabel);
     fConfigTree->Branch("OpFlashLabel", &fOpFlashLabel);
     fConfigTree->Branch("Geometry", &fGeometry);
-    // fConfigTree->Branch("DetectorSizeX", &driftLength);
     fConfigTree->Branch("DetectorSizeY", &fDetectorSizeY);
     fConfigTree->Branch("DetectorSizeZ", &fDetectorSizeZ);
-    // fConfigTree->Branch("DetectorDriftTime", &driftTime);
     fConfigTree->Branch("ClusterAlgoTime", &fClusterAlgoTime);
     fConfigTree->Branch("ClusterAlgoAdjChannel", &fClusterAlgoAdjChannel);
     fConfigTree->Branch("ClusterMatchNHit", &fClusterMatchNHit);

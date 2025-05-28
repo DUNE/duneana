@@ -63,7 +63,7 @@ namespace solar
 
     // --- Input settings imported from the fcl
     std::string fGeometry;
-    int fDetectorSizeX, fDetectorSizeY, fDetectorSizeZ, fDetectorDriftTime, fMCParticlePDG;
+    int fDetectorSizeY, fDetectorSizeZ, fMCParticlePDG;
     float fMCParticleMinKE;
     std::vector<std::string> fParticleLabels;
 
@@ -95,10 +95,8 @@ namespace solar
   {
     fParticleLabels = p.get<std::vector<std::string>>("ParticleLabelVector");
     fGeometry = p.get<std::string>("Geometry");
-    fDetectorSizeX = p.get<int>("DetectorSizeX");
     fDetectorSizeY = p.get<int>("DetectorSizeY");
     fDetectorSizeZ = p.get<int>("DetectorSizeZ");
-    fDetectorDriftTime = p.get<float>("DetectorDriftTime");
     fMCParticleMinKE = p.get<float>("MCParticleMinKE");
     fMCParticlePDG = p.get<int>("MCParticlePDG");
   } // Reconfigure
@@ -114,10 +112,8 @@ namespace solar
 
     // Larsoft Config info.
     fConfigTree->Branch("Geometry", &fGeometry);
-    fConfigTree->Branch("DetectorSizeX", &fDetectorSizeX);
     fConfigTree->Branch("DetectorSizeY", &fDetectorSizeY);
     fConfigTree->Branch("DetectorSizeZ", &fDetectorSizeZ);
-    fConfigTree->Branch("DetectorDriftTime", &fDetectorDriftTime);
     fConfigTree->Branch("MCParticleMinKE", &fMCParticleMinKE);
     fConfigTree->Branch("MCParticlePDG", &fMCParticlePDG);
 
