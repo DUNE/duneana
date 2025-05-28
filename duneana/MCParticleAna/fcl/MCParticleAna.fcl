@@ -11,10 +11,8 @@ BEGIN_PROLOG
     ParticleLabelVector: []
 
     Geometry:                   "HD"
-    DetectorSizeX:              360          # 1 TPC drift (X) length in [cm].
     DetectorSizeY:              600          # 1 TPC Y length in [cm].
     DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
-    DetectorDriftTime:          4500         # Drift time in [tick].
 
     MCParticleMinKE:            4.0          # Minimum kinetic energy for MCParticles to be considered.
     MCParticlePDG:              -1           # PDG code for the MCParticles to be considered (default is all).
@@ -30,10 +28,8 @@ BEGIN_PROLOG
   solar_nu_ana_vd.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
 
   solar_nu_ana_vd.Geometry:            "VD"
-  solar_nu_ana_vd.DetectorSizeX:       340
   solar_nu_ana_vd.DetectorSizeY:       680 
   solar_nu_ana_vd.DetectorSizeZ:       2100
-  solar_nu_ana_vd.DetectorDriftTime:   8000
 
   solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x6.ParticleLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
