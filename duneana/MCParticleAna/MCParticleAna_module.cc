@@ -40,7 +40,9 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "duneopdet/SolarNuUtils/SolarAuxUtils.h"
+#include "dunecore/ProducerUtils/ProducerUtils.h"
+
+using namespace producer;
 
 namespace solar
 {
@@ -78,14 +80,14 @@ namespace solar
 
     // --- Declare our services
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    std::unique_ptr<solar::SolarAuxUtils> solaraux;
+    std::unique_ptr<producer::ProducerUtils> producer;
   };
 #endif
 
   //......................................................
   MCParticleAna::MCParticleAna(fhicl::ParameterSet const &p)
       : EDAnalyzer(p),
-        solaraux(new solar::SolarAuxUtils(p))
+        producer(new producer::ProducerUtils(p))
   {
     this->reconfigure(p);
   }
@@ -168,12 +170,12 @@ namespace solar
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     Flag = rand() % 10000000000;
     std::string sHead = "";
-    sHead = sHead + "\nTPC Frequency in [MHz]: " + SolarAuxUtils::str(clockData.TPCClock().Frequency());
-    sHead = sHead + "\nTPC Tick in [us]: " + SolarAuxUtils::str(clockData.TPCClock().TickPeriod());
-    sHead = sHead + "\nEvent Flag: " + SolarAuxUtils::str(Flag);
-    sHead = sHead + "\nSuccesfull reset of variables for evt " + SolarAuxUtils::str(Event);
+    sHead = sHead + "\nTPC Frequency in [MHz]: " + ProducerUtils::str(clockData.TPCClock().Frequency());
+    sHead = sHead + "\nTPC Tick in [us]: " + ProducerUtils::str(clockData.TPCClock().TickPeriod());
+    sHead = sHead + "\nEvent Flag: " + ProducerUtils::str(Flag);
+    sHead = sHead + "\nSuccesfull reset of variables for evt " + ProducerUtils::str(Event);
     sHead = sHead + "\n#########################################";
-    solaraux->PrintInColor(sHead, SolarAuxUtils::GetColor("magenta"));
+    producer->PrintInColor(sHead, ProducerUtils::GetColor("magenta"));
 
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //----------------------------------------------------------------- Create maps for ID tracking -----------------------------------------------------------------//
@@ -183,7 +185,7 @@ namespace solar
     std::vector<int> ParticelTypeCount = {0, 0, 0, 0, 0}; // {"alpha", "electron", "gamma", "neutron", "other"}
 
     std::string sMcTruth = "";
-    sMcTruth = sMcTruth + "\nThere are a total of " + SolarAuxUtils::str(int(PartList.size())) + " Particles in the event\n";
+    sMcTruth = sMcTruth + "\nThere are a total of " + ProducerUtils::str(int(PartList.size())) + " Particles in the event\n";
 
     // Loop over all bkg handles and collect track IDs
     for (size_t i = 0; i < fParticleLabels.size(); i++)
@@ -198,7 +200,7 @@ namespace solar
         for (auto const &ParticleTruth : *ThisHandle)
         {
           int NParticles = ParticleTruth.NParticles();
-          sMcTruth = sMcTruth + "\n# of particles " + SolarAuxUtils::str(NParticles) + "\tfrom gen " + SolarAuxUtils::str(int(i) + 1) + " " + fParticleLabels[i];
+          sMcTruth = sMcTruth + "\n# of particles " + ProducerUtils::str(NParticles) + "\tfrom gen " + ProducerUtils::str(int(i) + 1) + " " + fParticleLabels[i];
           ParticleLabelID = i+1;
           for (int j = 0; j < NParticles; j++)
           {
@@ -255,7 +257,7 @@ namespace solar
       }
       else
       {
-        sMcTruth = sMcTruth + "\n# of particles " + SolarAuxUtils::str(int(GeneratorParticles[i].size())) + "\tfrom gen " + SolarAuxUtils::str(int(i) + 1) + " " + fParticleLabels[i] + " *not generated!";
+        sMcTruth = sMcTruth + "\n# of particles " + ProducerUtils::str(int(GeneratorParticles[i].size())) + "\tfrom gen " + ProducerUtils::str(int(i) + 1) + " " + fParticleLabels[i] + " *not generated!";
         ParticleCount.push_back(0);
         std::set<int> ThisGeneratorIDs = {};
         trackids.push_back(ThisGeneratorIDs);
@@ -266,8 +268,8 @@ namespace solar
     GammaCount = ParticelTypeCount[2];
     NeutronCount = ParticelTypeCount[3];
     OtherCount = ParticelTypeCount[4];
-    sMcTruth = sMcTruth + "\nParticle Type Count: " + SolarAuxUtils::str(ParticelTypeCount[0]) + " Alphas, " + SolarAuxUtils::str(ParticelTypeCount[1]) + " Electrons, " + SolarAuxUtils::str(ParticelTypeCount[2]) + " Gammas, " + SolarAuxUtils::str(ParticelTypeCount[3]) + " Neutrons, " + SolarAuxUtils::str(ParticelTypeCount[4]) + " Others";
-    solaraux->PrintInColor(sMcTruth, SolarAuxUtils::GetColor("bright_red"));
+    sMcTruth = sMcTruth + "\nParticle Type Count: " + ProducerUtils::str(ParticelTypeCount[0]) + " Alphas, " + ProducerUtils::str(ParticelTypeCount[1]) + " Electrons, " + ProducerUtils::str(ParticelTypeCount[2]) + " Gammas, " + ProducerUtils::str(ParticelTypeCount[3]) + " Neutrons, " + ProducerUtils::str(ParticelTypeCount[4]) + " Others";
+    producer->PrintInColor(sMcTruth, ProducerUtils::GetColor("bright_red"));
     fMCTruthTree->Fill();
   } // Analyze
 
