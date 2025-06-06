@@ -40,7 +40,8 @@ art_make(BASENAME_ONLY
       art::Utilities 
       messagefacility::MF_MessageLogger
       cetlib::cetlib 
-      duneopdet::SolarNuUtils
+      duneopdet::LowEPDSUtils
+      dunecore::ProducerUtils
       dunereco::LowEUtils
       ROOT::Core ROOT::Hist ROOT::Tree
 )
