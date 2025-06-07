@@ -259,7 +259,7 @@ namespace solar
     fConfigTree->Branch("OpFlashAlgoTriggerPE", &fOpFlashAlgoTriggerPE);
     fConfigTree->Branch("OpFlashAlgoHotVertexThld", &fOpFlashAlgoHotVertexThld);
     fConfigTree->Branch("AdjOpFlashMembraneProjection", &fAdjOpFlashMembraneProjection);
-    fConfigTree->Branch("AdjOpFlashMembraneProjection", &fAdjOpFlashEndCapProjection);
+    fConfigTree->Branch("AdjOpFlashEndCapProjection", &fAdjOpFlashEndCapProjection);
     // fConfigTree->Branch("OpFlashAlgoCentroid", &fOpFlashAlgoCentroid);
     // fConfigTree->Branch("AdjOpFlashTime", &fAdjOpFlashTime);
     fConfigTree->Branch("AdjOpFlashX", &fAdjOpFlashX);
