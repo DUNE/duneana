@@ -38,4 +38,10 @@ dunefd_cafmaker:
     
 }
 
+dunefdvd_cafmaker:
+{
+    @table::dunefd_cafmaker
+    HitLabel: "gaushit"
+}
+
 END_PROLOG
