@@ -49,9 +49,11 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "duneopdet/SolarNuUtils/SolarAuxUtils.h"
-#include "duneopdet/SolarNuUtils/AdjOpHitsUtils.h"
+#include "duneopdet/LowEPDSUtils/AdjOpHitsUtils.h"
+#include "dunecore/ProducerUtils/ProducerUtils.h"
 #include "dunereco/LowEUtils/LowEUtils.h"
+
+using namespace producer;
 
 namespace solar
 {
@@ -134,7 +136,7 @@ namespace solar
     // --- Input settings imported from the fcl
     std::string fGeometry;
     std::vector<std::string> fLabels, fInteraction;
-    int fClusterAlgoAdjChannel, fDetectorSizeX, fDetectorSizeY, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHit;
+    int fClusterAlgoAdjChannel, fDetectorSizeY, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHit;
     float fClusterMatchTime, fClusterMatchNHit, fClusterMatchCharge, fAdjClusterTime, fAdjClusterRad, fAdjOpFlashRad, fAdjOpFlashTime, fAdjOpFlashMaxPECut, fAdjOpFlashMinPECut;
     double fClusterAlgoTime;
     bool /*fTestNewClReco, */ fDebug;
@@ -178,8 +180,8 @@ namespace solar
     art::ServiceHandle<cheat::PhotonBackTrackerService> pbt;
     art::ServiceHandle<cheat::BackTrackerService> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    std::unique_ptr<solar::SolarAuxUtils> solaraux;
     std::unique_ptr<solar::AdjOpHitsUtils> adjophits;
+    std::unique_ptr<producer::ProducerUtils> producer;
     std::unique_ptr<solar::LowEUtils> lowe;
   };
 #endif
@@ -187,8 +189,8 @@ namespace solar
   //......................................................
   LowEAna::LowEAna(fhicl::ParameterSet const &p)
       : EDAnalyzer(p),
-        solaraux(new solar::SolarAuxUtils(p)),
         adjophits(new solar::AdjOpHitsUtils(p)),
+        producer(new producer::ProducerUtils(p)),
         lowe(new solar::LowEUtils(p))
   {
     this->reconfigure(p);
@@ -205,7 +207,6 @@ namespace solar
     fOpHitLabel = p.get<std::string>("OpHitLabel");
     fGEANTLabel = p.get<std::string>("GEANT4Label");
     fGeometry = p.get<std::string>("Geometry");
-    fDetectorSizeX = p.get<int>("DetectorSizeX");
     fDetectorSizeY = p.get<int>("DetectorSizeY");
     fClusterMatchNHit = p.get<float>("ClusterMatchNHit");
     fClusterMatchCharge = p.get<float>("ClusterMatchCharge");
@@ -353,10 +354,10 @@ namespace solar
         auto ThisValidHanlde = evt.getValidHandle<std::vector<simb::MCTruth>>(fLabels[i]);
         art::FindManyP<simb::MCParticle> Assn(ThisValidHanlde, evt, fGEANTLabel);
 
-        solaraux->FillMyMaps(Parts[i], Assn, ThisValidHanlde);
+        producer->FillMyMaps(Parts[i], Assn, ThisValidHanlde);
         FillMCInteractionTree(Parts[i], fInteraction, fDebug);
         TPart.push_back(Parts[i].size()); // Insert #signal+bkg particles generated
-        lparticlestr = lparticlestr + "\n-> #Particles: " + SolarAuxUtils::str(int(Parts[i].size()));
+        lparticlestr = lparticlestr + "\n-> #Particles: " + ProducerUtils::str(int(Parts[i].size()));
       }
       else
       {
@@ -442,9 +443,9 @@ namespace solar
           // Convert std::vector<int> to std::set<int> for signal_trackids
           std::set<int> SetGenTrackIDs(GenTrackIDs.begin(), GenTrackIDs.end());
           // Calculate the flash purity, for this generator's trackIDs
-          int test = SolarAuxUtils::supress_stdout();
+          int test = ProducerUtils::supress_stdout();
           double ThisOpFlashPur = pbt->OpHitCollectionPurity(SetGenTrackIDs, MOpHits);
-          SolarAuxUtils::resume_stdout(test);
+          ProducerUtils::resume_stdout(test);
           OpFlashPurVector.push_back(ThisOpFlashPur);
         }
         double MaxOpFlashPur = 0;
@@ -481,7 +482,7 @@ namespace solar
       recob::Hit const &ThisHit = reco_hits->at(hit);
       if (ThisHit.PeakTime() < 0)
       {
-        lhitstr = lhitstr + "Negative Hit Time = " + SolarAuxUtils::str(ThisHit.PeakTime());
+        lhitstr = lhitstr + "Negative Hit Time = " + ProducerUtils::str(ThisHit.PeakTime());
       }
 
       if (ThisHit.SignalType() == 0 && ThisHit.View() == 0)
@@ -564,7 +565,7 @@ namespace solar
       Idx = ii;
       if (!MatchedClusters[0][ii].empty() && !MatchedClusters[1][ii].empty())
       {
-        lpreselectionstr = lpreselectionstr + "Found MainCl with match in Ind0 & Ind1 #" + SolarAuxUtils::str(ii);
+        lpreselectionstr = lpreselectionstr + "Found MainCl with match in Ind0 & Ind1 #" + ProducerUtils::str(ii);
         // --- Declare our vectors to fill
         std::vector<double> Dir, Ind0Dir, Ind1Dir;
         Dir = Ind0Dir = Ind1Dir = {};
@@ -596,7 +597,7 @@ namespace solar
         // --- Declare our vectors to fill
         std::vector<double> Dir, Ind0Dir;
         Dir = Ind0Dir = {};
-        lpreselectionstr = lpreselectionstr + "Found MainCl with match in Ind0 #" + SolarAuxUtils::str(ii);
+        lpreselectionstr = lpreselectionstr + "Found MainCl with match in Ind0 #" + ProducerUtils::str(ii);
         FillClusterHitVectors(MatchedClusters[0][ii], Ind0TPC, Ind0Channel, Ind0MotherX, Ind0MotherY, Ind0MotherZ, Ind0MotherE, Ind0MotherP, Ind0MotherPDG, Ind0AncestorX, Ind0AncestorY, Ind0AncestorZ, Ind0AncestorE, Ind0AncestorP, Ind0AncestorPDG, Ind0Charge, Ind0T, Ind0Y, Ind0Z, Ind0Dir, clockData, fDebug);
         FillClusterHitVectors(MatchedClusters[2][ii], TPC, Channel, MotherX, MotherY, MotherZ, MotherE, MotherP, MotherPDG, AncestorX, AncestorY, AncestorZ, AncestorE, AncestorP, AncestorPDG, Charge, Time, Y, Z, Dir, clockData, fDebug);
         Y = LowEUtils::ComputeRecoY(Event, Ind0TPC, Z, Time, Ind0Z, Ind0Y, Ind0T, Ind0Dir, fDebug);
@@ -615,7 +616,7 @@ namespace solar
         // --- Declare our vectors to fill
         std::vector<double> Dir, Ind1Dir;
         Dir = Ind1Dir = {};
-        lpreselectionstr = lpreselectionstr + "Found MainCl with match in Ind1 #" + SolarAuxUtils::str(ii);
+        lpreselectionstr = lpreselectionstr + "Found MainCl with match in Ind1 #" + ProducerUtils::str(ii);
         FillClusterHitVectors(MatchedClusters[1][ii], Ind1TPC, Ind1Channel, Ind1MotherX, Ind1MotherY, Ind1MotherZ, Ind1MotherE, Ind1MotherP, Ind1MotherPDG, Ind1AncestorX, Ind1AncestorY, Ind1AncestorZ, Ind1AncestorE, Ind1AncestorP, Ind1AncestorPDG, Ind1Charge, Ind1T, Ind1Y, Ind1Z, Ind1Dir, clockData, fDebug);
         FillClusterHitVectors(MatchedClusters[2][ii], TPC, Channel, MotherX, MotherY, MotherZ, MotherE, MotherP, MotherPDG, AncestorX, AncestorY, AncestorZ, AncestorE, AncestorP, AncestorPDG, Charge, Time, Y, Z, Dir, clockData, fDebug);
         Y = LowEUtils::ComputeRecoY(Event, Ind1TPC, Z, Time, Ind1Z, Ind1Y, Ind1T, Ind1Dir, fDebug);
@@ -747,10 +748,10 @@ namespace solar
     Flag = rand() % 10000000000;
     std::string sHead = "";
     sHead = sHead + "\n#####################################################################";
-    sHead = sHead + "\n - TPC Frequency in [MHz]: " + SolarAuxUtils::str(clockData.TPCClock().Frequency());
-    sHead = sHead + "\n - TPC Tick in [us]: " + SolarAuxUtils::str(clockData.TPCClock().TickPeriod());
-    sHead = sHead + "\n - Event Flag: " + SolarAuxUtils::str(Flag);
-    sHead = sHead + "\n - Succesfull reset of variables for Event " + SolarAuxUtils::str(Event) + ": " + SolarAuxUtils::str(Flag);
+    sHead = sHead + "\n - TPC Frequency in [MHz]: " + ProducerUtils::str(clockData.TPCClock().Frequency());
+    sHead = sHead + "\n - TPC Tick in [us]: " + ProducerUtils::str(clockData.TPCClock().TickPeriod());
+    sHead = sHead + "\n - Event Flag: " + ProducerUtils::str(Flag);
+    sHead = sHead + "\n - Succesfull reset of variables for Event " + ProducerUtils::str(Event) + ": " + ProducerUtils::str(Flag);
     sHead = sHead + "\n#####################################################################";
     // Clear Marley MCTruth info.
     Parts = {};
@@ -766,7 +767,7 @@ namespace solar
     OpFlashX.clear();
     OpFlashY.clear();
     OpFlashZ.clear();
-    solaraux->PrintInColor(sHead, SolarAuxUtils::GetColor("magenta"));
+    producer->PrintInColor(sHead, ProducerUtils::GetColor("magenta"));
     return;
   } // ResetVariables
 
@@ -852,7 +853,7 @@ namespace solar
   //   // Create the interpolator
   //   std::vector<double> RecoY = {};
 
-  //   // TFile * f = new TFile(("Interpolation"+SolarAuxUtils::str(Event)+"_"+SolarAuxUtils::str(Time[0])+".root").c_str(),"RECREATE");
+  //   // TFile * f = new TFile(("Interpolation"+ProducerUtils::str(Event)+"_"+ProducerUtils::str(Time[0])+".root").c_str(),"RECREATE");
   //   TGraph *IndInterpZ = new TGraph();
   //   TGraph *IndInterpY = new TGraph();
   //   for (size_t i = 0; i < IndT.size(); i++)
@@ -871,7 +872,7 @@ namespace solar
   //     float ThisHRefZ = IndInterpZ->Eval(ThisHT);
   //     float ThisRecoY = ThisHRefY + (ThisHZ - ThisHRefZ) / (ThisHIndDir);
   //     RecoY.push_back(ThisRecoY);
-  //     linterpstr = linterpstr + "\nReco Y = " + SolarAuxUtils::str(ThisRecoY) + " cm";
+  //     linterpstr = linterpstr + "\nReco Y = " + ProducerUtils::str(ThisRecoY) + " cm";
   //   }
   //   // IndInterpY->Write("InterpY");
   //   // IndInterpZ->Write("InterpZ");
@@ -927,9 +928,9 @@ namespace solar
 
       // Call backtracker to get the particle from the trackID
       const simb::MCParticle *HTruth;
-      int test = SolarAuxUtils::supress_stdout();
+      int test = ProducerUtils::supress_stdout();
       HTruth = pi_serv->TrackIdToParticle_P(MainTrID);
-      SolarAuxUtils::resume_stdout(test);
+      ProducerUtils::resume_stdout(test);
       if (HTruth != 0)
       {
         MotherX.push_back(HTruth->Vx());
@@ -939,9 +940,9 @@ namespace solar
         MotherP.push_back(HTruth->P());
         MotherPDG.push_back(HTruth->PdgCode());
         const simb::MCParticle *Ancestor;
-        int test = SolarAuxUtils::supress_stdout();
+        int test = ProducerUtils::supress_stdout();
         Ancestor = pi_serv->TrackIdToParticle_P(HTruth->Mother());
-        SolarAuxUtils::resume_stdout(test);
+        ProducerUtils::resume_stdout(test);
 
         if (Ancestor != 0)
         {
@@ -1158,11 +1159,11 @@ namespace solar
         }
         // Print nice output with all the main interaction info
         lheaderstr = lheaderstr + "\nMain interacting particle for process " + mainiter->second.Process() + ": ";
-        lheaderstr = lheaderstr + "\nPDG ->\t" + SolarAuxUtils::str(PDG);
-        lheaderstr = lheaderstr + "\nEnergy ->\t" + SolarAuxUtils::str(Energy);
-        lheaderstr = lheaderstr + "\nMomentum ->\t" + SolarAuxUtils::str(Momentum[0]) + " " + SolarAuxUtils::str(Momentum[1]) + " " + SolarAuxUtils::str(Momentum[2]);
-        lheaderstr = lheaderstr + "\nStartVertex ->\t" + SolarAuxUtils::str(StartVertex[0]) + " " + SolarAuxUtils::str(StartVertex[1]) + " " + SolarAuxUtils::str(StartVertex[2]);
-        lheaderstr = lheaderstr + "\nEndVertex ->\t" + SolarAuxUtils::str(EndVertex[0]) + " " + SolarAuxUtils::str(EndVertex[1]) + " " + SolarAuxUtils::str(EndVertex[2]);
+        lheaderstr = lheaderstr + "\nPDG ->\t" + ProducerUtils::str(PDG);
+        lheaderstr = lheaderstr + "\nEnergy ->\t" + ProducerUtils::str(Energy);
+        lheaderstr = lheaderstr + "\nMomentum ->\t" + ProducerUtils::str(Momentum[0]) + " " + ProducerUtils::str(Momentum[1]) + " " + ProducerUtils::str(Momentum[2]);
+        lheaderstr = lheaderstr + "\nStartVertex ->\t" + ProducerUtils::str(StartVertex[0]) + " " + ProducerUtils::str(StartVertex[1]) + " " + ProducerUtils::str(StartVertex[2]);
+        lheaderstr = lheaderstr + "\nEndVertex ->\t" + ProducerUtils::str(EndVertex[0]) + " " + ProducerUtils::str(EndVertex[1]) + " " + ProducerUtils::str(EndVertex[2]);
 
         for (std::map<int, simb::MCParticle>::iterator daughteriter = MCParticleListCopy.begin(); daughteriter != MCParticleListCopy.end(); daughteriter++)
         {

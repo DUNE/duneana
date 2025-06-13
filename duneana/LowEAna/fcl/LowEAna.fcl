@@ -18,7 +18,6 @@ legacy_lowe_ana_hd:
   #====================================================================================
   # General geometry parameters
   Geometry:            "HD"
-  DetectorSizeX:       365          
   DetectorSizeY:       610           # Dont't change this value for HD unless you know what you are doing!!!
 
   # Parameters for clustering algorithm
