@@ -27,6 +27,9 @@ cet_build_plugin(CAFMaker   art::module LIBRARIES
 			systematicstools::utility
                         dunereco::CVN_func
 			larpandora::LArPandoraInterface
+                        larreco::Calorimetry
+                        dunereco::AnaUtils
+                        larsim::Utils
               BASENAME_ONLY
 )
 endif()
