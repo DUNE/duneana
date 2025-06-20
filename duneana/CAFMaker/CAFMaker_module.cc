@@ -125,6 +125,7 @@ namespace caf {
       std::string fEnergyRecoLepCaloLabel;
       std::string fEnergyRecoMuRangeLabel;
       std::string fEnergyRecoMuMcsLabel;
+      std::string fEnergyRecoMuMcsLLHDLabel;
       std::string fEnergyRecoECaloLabel;
       std::string fDirectionRecoLabelNue;
       std::string fDirectionRecoLabelNumu;
@@ -193,6 +194,7 @@ namespace caf {
       fEnergyRecoLepCaloLabel(pset.get<std::string>("EnergyRecoLepCaloLabel")),
       fEnergyRecoMuRangeLabel(pset.get<std::string>("EnergyRecoMuRangeLabel")),
       fEnergyRecoMuMcsLabel(pset.get<std::string>("EnergyRecoMuMcsLabel")),
+      fEnergyRecoMuMcsLLHDLabel(pset.get<std::string>("EnergyRecoMuMcsLLHDLabel")),
       fEnergyRecoECaloLabel(pset.get<std::string>("EnergyRecoECaloLabel")),
       fDirectionRecoLabelNue(pset.get<std::string>("DirectionRecoLabelNue")),
       fDirectionRecoLabelNumu(pset.get<std::string>("DirectionRecoLabelNumu")),
@@ -880,6 +882,7 @@ namespace caf {
       {fEnergyRecoLepCaloLabel, &(ErecBranch.lep_calo)},
       {fEnergyRecoMuRangeLabel, &(ErecBranch.mu_range)},
       {fEnergyRecoMuMcsLabel, &(ErecBranch.mu_mcs)},
+      {fEnergyRecoMuMcsLLHDLabel, &(ErecBranch.mu_mcs_llhd)},
       {fEnergyRecoECaloLabel, &(ErecBranch.e_calo)}
     };
 

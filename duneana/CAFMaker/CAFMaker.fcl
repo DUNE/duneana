@@ -14,6 +14,7 @@ dunefd_cafmaker:
     EnergyRecoLepCaloLabel:     "energyrecnumu"
     EnergyRecoMuRangeLabel:     "energyrecnumurange"
     EnergyRecoMuMcsLabel:       "energyrecnumumcs"
+    EnergyRecoMuMcsLLHDLabel:   "energyrecnumumcsllhd"
     EnergyRecoECaloLabel:       "energyrecnue"
     DirectionRecoLabelNue:      "anglereconuepfps"
     DirectionRecoLabelNumu:     "anglereconumupfps"
