@@ -109,6 +109,7 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
   fRequireT0                    = p.get<bool>("RequireT0", false);
   fDoTailFit                    = p.get<bool>("DoTailFit", true);
   fVerbose                      = p.get<bool>("Verbose", false);
+  fUseQuickKPP                  = p.get<bool>("UseQuickKPP", false);
   fSilenceMissingDataProducts   = p.get<bool>("SilenceMissingDataProducts", false);
   fHitRawDigitsTickCollectWidth = p.get<double>("HitRawDigitsTickCollectWidth", 50.);
   fHitRawDigitsWireCollectWidth = p.get<int>("HitRawDigitsWireCollectWidth", 5);
@@ -332,7 +333,7 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
                                                           fClusterSizeMulti, fCovering, fRadiusInt,
 						      	  fRadiusExt, fgeoYmin, fgeoYmax, fgeoZmin, fgeoZmax,
 							  fElectronVelocity , fTickTimeInMus ,
-							  fWireReadout);
+							  fWireReadout, fUseQuickKPP);
     if (!vCluster.empty()) 
     {
       if (fVerbose) std::cout<< "There are " << vCluster.size() << " clusters in event " << fMeta.evt << std::endl;

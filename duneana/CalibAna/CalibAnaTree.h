@@ -269,6 +269,7 @@ private:
   bool fRequireT0;
   bool fDoTailFit;
   bool fVerbose;
+  bool fUseQuickKPP;
   bool fSilenceMissingDataProducts;
   double fHitRawDigitsTickCollectWidth;
   double fTailFitResidualRange;

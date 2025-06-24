@@ -1,7 +1,9 @@
 #include "CalibAnaTree.h"
 #include "larcore/Geometry/WireReadout.h"
 #include "art/Framework/Principal/Event.h"
-
+#include <random>
+#include <chrono>
+#include <cfloat>
 typedef struct //!< 2D point for clustering : - group (number of the associated cluster)
                  //!<                           - index (index to retreive the info like energy to the associated hit)
 {
@@ -496,8 +498,11 @@ float randf(float m)
     return m * rand() / (RAND_MAX - 1.);
 }
 
-point gen_yzt(int size , std::vector<int> vIndex , std::vector<float> vY , std::vector<float> vZ , std::vector<float> vT , std::vector<int> vNOF, float fElectronVelocity , float fTickToMus ,float fgeoZmax)
-{
+point gen_yzt(
+    int size, std::vector<int> vIndex, std::vector<float> vY,
+    std::vector<float> vZ, std::vector<float> vT,
+    std::vector<int> vNOF, float fElectronVelocity, 
+    float fTickToMus,float fgeoZmax) {
   int i = 0;
   point p, pt = ( point) malloc(sizeof( point_t) * size);
   float electronDriftScale = fElectronVelocity * fTickToMus;
@@ -520,9 +525,7 @@ point gen_yzt(int size , std::vector<int> vIndex , std::vector<float> vY , std::
   return pt;
 }
 
-
-int nearest(point pt, point cent, int n_cluster, float *d2)
-{
+int nearest(point pt, point cent, int n_cluster, float *d2) {
     int i = 0;
     int  min_i = 0;
     point c;
@@ -530,7 +533,7 @@ int nearest(point pt, point cent, int n_cluster, float *d2)
     float  min_d = 0.0;
 
 #       define for_n for (c = cent, i = 0; i < n_cluster; i++, c++)
-    for_n {
+    // for_n {
         min_d = HUGE_VAL;
         min_i = pt->group;
         for_n {
@@ -538,7 +541,7 @@ int nearest(point pt, point cent, int n_cluster, float *d2)
                 min_d = d; min_i = i;
             }
         }
-    }
+    // }
     if (d2) *d2 = min_d;
     return min_i;
 }
@@ -575,80 +578,135 @@ float mean(float y,float z){
     return (z+y)/2.;
 }
 
-void kpp(point pts, int len, point cent, int n_cent)
+
+
+// kmeans ++ algorithm https://en.wikipedia.org/wiki/K-means%2B%2B
+// The exact algorithm is as follows:
+
+//    1) Choose one center uniformly at random among the data points.
+//    2) For each data point x not chosen yet, compute D(x), the distance between x and the nearest center that has already been chosen.
+//    3) Choose one new data point at random as a new center, using a weighted probability distribution where a point x is chosen with probability proportional to D(x)2.
+//    4) Repeat Steps 2 and 3 until k centers have been chosen.
+//    5) Now that the initial centers have been chosen, proceed using standard k-means clustering.
+void kpp(point pts, int len, point cent, int n_cent, bool verbose, bool use_new_nearest)
 {
 #       define for_len for (j = 0, p = pts; j < len; j++, p++)
     int j;
     int n_cluster;
     float sum, *d = (float*)malloc(sizeof(float) * len);
-
+    
+    //For c++ weighted, discrete distribution sampling
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::vector<float> distances(len, FLT_MAX);
+    
     point p;
-    cent[0] = pts[ rand() % len ];
-    for (n_cluster = 1; n_cluster < n_cent; n_cluster++) {
+    cent[0] = pts[ rand() % len ]; //1) Choose one center to be one of the datapoints at random
+    
+    for (n_cluster = 1; n_cluster < n_cent; n_cluster++) { //Loop over the other clusters
+        // std::cout << "Setting cluster " << n_cluster << std::endl;
         sum = 0;
-        for_len {
-            nearest(p, cent, n_cluster, d + j);
-            sum += d[j];
+        auto start = std::chrono::high_resolution_clock::now();
+        if (!use_new_nearest) {
+          for_len {//2) Loop over points and find the squared distance to the nearest previously-assigned center 
+              // std::cout << "\tFinding nearest old-cluster for point " << j << std::endl;
+              nearest(p, cent, n_cluster, d + j); //The jth distance is set to that squared distance
+              sum += d[j]; //Sum the squared differences 
+              distances[j] = d[j];
+          }
         }
-        sum = randf(sum);
+        else {
+          //For each point, find the distance to the newest added centroid
+          //And compare it to the previous min distance
+          for (int ipt = 0; ipt < len; ++ipt) {
+            distances[ipt] = std::min(distances[ipt], dist2(&pts[ipt], &cent[n_cluster-1]));
+            d[ipt] = distances[ipt];
+            sum += distances[ipt]; //Sum the squared differences 
+
+          }
+        }
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+
+        if (verbose) std::cout << n_cluster << " Calculating nearest took: " << duration.count() << " nanoseconds" << std::endl;
+        
+        sum = randf(sum); //3) Choose randomly from (0, total squared difference) to set a new center
         for_len {
             if ((sum -= d[j]) > 0) continue;
             cent[n_cluster] = pts[j];
             break;
         }
     }
-    for_len p->group = nearest(p, cent, n_cluster, 0);
+    for_len p->group = nearest(p, cent, n_cluster, 0);//Find the initial nearest centers
     free(d);
 }
 
-std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster)
+//Lloyd's algorithm -- https://en.wikipedia.org/wiki/K-means_clustering 
+// See also -- https://en.wikipedia.org/wiki/Lloyd%27s_algorithm
+//We intend to group pts into n_cluster clusters 
+//There are a total of "len" pts
+std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster, bool verbose, bool use_new_nearest)
 {
     int i, j, min_i;
-    int changed;
+    int changed = 0;
 
-     point cent = ( point)malloc(sizeof( point_t) * n_cluster), p, c;
+    // std::vector<point> cent(n_cluster);
+    // point p, c;
+
+
+    //allocate space for n_cluster centroids
+    //Also make points p, c
+    point cent = ( point)malloc(sizeof( point_t) * n_cluster), p, c;
 
     /* assign init grouping randomly */
     //for_len p->group = j % n_cluster;
 
-    /* or call k++ init */
-    kpp(pts, len, cent, n_cluster);
+    // call k++ to initialize cluster seeds / initial centroids
+    // https://en.wikipedia.org/wiki/K-means%2B%2B
+    if (verbose) std::cout << "Running k++" << std::endl;
+    kpp(pts, len, cent, n_cluster, verbose, use_new_nearest);
+    if (verbose) std::cout << "Done" << std::endl;
 
+    int iteration = 0;
     do {
+        if (verbose) std::cout << "Lloyd iteration " << iteration << std::endl;
+        ++iteration;
         /* group element for centroids are used as counters */
-        for_n { c->group = 0; c->z = c->y = c->t = 0; }
-        for_len {
-            c = cent + p->group;
-            c->group++;
-            c->z += p->z;
-	    c->y += p->y;
-	    c->t += p->t;
+        for_n { //Loop over n_cluster clusters stored as cent to reinitialize
+            c->group = 0;
+            c->z = c->y = c->t = 0;
         }
-        for_n 
-	{ 
-	    c->z /= c->group; 
+        for_len { //Loop over len points -- p iterates over pts
+            c = cent + p->group; //p's cluster is stored as its group (call this n), so get the nth cluster
+            c->group++; //This counts the number of associated points
+            c->z += p->z; //Add the distances in each dimension
+	          c->y += p->y; //we'll divide later by the number of points to find the mean
+	          c->t += p->t;
+        }
+        for_n { //Loop over the clusters and divide by the number of points
+	          c->z /= c->group; 
             c->y /= c->group;
             c->t /= c->group;
         }
 
         changed = 0;
-        /* fInd closest centroid of each point */
-        for_len {
+        for_len { //Loop over len points and assign to the nearest centroid 
             min_i = nearest(p, cent, n_cluster, 0);
             if (min_i != p->group) {
                 changed++;
                 p->group = min_i;
             }
         }
-    } while (changed > (len >> 10)); /* stop when 99.9% of points are good */
+    } while (changed > (len >> 10));/* stop when 99.9% of points are good */
 
-    for_n { c->group = i; }
+    for_n { c->group = i; } //"Rename" the cluster's group from the point count to be its index
 
+
+    //Store the cluster positions in a 3 x n_cluster vector
     std::vector<std::vector<float> > clusterPos;
     std::vector<float> clusterPosY,clusterPosZ,clusterPosT;
-
-     point result;
-
+    point result;
     for(i = 0, result = cent; i < n_cluster; i++, result++) {
         clusterPosZ.push_back(result->z);
         clusterPosY.push_back(result->y);
@@ -671,12 +729,12 @@ std::vector<std::vector<float>> GetData(int len ,  point data){
   for(int i = 0; i < len; i++, data++) {
         dataPosZ.push_back(data->z);
         dataPosY.push_back(data->y);
-	dataPosT.push_back(data->t);
-    }
-    dataPos.push_back(dataPosZ);
-    dataPos.push_back(dataPosY);
-    dataPos.push_back(dataPosT);
-    return dataPos;
+	      dataPosT.push_back(data->t);
+  }
+  dataPos.push_back(dataPosZ);
+  dataPos.push_back(dataPosY);
+  dataPos.push_back(dataPosT);
+  return dataPos;
 }
 
 std::vector<int> CheckCompletude(std::vector<std::vector<float> > &data,std::vector<std::vector<float> > &cluster, float RMS , float mult )
@@ -1183,7 +1241,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     float fgeoZmax,
     float fElectronVelocity, 
     float fTickTimeInMus,
-    const geo::WireReadoutGeom& fWireReadout)
+    const geo::WireReadoutGeom& fWireReadout,
+    bool fUseQuickKPP)
 {
   //definition vector
   std::vector<dune::ClusterInfo*> vec;
@@ -1389,32 +1448,29 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 		      lYPoint_hit , lZPoint_hit , 
 		      lEInd1Point , lEInd2Point , 
 		      lChInd1Point , lChInd2Point);
-      if ( bIs3ViewsCoincidence ) 
-      {
-	lYPoint = lYPoint_hit;
+      if ( bIs3ViewsCoincidence )  {
+        lYPoint = lYPoint_hit;
         lZPoint = lYPoint_hit;
       }
-      else
-      {
+      else {
         //induction 1
-    	lYPoint.insert( lYPoint.end() , lYInd1.begin() , lYInd1.end() );
-	lZPoint.insert( lZPoint.end() , lZInd1.begin() , lZInd1.end() );
-	lEInd1Point.insert( lEInd1Point.end() , lEIntersectInd1.begin() , lEIntersectInd1.end() );
-	lChInd1Point.insert( lChInd1Point.end() , lChIntersectInd1.begin() , lChIntersectInd1.end() );
-	int N1 = lYInd1.size();
-	lEInd2Point.insert( lEInd2Point.end() , N1 , 0 );
-	lChInd2Point.insert( lChInd2Point.end() , N1 , -1 );
- 
-	//induction 2
-	lYPoint.insert( lYPoint.end() , lYInd2.begin() , lYInd2.end() );
-	lZPoint.insert( lZPoint.end() , lZInd2.begin() , lZInd2.end() );
-	lEInd2Point.insert( lEInd2Point.end() , lEIntersectInd2.begin() , lEIntersectInd2.end() );
-	lChInd2Point.insert( lChInd2Point.end() , lChIntersectInd2.begin() , lChIntersectInd2.end() );
-	int N2 = lYInd2.size();
-	lEInd1Point.insert( lEInd1Point.end() , N2 , 0 );
-	lChInd1Point.insert( lChInd1Point.end() , N2 , -1 );
+        lYPoint.insert( lYPoint.end() , lYInd1.begin() , lYInd1.end() );
+        lZPoint.insert( lZPoint.end() , lZInd1.begin() , lZInd1.end() );
+        lEInd1Point.insert( lEInd1Point.end() , lEIntersectInd1.begin() , lEIntersectInd1.end() );
+        lChInd1Point.insert( lChInd1Point.end() , lChIntersectInd1.begin() , lChIntersectInd1.end() );
+        int N1 = lYInd1.size();
+        lEInd2Point.insert( lEInd2Point.end() , N1 , 0 );
+        lChInd2Point.insert( lChInd2Point.end() , N1 , -1 );
+      
+        //induction 2
+        lYPoint.insert( lYPoint.end() , lYInd2.begin() , lYInd2.end() );
+        lZPoint.insert( lZPoint.end() , lZInd2.begin() , lZInd2.end() );
+        lEInd2Point.insert( lEInd2Point.end() , lEIntersectInd2.begin() , lEIntersectInd2.end() );
+        lChInd2Point.insert( lChInd2Point.end() , lChIntersectInd2.begin() , lChIntersectInd2.end() );
+        int N2 = lYInd2.size();
+        lEInd1Point.insert( lEInd1Point.end() , N2 , 0 );
+        lChInd1Point.insert( lChInd1Point.end() , N2 , -1 );
       }
-	  
     }
     
 
@@ -1538,8 +1594,12 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   }
 
   point v;
+  if (fVerbose) std::cout << "Calling gen_yzt" << std::endl;
   v = gen_yzt( PTSIsolated , vIso , vYPointByEvent , vZPointByEvent , vPeakTimeColByEvent ,vNoFByEvent , fElectronVelocity , fTickTimeInMus, fgeoZmax);
-
+  if (fVerbose) {
+    std::cout << "Done" << std::endl;
+    std::cout << "Calling GetData" << std::endl;
+  }
 
   std::vector<std::vector<float> > dataPos = GetData(PTSIsolated,v);
   std::vector<std::vector<float> > clustersPos;
@@ -1553,11 +1613,12 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   float threshold = fMinSizeCluster;
 
   int fAsConverged = false;
+  if (fVerbose) std::cout << "Finding clusters now" << std::endl;
   for( int i = 0 ; i < fNumberConvStep ; i++ )
   {
-    if ( fVerbose) printf("%d %d %d ",i,K,check);
+    if ( fVerbose) std::cout << "\tIteration " << i << " nK: " << K << " check: " << check << std::endl;
 
-    clustersPos = lloyd(v, PTSIsolated, K);
+    clustersPos = lloyd(v, PTSIsolated, K, fVerbose, fUseQuickKPP);
     vchecks = CheckClusters( dataPos , clustersPos , threshold , fClusterSizeMulti, fCovering , fVerbose);
     check = vchecks[0];
 
@@ -1655,7 +1716,7 @@ void FillWireInfoForLECluster(
 
     	if (rawdigits.count(wire)) 
 	{
-            std::cout << " found wire in raw digit " << std::endl;
+            // std::cout << " found wire in raw digit " << std::endl;
             const raw::RawDigit &thisdigit = *rawdigits.at(wire);
       	    int min_tick_2 = std::max(0, w_pair.second.first);
       	    int max_tick_2 = std::min((int)thisdigit.NADC(), w_pair.second.second);
