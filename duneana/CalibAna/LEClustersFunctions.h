@@ -438,15 +438,12 @@ std::vector<int> GetXYZIsolatedPoint( std::vector<float> vYPoint ,
     {
       for (int dy = -1; dy <= 1; dy++) 
       {
-        for (int dz = -1; dz <= 1; dz++) 
-	{
+        for (int dz = -1; dz <= 1; dz++) {
           auto neighborCell = std::make_tuple(cellX + dx, cellY + dy, cellZ + dz);
 
           // If the neighboring cell contains points
-          if (grid.find(neighborCell) != grid.end()) 
-	  {
-            for (int i : grid[neighborCell]) // i indice in the vector of indices of point in neighborCell
-	    {
+          if (grid.find(neighborCell) != grid.end()) {
+            for (int i : grid[neighborCell]) {// i indice in the vector of indices of point in neighborCell
               if (i == k) continue; // Skip comparing the point with itself
               if (nof != vNOF[i]) continue; 
 
@@ -456,8 +453,7 @@ std::vector<int> GetXYZIsolatedPoint( std::vector<float> vYPoint ,
 
               distSq = xDiff * xDiff + yDiff * yDiff + zDiff * zDiff;
 
-              if (distSq > radiusIntSq && distSq < radiusExtSq) 
-	      {
+              if (distSq > radiusIntSq && distSq < radiusExtSq) {
                 vIsIsolated[k] = 0; // Mark both points as non-isolated
                 vIsIsolated[i] = 0;
                 IsIsolated = false;
@@ -533,15 +529,13 @@ int nearest(point pt, point cent, int n_cluster, float *d2) {
     float  min_d = 0.0;
 
 #       define for_n for (c = cent, i = 0; i < n_cluster; i++, c++)
-    // for_n {
-        min_d = HUGE_VAL;
-        min_i = pt->group;
-        for_n {
-            if (min_d > (d = dist2(c, pt))) {
-                min_d = d; min_i = i;
-            }
+    min_d = HUGE_VAL;
+    min_i = pt->group;
+    for_n {
+        if (min_d > (d = dist2(c, pt))) {
+            min_d = d; min_i = i;
         }
-    // }
+    }
     if (d2) *d2 = min_d;
     return min_i;
 }
@@ -565,7 +559,7 @@ int reallocate(point pt, std::vector<std::vector<float>> ClusterPosition , float
       if (min_d > dist ) 
       {
          min_d = dist; 
-	 min_i = k;
+	       min_i = k;
       }
      
     }
@@ -588,16 +582,16 @@ float mean(float y,float z){
 //    3) Choose one new data point at random as a new center, using a weighted probability distribution where a point x is chosen with probability proportional to D(x)2.
 //    4) Repeat Steps 2 and 3 until k centers have been chosen.
 //    5) Now that the initial centers have been chosen, proceed using standard k-means clustering.
-void kpp(point pts, int len, point cent, int n_cent, bool verbose, bool use_new_nearest)
+void kpp(point pts, int len, point cent, int n_cent, bool verbose)
 {
 #       define for_len for (j = 0, p = pts; j < len; j++, p++)
     int j;
     int n_cluster;
     float sum, *d = (float*)malloc(sizeof(float) * len);
     
-    //For c++ weighted, discrete distribution sampling
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    // //For c++ weighted, discrete distribution sampling
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
     std::vector<float> distances(len, FLT_MAX);
     
     point p;
@@ -607,23 +601,13 @@ void kpp(point pts, int len, point cent, int n_cent, bool verbose, bool use_new_
         // std::cout << "Setting cluster " << n_cluster << std::endl;
         sum = 0;
         auto start = std::chrono::high_resolution_clock::now();
-        if (!use_new_nearest) {
-          for_len {//2) Loop over points and find the squared distance to the nearest previously-assigned center 
-              // std::cout << "\tFinding nearest old-cluster for point " << j << std::endl;
-              nearest(p, cent, n_cluster, d + j); //The jth distance is set to that squared distance
-              sum += d[j]; //Sum the squared differences 
-              distances[j] = d[j];
-          }
-        }
-        else {
-          //For each point, find the distance to the newest added centroid
-          //And compare it to the previous min distance
-          for (int ipt = 0; ipt < len; ++ipt) {
-            distances[ipt] = std::min(distances[ipt], dist2(&pts[ipt], &cent[n_cluster-1]));
-            d[ipt] = distances[ipt];
-            sum += distances[ipt]; //Sum the squared differences 
+        //For each point, find the distance to the newest added centroid
+        //And compare it to the previous min distance
+        for (int ipt = 0; ipt < len; ++ipt) {
+          distances[ipt] = std::min(distances[ipt], dist2(&pts[ipt], &cent[n_cluster-1]));
+          d[ipt] = distances[ipt];
+          sum += distances[ipt]; //Sum the squared differences 
 
-          }
         }
         
         auto end = std::chrono::high_resolution_clock::now();
@@ -646,7 +630,7 @@ void kpp(point pts, int len, point cent, int n_cent, bool verbose, bool use_new_
 // See also -- https://en.wikipedia.org/wiki/Lloyd%27s_algorithm
 //We intend to group pts into n_cluster clusters 
 //There are a total of "len" pts
-std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster, bool verbose, bool use_new_nearest)
+std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster, bool verbose)
 {
     int i, j, min_i;
     int changed = 0;
@@ -665,7 +649,7 @@ std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster, bool ve
     // call k++ to initialize cluster seeds / initial centroids
     // https://en.wikipedia.org/wiki/K-means%2B%2B
     if (verbose) std::cout << "Running k++" << std::endl;
-    kpp(pts, len, cent, n_cluster, verbose, use_new_nearest);
+    kpp(pts, len, cent, n_cluster, verbose);
     if (verbose) std::cout << "Done" << std::endl;
 
     int iteration = 0;
@@ -1241,8 +1225,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     float fgeoZmax,
     float fElectronVelocity, 
     float fTickTimeInMus,
-    const geo::WireReadoutGeom& fWireReadout,
-    bool fUseQuickKPP)
+    const geo::WireReadoutGeom& fWireReadout)
 {
   //definition vector
   std::vector<dune::ClusterInfo*> vec;
@@ -1618,7 +1601,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   {
     if ( fVerbose) std::cout << "\tIteration " << i << " nK: " << K << " check: " << check << std::endl;
 
-    clustersPos = lloyd(v, PTSIsolated, K, fVerbose, fUseQuickKPP);
+    clustersPos = lloyd(v, PTSIsolated, K, fVerbose);
     vchecks = CheckClusters( dataPos , clustersPos , threshold , fClusterSizeMulti, fCovering , fVerbose);
     check = vchecks[0];
 
