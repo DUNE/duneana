@@ -13,13 +13,13 @@ typedef struct //!< 2D point for clustering : - group (number of the associated 
 
 typedef struct //!< Temporary Clusters used to construct the Clusters (ClusterInfo)
   {
-    float Sumy , Sumz , ECol , EInd1 , EInd2 , PeakTime;
-    int Npoint, NCol , NInd1 , NInd2;
-    std::list<int> lChannelCol , lChannelInd1 , lChannelInd2;
+    float Sumy,  Sumz,  ECol,  EInd1,  EInd2,  PeakTime;
+    int Npoint, NCol,  NInd1,  NInd2;
+    std::list<int> lChannelCol,  lChannelInd1,  lChannelInd2;
     std::vector<dune::ClusterHitInfo> vCHitInfo;
-    std::vector<int> vMCPDG , vMCMOMpdg , vNOF;
+    std::vector<int> vMCPDG,  vMCMOMpdg,  vNOF;
     std::vector<float> vMCWEI;
-    std::vector<float> vMCX , vMCY , vMCZ;
+    std::vector<float> vMCX,  vMCY,  vMCZ;
     std::vector<std::string> vMCGenTag;
     std::vector<float> vMCE;
     std::vector<int> vMCNe;
@@ -35,7 +35,7 @@ struct GridHasher
     }
 };
 
-bool Inside( int k , std::list<int> list){
+bool Inside( int k,  std::list<int> list){
   return (std::find(list.begin(), list.end(), k) != list.end());
 }
 
@@ -52,43 +52,41 @@ bool AllSame( std::vector<int> v)
   return allsame;
 }
 
-int NearOrFar( bool IsPDVD , bool IsPDHD , bool IsFDVD , bool IsFDHD , const art::Ptr<recob::Hit>  hit)
+int NearOrFar( bool IsPD, bool IsHD, const art::Ptr<recob::Hit>  hit)
 {
-  if (IsPDHD)
-  {
+  if (IsPD && IsHD) {
     if ( (hit->WireID().TPC == 2)|| (hit->WireID().TPC == 6) || (hit->WireID().TPC == 3) || (hit->WireID().TPC == 7) ) return  -1; // 3 and 7 are dumie TPC
     if ( (hit->WireID().TPC == 1)|| (hit->WireID().TPC == 5) || (hit->WireID().TPC == 0) || (hit->WireID().TPC == 4) ) return  1;  // 0 and 4 are dumie TPC
   }
-  if (IsPDVD)
-  {
+  else if (IsPD && !IsHD) {
     if (hit->WireID().TPC <= 7 ) return -1;
     if (hit->WireID().TPC  > 7 ) return 1;
   }
-  if (IsFDHD || IsFDVD) return 1; //to take away when geometry will 2xaxb but now only 1xaxb on both HD and VD simulation
-  if (IsFDHD)
-  {
-    if( hit->WireID().TPC %2 ==0 ) return +1;
-    else return -1;
+  else {//to take away when geometry will 2xaxb but now only 1xaxb on both HD and VD simulation
+    return 1;
   }
-  if (IsFDVD)
-  {
-    if(hit->WireID().TPC % 8 < 4) return +1;
-    else return -1;
-  }
+
+  // else if (!IsPD && IsHD) {
+  //   if( hit->WireID().TPC %2 ==0 ) return 1;
+  //   else return -1;
+  // }
+  // else {
+  //   if(hit->WireID().TPC % 8 < 4) return 1;
+  //   else return -1;
+  // }
   return -999;
+
 }
 
 
 void GetListOfTimeCoincidenceHit( 
-		bool IsPDVD , 
-		bool IsPDHD , 
-		bool IsFDVD , 
-		bool IsFDHD , 
+		bool IsPD,
+		bool IsHD,
 		art::Event const & ev, 
 		art::InputTag HitLabel, 
-		float const CoincidenceWd1_l , 
+		float const CoincidenceWd1_l,  
 		float const CoincidenceWd1_r, 
-		float const CoincidenceWd2_l , 
+		float const CoincidenceWd2_l,  
 		float const CoincidenceWd2_r, 
 		const art::Ptr<recob::Hit> HitCol, 
 		std::list<geo::WireID> & WireInd1,
@@ -116,7 +114,7 @@ void GetListOfTimeCoincidenceHit(
 
   float PeakTime = -999;
   int   Plane    = -999;
-  int NoFCol = NearOrFar(IsPDVD,IsPDHD,IsFDVD,IsFDHD,HitCol);
+  int NoFCol = NearOrFar(IsPD, IsHD, HitCol);
   int NoF = -4;
 
   for (const art::Ptr<recob::Hit> &hit: hitlist)
@@ -125,7 +123,7 @@ void GetListOfTimeCoincidenceHit(
     Plane = hit->WireID().Plane;
     if (Plane == 2) continue;
 
-    NoF = NearOrFar(IsPDVD,IsPDHD,IsFDVD,IsFDHD,hit);
+    NoF = NearOrFar(IsPD, IsHD, hit);
     if (NoF != NoFCol) continue;
 
     PeakTime = hit->PeakTime();
@@ -159,12 +157,12 @@ void GetListOfTimeCoincidenceHit(
   }
 }
 
-bool IntersectOutsideOfTPC( float Ymin , float Ymax , float Zmin , float Zmax ,
-		                                double ChInd_start_y , double ChInd_start_z ,
-					       	double ChInd_end_y ,double ChInd_end_z ,
-						double ChCol_start_y , double ChCol_start_z ,
-					    	double ChCol_end_y , double ChCol_end_z ,
-		     				double& y , double& z )
+bool IntersectOutsideOfTPC( float Ymin,  float Ymax,  float Zmin,  float Zmax, 
+		                                double ChInd_start_y,  double ChInd_start_z, 
+					       	double ChInd_end_y, double ChInd_end_z, 
+						double ChCol_start_y,  double ChCol_start_z, 
+					    	double ChCol_end_y,  double ChCol_end_z, 
+		     				double& y,  double& z )
 {
   // Equation from http://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
 
@@ -183,18 +181,18 @@ bool IntersectOutsideOfTPC( float Ymin , float Ymax , float Zmin , float Zmax ,
   return drap;
 }
 
-void GetListOfCrossingChannel(   bool IsPDVD , bool IsPDHD , float Ymin , float Ymax , float Zmin , float Zmax ,
-		                                    geo::WireID & WireCol , std::list<geo::WireID> & WireInd1 , std::list<geo::WireID> & WireInd2 , 
-						    std::list<int>  & ChInd1 , std::list<float> & EInd1 , std::list<float> & YInd1 , std::list<float> & ZInd1 , 
-						    std::list<int>  & ChIntersectInd1 , std::list<float> & EIntersectInd1 ,
-                                                    std::list<int>  & ChInd2 , std::list<float> & EInd2 , std::list<float> & YInd2 , std::list<float> & ZInd2 , 
-						    std::list<int>  & ChIntersectInd2 , std::list<float> & EIntersectInd2,
+void GetListOfCrossingChannel(   bool IsPD,  bool IsHD,  float Ymin,  float Ymax,  float Zmin,  float Zmax, 
+		                                    geo::WireID & WireCol,  std::list<geo::WireID> & WireInd1,  std::list<geo::WireID> & WireInd2,  
+						    std::list<int>  & ChInd1,  std::list<float> & EInd1,  std::list<float> & YInd1,  std::list<float> & ZInd1,  
+						    std::list<int>  & ChIntersectInd1,  std::list<float> & EIntersectInd1, 
+                                                    std::list<int>  & ChInd2,  std::list<float> & EInd2,  std::list<float> & YInd2,  std::list<float> & ZInd2,  
+						    std::list<int>  & ChIntersectInd2,  std::list<float> & EIntersectInd2,
 						    const geo::WireReadoutGeom& fWireReadout)
 {
   geo::Point_t point = geo::Point_t(-999,-999,-999);
   bool drap;
 
-  double y = -999. , z = -999.;
+  double y = -999.,  z = -999.;
   //auto const wcol = fGeom->WireEndPoints(WireCol);
   auto const [wcolstart, wcolend] = fWireReadout.WireEndPoints(WireCol);
 
@@ -211,11 +209,12 @@ void GetListOfCrossingChannel(   bool IsPDVD , bool IsPDHD , float Ymin , float 
     if (WireCol.TPC != elementInd1.TPC)
     {
     
-      if (IsPDVD)
+      // if (IsPDVD)
+      if (IsPD && !IsHD)
       {  
         //auto const wind1 = fGeom->WireEndPoints(elementInd1);
         auto const [wind1start, wind1end] = fWireReadout.WireEndPoints(elementInd1);
-        bool flag = IntersectOutsideOfTPC( Ymin , Ymax , Zmin ,Zmax , wind1start.Y() , wind1start.Z() , wind1end.Y() , wind1end.Z() , wcolstart.Y() , wcolstart.Z() , wcolend.Y() , wcolend.Z() , y , z);
+        bool flag = IntersectOutsideOfTPC( Ymin,  Ymax,  Zmin, Zmax,  wind1start.Y(),  wind1start.Z(),  wind1end.Y(),  wind1end.Z(),  wcolstart.Y(),  wcolstart.Z(),  wcolend.Y(),  wcolend.Z(),  y,  z);
         if (flag)
         {
 	  YInd1.push_back(y);
@@ -232,8 +231,8 @@ void GetListOfCrossingChannel(   bool IsPDVD , bool IsPDHD , float Ymin , float 
       continue ;
     }
 
-    //drap = fGeom->WireIDsIntersect( WireCol , elementInd1 , point);
-    drap = fWireReadout.WireIDsIntersect( WireCol , elementInd1 , point);
+    //drap = fGeom->WireIDsIntersect( WireCol,  elementInd1,  point);
+    drap = fWireReadout.WireIDsIntersect( WireCol,  elementInd1,  point);
     if ( drap )
     {
       YInd1.push_back(point.Y());
@@ -252,11 +251,12 @@ void GetListOfCrossingChannel(   bool IsPDVD , bool IsPDHD , float Ymin , float 
     if (WireCol.TPC != elementInd2.TPC ) 
     { 
 
-      if (IsPDVD)
+      // if (IsPDVD)
+      if (IsPD && !IsHD)
       {
         //auto const wind2 = fGeom->WireEndPoints(elementInd2);
         auto const [wind2start, wind2end] = fWireReadout.WireEndPoints(elementInd2);
-        bool flag = IntersectOutsideOfTPC( Ymin , Ymax , Zmin ,Zmax , wind2start.Y() , wind2start.Z() , wind2end.Y() , wind2end.Z() , wcolstart.Y() , wcolstart.Z() , wcolend.Y() , wcolend.Z() , y , z);
+        bool flag = IntersectOutsideOfTPC( Ymin,  Ymax,  Zmin, Zmax,  wind2start.Y(),  wind2start.Z(),  wind2end.Y(),  wind2end.Z(),  wcolstart.Y(),  wcolstart.Z(),  wcolend.Y(),  wcolend.Z(),  y,  z);
         if (flag)
         {
           YInd2.push_back(y);
@@ -272,8 +272,8 @@ void GetListOfCrossingChannel(   bool IsPDVD , bool IsPDHD , float Ymin , float 
       ++ch2; 
       continue ;
     }
-    //drap = fGeom->WireIDsIntersect( WireCol , elementInd2 , point);
-    drap = fWireReadout.WireIDsIntersect( WireCol , elementInd2 , point);
+    //drap = fGeom->WireIDsIntersect( WireCol,  elementInd2,  point);
+    drap = fWireReadout.WireIDsIntersect( WireCol,  elementInd2,  point);
     if ( drap ) 
     { 
       YInd2.push_back(point.Y());
@@ -286,12 +286,12 @@ void GetListOfCrossingChannel(   bool IsPDVD , bool IsPDHD , float Ymin , float 
   }
 }
 
-void GetListOf3ViewsPoint( float pitch , float alpha , 
-                                        std::list<int> & ChIntersectInd1 , std::list<float> YInd1 , std::list<float> ZInd1 , std::list<float> EIntersectInd1, 
-                                        std::list<int> & ChIntersectInd2 , std::list<float> YInd2 , std::list<float> ZInd2 , std::list<float> EIntersectInd2 , 
-                                        std::list<float> & listYSP       , std::list<float> & listZSP , 
-                                        std::list<float> & listEind1SP   , std::list<float> & listEind2SP , 
-                                        std::list<int> & listCh1SP       , std::list<int> & listCh2SP)
+void GetListOf3ViewsPoint( float pitch,  float alpha,  
+                                        std::list<int> & ChIntersectInd1,  std::list<float> YInd1,  std::list<float> ZInd1,  std::list<float> EIntersectInd1, 
+                                        std::list<int> & ChIntersectInd2,  std::list<float> YInd2,  std::list<float> ZInd2,  std::list<float> EIntersectInd2,  
+                                        std::list<float> & listYSP      ,  std::list<float> & listZSP,  
+                                        std::list<float> & listEind1SP  ,  std::list<float> & listEind2SP,  
+                                        std::list<int> & listCh1SP      ,  std::list<int> & listCh2SP)
 {
 
   std::list<int>::iterator  ch1t = ChIntersectInd1.begin();
@@ -335,14 +335,14 @@ void GetListOf3ViewsPoint( float pitch , float alpha ,
 }
 
 
-std::vector<int> GetXYZIsolatedPoint( std::vector<float> vYPoint , 
-		                      std::vector<float> vZPoint , 
-				      std::vector<float> vPeakTimeCol , 
-				      std::vector<int> vNOF ,
-				      float fElectronVelocity , 
-				      float fTickToMus , 
-				      float radiusInt , 
-				      float radiusExt ,
+std::vector<int> GetXYZIsolatedPoint( std::vector<float> vYPoint,  
+		                      std::vector<float> vZPoint,  
+				      std::vector<float> vPeakTimeCol,  
+				      std::vector<int> vNOF, 
+				      float fElectronVelocity,  
+				      float fTickToMus,  
+				      float radiusInt,  
+				      float radiusExt, 
 				      bool fVerbose )
 {
 
@@ -358,7 +358,7 @@ std::vector<int> GetXYZIsolatedPoint( std::vector<float> vYPoint ,
   }
   
   int npoint = vYPoint.size();
-  std::vector<int> vIsIsolated( npoint , -1 );
+  std::vector<int> vIsIsolated( npoint,  -1 );
   vIso.resize( npoint, -1);
 
   float zIs = 0;
@@ -485,7 +485,7 @@ std::vector<int> GetXYZIsolatedPoint( std::vector<float> vYPoint ,
 
 float dist2( point a, point b)
 {
-    float z = a->z - b->z, y = a->y - b->y , t = a->t - b->t;
+    float z = a->z - b->z, y = a->y - b->y,  t = a->t - b->t;
     return z*z + y*y + t*t;
 }
 
@@ -547,7 +547,7 @@ float GetDist(float y0,float z0,float t0, float y1,float z1, float t1){
     return TMath::Sqrt(z*z+y*y+t*t);
 }
 
-int reallocate(point pt, std::vector<std::vector<float>> ClusterPosition , float threshold)
+int reallocate(point pt, std::vector<std::vector<float>> ClusterPosition,  float threshold)
 {
     int  min_i = pt->group;
     float  min_d = HUGE_VAL;
@@ -704,7 +704,7 @@ std::vector<std::vector<float>> lloyd(point pts, int len, int n_cluster, bool ve
 }
 
 
-std::vector<std::vector<float>> GetData(int len ,  point data){
+std::vector<std::vector<float>> GetData(int len,   point data){
 
     std::vector<std::vector<float> > dataPos;
     std::vector<float> dataPosZ,dataPosY,dataPosT;
@@ -721,7 +721,7 @@ std::vector<std::vector<float>> GetData(int len ,  point data){
   return dataPos;
 }
 
-std::vector<int> CheckCompletude(std::vector<std::vector<float> > &data,std::vector<std::vector<float> > &cluster, float RMS , float mult )
+std::vector<int> CheckCompletude(std::vector<std::vector<float> > &data,std::vector<std::vector<float> > &cluster, float RMS,  float mult )
 {
     int Npts = data[0].size();
     int Ncls = cluster[0].size();
@@ -759,7 +759,7 @@ std::vector<int> CheckCompletude(std::vector<std::vector<float> > &data,std::vec
     return N;
 }
 
-std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vector<std::vector<float> > &cluster, float RMS , float mult , float tmp , bool fVerbose)
+std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vector<std::vector<float> > &cluster, float RMS,  float mult,  float tmp,  bool fVerbose)
 {
 
     std::vector<int> v(2,0);
@@ -770,7 +770,7 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
     int Nin = 0, Nin2 = 0, Nout = 0;
 
     std::vector<int> NComp(3,0);
-    NComp  =  CheckCompletude( data, cluster , RMS , mult);
+    NComp  =  CheckCompletude( data, cluster,  RMS,  mult);
     Nin  = NComp[0];
     Nin2 = NComp[1];
     Nout = NComp[2];
@@ -796,7 +796,7 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
 
 
     float dist;
-    std::vector<std::vector<int>> IDoverlap( Ncls , std::vector<int> (Ncls ,0));
+    std::vector<std::vector<int>> IDoverlap( Ncls,  std::vector<int> (Ncls, 0));
     int overlap = 0;
 
     for(int i = 0 ; i < Ncls ; i++)
@@ -875,7 +875,7 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
 
       for(int i = 0 ; i < Ncls ; i++)
       {
-	std::vector<int> v(Ncls , 0); 
+	std::vector<int> v(Ncls,  0); 
         for(int j = i ; j < Ncls ; j++)
         {
           if(j > i)
@@ -894,7 +894,7 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
       overlap_counter++;
     }
 
-    NComp = CheckCompletude( data, cluster , RMS , mult );
+    NComp = CheckCompletude( data, cluster,  RMS,  mult );
     Nin  = NComp[0];
     Nin2 = NComp[1];
     Nout = NComp[2];
@@ -920,21 +920,21 @@ std::vector<int> CheckClusters(std::vector<std::vector<float> > &data,std::vecto
 
 }
 
-std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, int n_point , 
-		                            int n_cluster , point p , 
-                                            std::vector<float> vEInd1PointByEvent , std::vector<float> vEInd2PointByEvent , 
-                                            std::vector<int> vChInd1PointByEvent , std::vector<int> vChInd2PointByEvent ,  
-                                            std::vector<float> vEnergyColByEvent , std::vector<float> vPeakTimeColByEvent ,
-					    std::vector<int> vChannelColByEvent , 
-					    std::vector<dune::ClusterHitInfo> vCHitInfoByEvent ,
+std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged,  float CRP_T0, int n_point,  
+		                            int n_cluster,  point p,  
+                                            std::vector<float> vEInd1PointByEvent,  std::vector<float> vEInd2PointByEvent,  
+                                            std::vector<int> vChInd1PointByEvent,  std::vector<int> vChInd2PointByEvent,   
+                                            std::vector<float> vEnergyColByEvent,  std::vector<float> vPeakTimeColByEvent, 
+					    std::vector<int> vChannelColByEvent,  
+					    std::vector<dune::ClusterHitInfo> vCHitInfoByEvent, 
 					    bool truth,
-                                            std::vector<int> vMCPDGByEvent , std::vector<int> vMCMOMpdgByEvent ,
-					    std::vector<float> vMCWeightByEvent ,  
-                                            std::vector<std::string> vGeneratorTagByEvent ,  
-                                            std::vector<float> vMCXByEvent ,  std::vector<float> vMCYByEvent ,
-					    std::vector<float> vMCZByEvent , 
-                                            std::vector<int> vNoFByEvent, std::vector<float> vMCEByEvent , 
-					    std::vector<int> vMCNeByEvent , bool fVerbose,
+                                            std::vector<int> vMCPDGByEvent,  std::vector<int> vMCMOMpdgByEvent, 
+					    std::vector<float> vMCWeightByEvent,   
+                                            std::vector<std::string> vGeneratorTagByEvent,   
+                                            std::vector<float> vMCXByEvent,   std::vector<float> vMCYByEvent, 
+					    std::vector<float> vMCZByEvent,  
+                                            std::vector<int> vNoFByEvent, std::vector<float> vMCEByEvent,  
+					    std::vector<int> vMCNeByEvent,  bool fVerbose,
 					    float fgeoZmax)
 {
 
@@ -976,7 +976,7 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
   // this loop create Temporary cluster used to assure no doble counting on any plane
 
   if( fVerbose) std::cout << "there are " << n_cluster << " clusters to check" << std::endl;
-  for( k = 0 , vp=p ; k<n_point ; k++ , vp++)
+  for( k = 0,  vp=p ; k<n_point ; k++,  vp++)
   {
 
     int index = vp->index;
@@ -1016,7 +1016,7 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
     }
     vTempCluster[ClusterID].Npoint += 1;
 
-    if ( !Inside( ChannelCol , vTempCluster[ClusterID].lChannelCol ) )
+    if ( !Inside( ChannelCol,  vTempCluster[ClusterID].lChannelCol ) )
     {
       if (NoF == -1) vTempCluster[ClusterID].Sumz += ECol * ( -1*(vp->z)-fgeoZmax );
       else vTempCluster[ClusterID].Sumz += ECol * ( vp->z );
@@ -1044,13 +1044,13 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
       (vTempCluster[ClusterID].lChannelCol).push_back( ChannelCol );
       (vTempCluster[ClusterID].vNOF).push_back( NoF );
     }
-    if ( (ChannelInd1 != -1) && (!Inside( ChannelInd1 , vTempCluster[ClusterID].lChannelInd1 ) ) )
+    if ( (ChannelInd1 != -1) && (!Inside( ChannelInd1,  vTempCluster[ClusterID].lChannelInd1 ) ) )
     {
       vTempCluster[ClusterID].EInd1 += vEInd1PointByEvent[index];
       vTempCluster[ClusterID].NInd1 += 1;
       (vTempCluster[ClusterID].lChannelInd1).push_back( ChannelInd1 );
     }
-    if ( (ChannelInd2 != -1) && (!Inside( ChannelInd2 , vTempCluster[ClusterID].lChannelInd2 ) ) )
+    if ( (ChannelInd2 != -1) && (!Inside( ChannelInd2,  vTempCluster[ClusterID].lChannelInd2 ) ) )
     {
       vTempCluster[ClusterID].EInd2 += vEInd2PointByEvent[index];
       vTempCluster[ClusterID].NInd2 += 1;
@@ -1138,7 +1138,7 @@ std::vector<dune::ClusterInfo*> GetCluster( bool fAsConverged , float CRP_T0, in
 
 
 
-std::vector<std::string> GetGeneratorTag( art::Event const &e , art::InputTag fG4producer , art::ServiceHandle<cheat::BackTrackerService> bt_serv , bool fVerbose)
+std::vector<std::string> GetGeneratorTag( art::Event const &e,  art::InputTag fG4producer,  art::ServiceHandle<cheat::BackTrackerService> bt_serv,  bool fVerbose)
 {
     //int MCPartcounter = 0;
     std::vector<std::pair<int, std::string>> vTrackIdToLabelPair;
@@ -1153,7 +1153,7 @@ std::vector<std::string> GetGeneratorTag( art::Event const &e , art::InputTag fG
       const std::string &sModuleLabel = mcTruth.provenance()->moduleLabel();
 
       // MC truth (gen) Mc particle association (g4)
-      art::FindManyP<simb::MCParticle> MCTruthsToMCParticles( mcTruth , e , fG4producer );
+      art::FindManyP<simb::MCParticle> MCTruthsToMCParticles( mcTruth,  e,  fG4producer );
       std::vector<art::Ptr<simb::MCParticle>> mcParts = MCTruthsToMCParticles.at(0);
 
       //MCPartcounter += (int) mcParts.size();
@@ -1174,7 +1174,7 @@ std::vector<std::string> GetGeneratorTag( art::Event const &e , art::InputTag fG
 
     // reassociation for quick access
     std::string noTrackID = "no association";
-    std::vector<std::string> vGeneratorLabels( vTrackIdToLabelPair[0].first +1 , noTrackID);
+    std::vector<std::string> vGeneratorLabels( vTrackIdToLabelPair[0].first +1,  noTrackID);
 
     for(int j = 0 ; j < (int) vTrackIdToLabelPair.size() ; j++)
     {
@@ -1199,10 +1199,8 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     art::InputTag fRDTLabel,
     art::InputTag fG4producer,
     art::InputTag fHITproducer,
-    bool  IsPDVD,
-    bool  IsPDHD,
-    bool  IsFDVD,
-    bool  IsFDHD,
+    bool  IsPD,
+    bool  IsHD,
     float fCoincidenceWd1_left,
     float fCoincidenceWd1_right,
     float fCoincidenceWd2_left,
@@ -1279,7 +1277,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 
   //retrieve map trackID MC particle to genrator tag
   std::vector<std::string> vTrackIDToGeneratorTag;
-  if (!e.isRealData()) vTrackIDToGeneratorTag = GetGeneratorTag( e , fG4producer , bt_serv , fVerbose);
+  if (!e.isRealData()) vTrackIDToGeneratorTag = GetGeneratorTag( e,  fG4producer,  bt_serv,  fVerbose);
  
   //retrieve hit list
   auto const HitListHandle = e.getValidHandle<std::vector<recob::Hit>>(fHITproducer);
@@ -1305,7 +1303,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     int   fPlane        = hit->WireID().Plane;
     float fPeakTime     = hit->PeakTime();
 
-    int fNearOrFarToTheBeam = NearOrFar(IsPDVD , IsPDHD ,IsFDVD , IsFDHD, hit);
+    int fNearOrFarToTheBeam = NearOrFar(IsPD, IsHD, hit);
 
     float fEnergy = -999;
     if ( hit->ROISummedADC() ) fEnergy = hit->ROISummedADC();
@@ -1413,7 +1411,11 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     std::list<float>         lZPoint_hit;
     // Coincidence research
 
-    GetListOfTimeCoincidenceHit( IsPDVD, IsPDHD ,IsFDVD , IsFDHD, e, fHITproducer, fCoincidenceWd1_left, fCoincidenceWd1_right ,fCoincidenceWd2_left, fCoincidenceWd2_right , hit, lWireInd1, lWireInd2, lChannelInd1, lChannelInd2, lEnergyInd1, lEnergyInd2, lPeakTimeInd1, lPeakTimeInd2, lPeakAmpInd1, lPeakAmpInd2);
+    GetListOfTimeCoincidenceHit(
+      IsPD, IsHD, e, fHITproducer, fCoincidenceWd1_left, fCoincidenceWd1_right,
+      fCoincidenceWd2_left, fCoincidenceWd2_right,  hit, lWireInd1, lWireInd2,
+      lChannelInd1, lChannelInd2, lEnergyInd1, lEnergyInd2, lPeakTimeInd1,
+      lPeakTimeInd2, lPeakAmpInd1, lPeakAmpInd2);
 
     int fCoincidence = 0;
     if ( !lWireInd1.empty() || !lWireInd2.empty() ) fCoincidence += 1;
@@ -1421,38 +1423,39 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 
     if ( fCoincidence > 0 )
     {
-      GetListOfCrossingChannel(  IsPDVD, IsPDHD , fgeoYmin , fgeoYmax , fgeoZmin , fgeoZmax , fWire , lWireInd1 , lWireInd2 , 
-			          lChannelInd1 , lEnergyInd1 , lYInd1 , lZInd1 , lChIntersectInd1 , lEIntersectInd1 , 
-				  lChannelInd2 , lEnergyInd2 , lYInd2 , lZInd2 , lChIntersectInd2 , lEIntersectInd2,
-				  fWireReadout); 
-      GetListOf3ViewsPoint( fPitch , fPitchMultiplier , 
-		      lChIntersectInd1 , lYInd1 , lZInd1 , lEIntersectInd1 , 
-		      lChIntersectInd2 , lYInd2 , lZInd2 , lEIntersectInd2 , 
-		      lYPoint_hit , lZPoint_hit , 
-		      lEInd1Point , lEInd2Point , 
-		      lChInd1Point , lChInd2Point);
+      GetListOfCrossingChannel(
+        IsPD, IsHD,  fgeoYmin,  fgeoYmax,  fgeoZmin,  fgeoZmax,  fWire,  lWireInd1,  lWireInd2,
+        lChannelInd1,  lEnergyInd1,  lYInd1,  lZInd1,  lChIntersectInd1,  lEIntersectInd1,  
+        lChannelInd2,  lEnergyInd2,  lYInd2,  lZInd2,  lChIntersectInd2,  lEIntersectInd2,
+        fWireReadout); 
+      GetListOf3ViewsPoint( fPitch,  fPitchMultiplier,  
+		      lChIntersectInd1,  lYInd1,  lZInd1,  lEIntersectInd1,  
+		      lChIntersectInd2,  lYInd2,  lZInd2,  lEIntersectInd2,  
+		      lYPoint_hit,  lZPoint_hit,  
+		      lEInd1Point,  lEInd2Point,  
+		      lChInd1Point,  lChInd2Point);
       if ( bIs3ViewsCoincidence )  {
         lYPoint = lYPoint_hit;
         lZPoint = lYPoint_hit;
       }
       else {
         //induction 1
-        lYPoint.insert( lYPoint.end() , lYInd1.begin() , lYInd1.end() );
-        lZPoint.insert( lZPoint.end() , lZInd1.begin() , lZInd1.end() );
-        lEInd1Point.insert( lEInd1Point.end() , lEIntersectInd1.begin() , lEIntersectInd1.end() );
-        lChInd1Point.insert( lChInd1Point.end() , lChIntersectInd1.begin() , lChIntersectInd1.end() );
+        lYPoint.insert( lYPoint.end(),  lYInd1.begin(),  lYInd1.end() );
+        lZPoint.insert( lZPoint.end(),  lZInd1.begin(),  lZInd1.end() );
+        lEInd1Point.insert( lEInd1Point.end(),  lEIntersectInd1.begin(),  lEIntersectInd1.end() );
+        lChInd1Point.insert( lChInd1Point.end(),  lChIntersectInd1.begin(),  lChIntersectInd1.end() );
         int N1 = lYInd1.size();
-        lEInd2Point.insert( lEInd2Point.end() , N1 , 0 );
-        lChInd2Point.insert( lChInd2Point.end() , N1 , -1 );
+        lEInd2Point.insert( lEInd2Point.end(),  N1,  0 );
+        lChInd2Point.insert( lChInd2Point.end(),  N1,  -1 );
       
         //induction 2
-        lYPoint.insert( lYPoint.end() , lYInd2.begin() , lYInd2.end() );
-        lZPoint.insert( lZPoint.end() , lZInd2.begin() , lZInd2.end() );
-        lEInd2Point.insert( lEInd2Point.end() , lEIntersectInd2.begin() , lEIntersectInd2.end() );
-        lChInd2Point.insert( lChInd2Point.end() , lChIntersectInd2.begin() , lChIntersectInd2.end() );
+        lYPoint.insert( lYPoint.end(),  lYInd2.begin(),  lYInd2.end() );
+        lZPoint.insert( lZPoint.end(),  lZInd2.begin(),  lZInd2.end() );
+        lEInd2Point.insert( lEInd2Point.end(),  lEIntersectInd2.begin(),  lEIntersectInd2.end() );
+        lChInd2Point.insert( lChInd2Point.end(),  lChIntersectInd2.begin(),  lChIntersectInd2.end() );
         int N2 = lYInd2.size();
-        lEInd1Point.insert( lEInd1Point.end() , N2 , 0 );
-        lChInd1Point.insert( lChInd1Point.end() , N2 , -1 );
+        lEInd1Point.insert( lEInd1Point.end(),  N2,  0 );
+        lChInd1Point.insert( lChInd1Point.end(),  N2,  -1 );
       }
     }
     
@@ -1561,7 +1564,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   }// end hit loop
 
   if ( fVerbose) std::cout << "hit loop ended" << std::endl;
-  std::vector<int> vIso = GetXYZIsolatedPoint( vYPointByEvent , vZPointByEvent , vPeakTimeColByEvent , vNoFByEvent , fElectronVelocity , fTickTimeInMus , fRadiusInt , fRadiusExt , fVerbose);
+  std::vector<int> vIso = GetXYZIsolatedPoint( vYPointByEvent,  vZPointByEvent,  vPeakTimeColByEvent,  vNoFByEvent,  fElectronVelocity,  fTickTimeInMus,  fRadiusInt,  fRadiusExt,  fVerbose);
   int PTSIsolated = (int) vIso.size();
 
   if (PTSIsolated == 0)
@@ -1578,7 +1581,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
 
   point v;
   if (fVerbose) std::cout << "Calling gen_yzt" << std::endl;
-  v = gen_yzt( PTSIsolated , vIso , vYPointByEvent , vZPointByEvent , vPeakTimeColByEvent ,vNoFByEvent , fElectronVelocity , fTickTimeInMus, fgeoZmax);
+  v = gen_yzt( PTSIsolated,  vIso,  vYPointByEvent,  vZPointByEvent,  vPeakTimeColByEvent, vNoFByEvent,  fElectronVelocity,  fTickTimeInMus, fgeoZmax);
   if (fVerbose) {
     std::cout << "Done" << std::endl;
     std::cout << "Calling GetData" << std::endl;
@@ -1590,7 +1593,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   std::vector<int> vchecks(2,0);
 
   int IsoPt = (int) 2*PTSIsolated/3;
-  int K = TMath::Max( (int) fNumberInitClusters , IsoPt);
+  int K = TMath::Max( (int) fNumberInitClusters,  IsoPt);
 
   int check = 0;
   float threshold = fMinSizeCluster;
@@ -1602,7 +1605,7 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
     if ( fVerbose) std::cout << "\tIteration " << i << " nK: " << K << " check: " << check << std::endl;
 
     clustersPos = lloyd(v, PTSIsolated, K, fVerbose);
-    vchecks = CheckClusters( dataPos , clustersPos , threshold , fClusterSizeMulti, fCovering , fVerbose);
+    vchecks = CheckClusters( dataPos,  clustersPos,  threshold,  fClusterSizeMulti, fCovering,  fVerbose);
     check = vchecks[0];
 
     if(check == 1)  
@@ -1637,21 +1640,21 @@ std::vector<dune::ClusterInfo*> SingleHitAnalysis(
   point p;
   for (j = 0, p = v; j < PTSIsolated ; j++, p++)
   {
-    p->group = reallocate( p , clustersPos , threshold);
+    p->group = reallocate( p,  clustersPos,  threshold);
   }
   if (fVerbose) std::cout<< " reallocation done " << std::endl;
 
-  vec = GetCluster( fAsConverged, CRP_T0, PTSIsolated , clustersPos[0].size() , v , vEInd1PointByEvent , vEInd2PointByEvent , vChInd1PointByEvent , vChInd2PointByEvent , vEnergyColByEvent , vPeakTimeColByEvent , vChannelColByEvent , vCHitInfoByEvent , truth , vMCPDGByEvent , vMCMOMpdgByEvent , vMCWeightByEvent , vGeneratorTagByEvent , vMCXByEvent , vMCYByEvent , vMCZByEvent , vNoFByEvent , vMCEByEvent , vMCNeByEvent, fVerbose, fgeoZmax);
+  vec = GetCluster( fAsConverged, CRP_T0, PTSIsolated,  clustersPos[0].size(),  v,  vEInd1PointByEvent,  vEInd2PointByEvent,  vChInd1PointByEvent,  vChInd2PointByEvent,  vEnergyColByEvent,  vPeakTimeColByEvent,  vChannelColByEvent,  vCHitInfoByEvent,  truth,  vMCPDGByEvent,  vMCMOMpdgByEvent,  vMCWeightByEvent,  vGeneratorTagByEvent,  vMCXByEvent,  vMCYByEvent,  vMCZByEvent,  vNoFByEvent,  vMCEByEvent,  vMCNeByEvent, fVerbose, fgeoZmax);
   //NCluster = vCluster.size();
 
   return vec;
 }
 
 void FillWireInfoForLECluster( 
-		dune::ClusterInfo* cluster , 
-		const geo::WireReadoutGeom& wireReadout , 
-		std::map<geo::WireID, art::Ptr<raw::RawDigit>>& rawdigits ,
-		float HitTimeWindowSize ,
+		dune::ClusterInfo* cluster,  
+		const geo::WireReadoutGeom& wireReadout,  
+		std::map<geo::WireID, art::Ptr<raw::RawDigit>>& rawdigits, 
+		float HitTimeWindowSize, 
 	       	int HitWireWindowSize)
 {
 

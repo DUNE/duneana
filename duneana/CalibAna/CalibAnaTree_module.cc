@@ -81,10 +81,8 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
   fPitchMultiplier              = p.get<float>("PitchMultiplier",1.2); // 20% error    
 
   bIs3ViewsCoincidence          = p.get<bool>("Is3ViewsCoincidence",false);
-  bIsPDVD                       = p.get<bool>("IsPDVD",false);
-  bIsPDHD                       = p.get<bool>("IsPDHD",false);
-  bIsFDVD                       = p.get<bool>("IsFDVD",false);
-  bIsFDHD                       = p.get<bool>("IsFDHD",false);
+  bIsPD                       = p.get<bool>("IsPD",false);
+  bIsHD                       = p.get<bool>("IsHD", false);
 	
   fNumberInitClusters           = p.get<int>("NumberInitClusters",25);
   fMaxSizeCluster               = p.get<float>("MaxSizeCluster",0);
@@ -324,7 +322,7 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
     }
 
     std::vector<dune::ClusterInfo*> vCluster = SingleHitAnalysis(e, fRDTLabel, fG4producer, fHITproducer,
-					       	          bIsPDVD, bIsPDHD, bIsFDVD, bIsFDHD, fCoincidenceWd1_left_inmus,
+					       	          bIsPD, bIsHD, fCoincidenceWd1_left_inmus,
 		      					  fCoincidenceWd1_right_inmus, fCoincidenceWd2_left_inmus,
        							  fCoincidenceWd2_right_inmus, bIs3ViewsCoincidence,
 					       		  fPitch, fPitchMultiplier, fVerbose, fMinSizeCluster,

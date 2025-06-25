@@ -245,10 +245,8 @@ private:
   float fPitchMultiplier;
 
   bool  bIs3ViewsCoincidence;
-  bool  bIsPDVD;
-  bool  bIsPDHD;
-  bool  bIsFDVD;
-  bool  bIsFDHD;
+  bool  bIsPD;
+  bool  bIsHD;
 
   float fNumberInitClusters;
   float fMaxSizeCluster;
