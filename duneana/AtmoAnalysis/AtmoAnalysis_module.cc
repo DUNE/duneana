@@ -360,9 +360,9 @@ void dune::atmoAnalysis::analyze(art::Event const& evt)
         if( !cvnin.failedToGet() && !cvnin->empty()) {
           const std::vector<std::vector<float>> &scores = (*cvnin)[0].fOutput;
 
-          fCVNScoreNC = scores[0][0];
+          fCVNScoreNC = scores[0][2];
           fCVNScoreNuE = scores[0][1];
-          fCVNScoreNuMu = scores[0][2];
+          fCVNScoreNuMu = scores[0][0];
           fCVNScoreProton0 = scores[1][0];
           fCVNScoreProton1 = scores[1][1];
           fCVNScoreProton2 = scores[1][2];

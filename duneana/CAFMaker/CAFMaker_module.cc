@@ -790,9 +790,9 @@ namespace caf {
     if( !cvnin.failedToGet() && !cvnin->empty()) {
       if(fIsAtmoCVN){ //Hotfix to take care of the fact that the CVN for atmospherics is storing results in a weird way...
         const std::vector<std::vector<float>> &scores = (*cvnin)[0].fOutput;
-        cvnBranch.nc = scores[0][0];
+        cvnBranch.nc = scores[0][2];
         cvnBranch.nue = scores[0][1];
-        cvnBranch.numu = scores[0][2];
+        cvnBranch.numu = scores[0][0];
       }
 
       else{ //Normal code
