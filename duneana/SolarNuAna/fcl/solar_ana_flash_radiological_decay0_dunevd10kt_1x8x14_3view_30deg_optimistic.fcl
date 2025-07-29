@@ -1,0 +1,8 @@
+# Specific configuration for signal+bkg events with coustom flash generation
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
+
+#include "solar_ana_radiological_decay0_dunevd10kt_1x8x14_3view_30deg_optimisitc.fcl"
+
+physics.analyzers.solarnuana.GenerateAdjOpFlash: true
+physics.analyzers.solarnuana.OpFlashAlgoNHit:    3
+physics.analyzers.solarnuana.SaveOpFlashInfo:    true
