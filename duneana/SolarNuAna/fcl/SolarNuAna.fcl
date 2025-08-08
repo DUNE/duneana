@@ -18,6 +18,7 @@ BEGIN_PROLOG
     # Vector with generator labels for the background processes included in the event 
     BackgroundLabelVector: []
 
+    #====================================================================================#
     Geometry:                   "HD"
     DetectorSizeY:              600          # 1 TPC Y length in [cm].
     DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
@@ -30,8 +31,8 @@ BEGIN_PROLOG
     ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
     ClusterMatchNHit:           2            # NHit fraction to match clusters. abs(NHitsCol - NHitsInd) / NHitsCol < ClusterMatchNHit.
-    ClusterMatchCharge:         0.6          # Charge fraction to match clusters. abs(ChargeCol - ChargeInd) / ChargeCol < ClusterMatchCharge.
     ClusterMatchTime:           20.0         # Time window to look for ind. plane clusters in [tick] units.
+    ClusterMatchCharge:         0.6          # Charge fraction to match clusters. abs(ChargeCol - ChargeInd) / ChargeCol < ClusterMatchCharge.
     ClusterInd0MatchTime:       0.00         # Wirecell seems to have made this obsolete.
     ClusterInd1MatchTime:       0.00         # Wirecell seems to have made this obsolete.
     
@@ -41,6 +42,7 @@ BEGIN_PROLOG
     ClusterPreselectionTrack:      false     # If true, the cluster must be associated with a track to be saved.
     ClusterPreselectionFlashMatch: false     # If true, the cluster must be matched with a flash to be saved.
 
+    GenerateAdjCluster:         true         # Generate adjacent clusters.
     MinClusterCharge:           0.           # Min Charge for adj. clusters in [ADCxTick].
     AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
 
@@ -69,6 +71,8 @@ BEGIN_PROLOG
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
     SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
+
+    TestLatestFeatures:         true         # If true, the latest features are used.
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd

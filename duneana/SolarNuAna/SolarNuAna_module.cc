@@ -87,9 +87,10 @@ namespace solar
     std::vector<std::string> fLabels, fBackgroundLabels;
     float fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
-    bool fGenerateAdjOpFlash, fFlashMatchByResidual;
+    bool fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
     bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveTrackInfo;
     bool fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
+    bool fTestLatestFeatures;
     // bool fOpFlashAlgoCentroid;
 
     // --- Our TTrees, and its associated variables.
@@ -101,8 +102,7 @@ namespace solar
     int Event, Flag, MNHit, MGen, MTPC, MInd0TPC, MInd1TPC, MInd0NHits, MInd1NHits, MMainID, MMainPDG, MMainParentPDG, TrackNum, OpHitNum, OpFlashNum, MTrackNPoints, MAdjClNum, MSignalAdjClNum, SignalParticlePDG;
     float SignalParticleE, SignalParticleP, SignalParticleK, SignalParticleX, SignalParticleY, SignalParticleZ, SignalParticleTime, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
     float MInd0dTime, MInd1dTime, MInd0RecoY, MInd1RecoY, MRecX, MRecY, MRecZ, MPur, MInd0Pur, MInd1Pur, MGenPur, MMainE, MMainP, MMainK, MMainTime, MMainParentE, MMainParentP, MMainParentK, MMainParentTime, MTrackChi2;
-    std::vector<int> MAdjClGen, MAdjClMainID, TPart, SignalPDGList, SignalPDGDepList, SignalIDList, SignalMotherList, SignalIDDepList, MAdjClMainPDG, HitNum, ClusterNum, SignalElectronDepList;
-    std::vector<int> SOpHitPlane;
+    std::vector<int> MAdjClGen, MAdjClMainID, TPart, SignalPDGList, SignalPDGDepList, SignalIDList, SignalMotherList, SignalIDDepList, MAdjClMainPDG, HitNum, ClusterNum, SignalElectronDepList, SOpHitPlane;
     std::vector<float> SignalEDepList, SignalXDepList, SignalYDepList, SignalZDepList;
     std::vector<float> SOpHitPur, SOpHitPE, SOpHitX, SOpHitY, SOpHitZ, SOpHitTime, SOpHitChannel, SOpHitFlashID;
     std::vector<float> MAdjClTime, MAdjClCharge, MAdjClInd0Charge, MAdjClInd1Charge, MAdjClMaxCharge, MAdjClInd0MaxCharge, MAdjClInd1MaxCharge;
@@ -185,6 +185,7 @@ namespace solar
     fClusterPreselectionNHits = p.get<int>("ClusterPreselectionNHits");
     fClusterPreselectionTrack = p.get<bool>("ClusterPreselectionTrack");
     fClusterPreselectionFlashMatch = p.get<bool>("ClusterPreselectionFlashMatch");
+    fGenerateAdjCluster = p.get<bool>("GenerateAdjCluster");
     fAdjClusterRad = p.get<float>("AdjClusterRad");
     fMinClusterCharge = p.get<float>("MinClusterCharge");
     fGenerateAdjOpFlash = p.get<bool>("GenerateAdjOpFlash");
@@ -209,7 +210,7 @@ namespace solar
     fSaveSignalOpHits = p.get<bool>("SaveSignalOpHits");
     fSaveOpFlashInfo = p.get<bool>("SaveOpFlashInfo");
     fSaveTrackInfo = p.get<bool>("SaveTrackInfo");
-    
+    fTestLatestFeatures = p.get<bool>("TestLatestFeatures");
     // Generate the list of labels to be used in the analysis
     fLabels.push_back(fSignalLabel);
     for (auto const &label : fBackgroundLabels)
@@ -272,6 +273,7 @@ namespace solar
     fConfigTree->Branch("SaveSignalOpHits", &fSaveSignalOpHits);
     fConfigTree->Branch("SaveOpFlashInfo", &fSaveOpFlashInfo);
     fConfigTree->Branch("SaveTrackInfo", &fSaveTrackInfo);
+    fConfigTree->Branch("TestLatestFeatures", &fTestLatestFeatures);
 
     // MC Truth info.
     fMCTruthTree->Branch("Event", &Event, "Event/I");                                        // Event number
@@ -511,8 +513,7 @@ namespace solar
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     std::vector<std::set<int>> trackids = {};
     std::map<int, simb::MCParticle> ThisGeneratorParts;
-    std::vector<recob::Hit> ColHits0, ColHits1, ColHits2, ColHits3;
-    std::vector<std::vector<recob::Hit>> ColHits = {ColHits0, ColHits1, ColHits2, ColHits3};
+    std::vector<recob::Hit> Ind0Hits, Ind1Hits, ColHits, GhostHits;
     std::vector<std::vector<recob::Hit>> Clusters0, Clusters1, Clusters2, Clusters3;
 
     // --- We want to reset all of our previous run and TTree variables ---
@@ -557,6 +558,7 @@ namespace solar
     std::string sHead = "";
     sHead = sHead + "\n#########################################";
     sHead = sHead + "\nEvent: " + ProducerUtils::str(Event) + " Flag: " + ProducerUtils::str(Flag);
+    sHead = sHead + "\nTPC Map: " + ProducerUtils::str(TPCIDMap.size()) + " TPCs found";
     sHead = sHead + "\nTPC Frequency in [MHz]: " + ProducerUtils::str(clockData.TPCClock().Frequency());
     sHead = sHead + "\nTPC Tick in [us]: " + ProducerUtils::str(clockData.TPCClock().TickPeriod());
     sHead = sHead + "\nTPC DriftLength in [cm]: " + ProducerUtils::str(TPCIDdriftLength[0]);
@@ -1012,31 +1014,34 @@ namespace solar
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     // --- Lift out the reco hits:
     auto RecoHits = evt.getValidHandle<std::vector<recob::Hit>>(fHitLabel);
+    std::vector<art::Ptr<recob::Hit>> RecoHitsPtr;
     int NTotHits = RecoHits->size();
 
     for (int i = 0; i < NTotHits; ++i)
     {
       // --- Loop over the reconstructed hits to separate them among tpc planes according to view and signal type
       recob::Hit const &ThisHit = RecoHits->at(i);
+      // Add to RecoHitsPtr
+      RecoHitsPtr.push_back(art::Ptr<recob::Hit>(RecoHits, i));
       if (ThisHit.PeakTime() < 0)
         producer->PrintInColor("Negative Hit Time = " + ProducerUtils::str(ThisHit.PeakTime()), ProducerUtils::GetColor("red"));
       mf::LogDebug("SolarNuAna") << "Hit " << i << " has view " << ThisHit.View() << " and signal type " << ThisHit.SignalType();
 
-      if (ThisHit.SignalType() == 0 && ThisHit.View() == 0)
+      if (ThisHit.View() == 0)
       {
-        ColHits0.push_back(ThisHit);
+        Ind0Hits.push_back(ThisHit);
       } // SignalType = 0
-      else if (ThisHit.SignalType() == 0 && ThisHit.View() == 1)
+      else if (ThisHit.View() == 1)
       {
-        ColHits1.push_back(ThisHit);
+        Ind1Hits.push_back(ThisHit);
       } // SignalType = 0
-      else if (ThisHit.SignalType() == 1)
+      else if (ThisHit.View() == 2)
       {
-        ColHits2.push_back(ThisHit);
+        ColHits.push_back(ThisHit);
       } // SignalType = 1
       else
       {
-        ColHits3.push_back(ThisHit);
+        GhostHits.push_back(ThisHit);
         mf::LogError("SolarNuAna") << "Hit was found with view out of scope";
       }
     }
@@ -1044,32 +1049,73 @@ namespace solar
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //-------------------------------------------------------------- Cluster creation and analysis ------------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
-    // --- Now calculate the clusters ...
-    lowe->CalcAdjHits(ColHits0, Clusters0, hAdjHits, hAdjHitsADCInt, false);
-    HitNum.push_back(ColHits0.size());
-    ClusterNum.push_back(Clusters0.size());
-    lowe->CalcAdjHits(ColHits1, Clusters1, hAdjHits, hAdjHitsADCInt, false);
-    HitNum.push_back(ColHits1.size());
-    ClusterNum.push_back(Clusters1.size());
-    lowe->CalcAdjHits(ColHits2, Clusters2, hAdjHits, hAdjHitsADCInt, false);
-    HitNum.push_back(ColHits2.size());
-    ClusterNum.push_back(Clusters2.size());
-    lowe->CalcAdjHits(ColHits3, Clusters3, hAdjHits, hAdjHitsADCInt, false);
-    HitNum.push_back(ColHits3.size());
-    ClusterNum.push_back(Clusters3.size());
+    std::string sRecoObjects = "";
+    std::vector<std::vector<art::Ptr<recob::Hit>>> TestClusters;
+    std::vector<std::vector<std::vector<recob::Hit>>> AllPlaneClusters;
+    std::vector<std::vector<int>> ClustersIdx = {{}, {}, {}};
+    std::vector<std::vector<int>> RecoHitIdx;
+    // Map to associate the ClusterIdx with the position in the ClVectors
+    std::map<int, std::vector<int>> ClIdxMap;
+    
+    if (fTestLatestFeatures)
+    {
+      lowe->CalcAdjHits(RecoHitsPtr, TestClusters, RecoHitIdx);
+      for (int i = 0; i < int(TestClusters.size()); i++)
+      {
+        std::vector<recob::Hit> ThisHitVector = {}; // Convert pointer to vector
+        for (int j = 0; j < int(TestClusters[i].size()); j++)
+        {
+          ThisHitVector.push_back(*TestClusters[i][j]);
+        }
+        int ThisIdx = RecoHitIdx[i][0];
+        if (RecoHitsPtr[ThisIdx]->View() == 0)
+        {
+          Clusters0.push_back(ThisHitVector);
+          ClustersIdx[0].push_back(i);
+        }
+        else if (RecoHitsPtr[ThisIdx]->View() == 1)
+        {
+          Clusters1.push_back(ThisHitVector);
+          ClustersIdx[1].push_back(i);
+        }
+        else if (RecoHitsPtr[ThisIdx]->View() == 2)
+        {
+          Clusters2.push_back(ThisHitVector);
+          ClustersIdx[2].push_back(i);
+        }
+        else if (RecoHitsPtr[ThisIdx]->View() == 3)
+        {
+          Clusters3.push_back(ThisHitVector);
+        }
+      }
+    }
+    else {
+      // --- Now calculate the clusters ...
+      lowe->CalcAdjHits(Ind0Hits, Clusters0, hAdjHits, hAdjHitsADCInt, false);
+      HitNum.push_back(Ind0Hits.size());
+      ClusterNum.push_back(Clusters0.size());
+      lowe->CalcAdjHits(Ind1Hits, Clusters1, hAdjHits, hAdjHitsADCInt, false);
+      HitNum.push_back(Ind1Hits.size());
+      ClusterNum.push_back(Clusters1.size());
+      lowe->CalcAdjHits(ColHits, Clusters2, hAdjHits, hAdjHitsADCInt, false);
+      HitNum.push_back(ColHits.size());
+      ClusterNum.push_back(Clusters2.size());
+      lowe->CalcAdjHits(GhostHits, Clusters3, hAdjHits, hAdjHitsADCInt, false);
+      HitNum.push_back(GhostHits.size());
+      ClusterNum.push_back(Clusters3.size());
+    }
+    AllPlaneClusters = {Clusters0, Clusters1, Clusters2};
     fMCTruthTree->Fill();
 
     std::vector<std::vector<std::vector<float>>> ClVecGenPur = {{}, {}, {}};
-    std::vector<std::vector<std::vector<recob::Hit>>> AllPlaneClusters = {Clusters0, Clusters1, Clusters2};
     std::vector<std::vector<int>> ClMainID = {{}, {}, {}}, ClTPC = {{}, {}, {}}, ClNHits = {{}, {}, {}}, ClGen = {{}, {}, {}};
     std::vector<std::vector<float>> ClCharge = {{}, {}, {}}, ClMaxCharge = {{}, {}, {}}, ClT = {{}, {}, {}}, ClX = {{}, {}, {}}, ClY = {{}, {}, {}}, ClZ = {{}, {}, {}};
     std::vector<std::vector<float>> ClFracE = {{}, {}, {}}, ClFracGa = {{}, {}, {}}, ClFracNe = {{}, {}, {}}, ClFracRest = {{}, {}, {}};
     std::vector<std::vector<float>> ClPur = {{}, {}, {}}, Cldzdy = {{}, {}, {}}, ClGenPur = {{}, {}, {}};
 
-    std::string sRecoObjects = "";
     sRecoObjects += "\n# OpHits (" + fOpHitLabel + ") in full geometry: " + ProducerUtils::str(OpHitNum);
     sRecoObjects += "\n# OpFlashes (" + fOpFlashLabel + ") in full geometry: " + ProducerUtils::str(OpFlashNum);
-    sRecoObjects += "\n# Hits (" + fHitLabel + ") in each view: " + ProducerUtils::str(int(ColHits0.size())) + ", " + ProducerUtils::str(int(ColHits1.size())) + ", " + ProducerUtils::str(int(ColHits2.size())) + ", " + ProducerUtils::str(int(ColHits3.size()));
+    sRecoObjects += "\n# Hits (" + fHitLabel + ") in each view: " + ProducerUtils::str(int(Ind0Hits.size())) + ", " + ProducerUtils::str(int(Ind1Hits.size())) + ", " + ProducerUtils::str(int(ColHits.size())) + ", " + ProducerUtils::str(int(GhostHits.size()));
     sRecoObjects += "\n# Cluster from the hits: " + ProducerUtils::str(int(Clusters0.size())) + ", " + ProducerUtils::str(int(Clusters1.size())) + ", " + ProducerUtils::str(int(Clusters2.size())) + ", " + ProducerUtils::str(int(Clusters3.size()));
     sRecoObjects += "\n# Tracks (" + fTrackLabel + ") in full geometry: " + ProducerUtils::str(TrackNum);
     producer->PrintInColor(sRecoObjects, ProducerUtils::GetColor("cyan"));
@@ -1091,7 +1137,8 @@ namespace solar
         std::vector<float> thisdzdy = {};
 
         nhit = Clusters[i].size();
-        ncharge = maxHit = clustT = FracE = FracGa = FracNe = FracRest = clustX = clustY = clustZ = clustTPC = dzdy = 0;
+        ncharge = maxHit = clustT = FracE = FracGa = FracNe = FracRest = clustX = clustY = clustZ = dzdy = 0;
+        clustTPC = -1; // Initialize clustTPC to -1
         // Define a vector of floats with size equal to the number of generators + 1
         std::vector<float> VecGenPur(fLabels.size() + 1, 0);
 
@@ -1118,14 +1165,21 @@ namespace solar
 
           if (TPCHit.Integral() > maxHit)
           {
-            clustTPC = TPC;
             // If clusterTPC not in TPCIDMap, set it to -1
             if (TPCIDMap.find(TPC) == TPCIDMap.end())
             {
               clustTPC = -1;
             }
+            else
+            {
+              clustTPC = TPC;
+            }
             // Look for maxHit inside cluster
             maxHit = TPCHit.Integral();            
+          }
+          else
+          {
+            clustTPC = TPC;
           }
 
           MainTrID = 0;
@@ -1210,12 +1264,14 @@ namespace solar
                                    << " (" << clustY << ", " << clustZ << ") with track ID " << MainTrID << " in plane " << idx;
         if (clustT < 0)
           producer->PrintInColor("Negative Cluster Time = " + ProducerUtils::str(clustT), ProducerUtils::GetColor("red"));
-
+        
+        if (fTestLatestFeatures)
+          ClIdxMap[ClustersIdx[idx][i]] = {idx, i}; // Map the cluster index to the plane and cluster number
+        ClNHits[idx].push_back(nhit);
         ClCharge[idx].push_back(ncharge);
         ClMaxCharge[idx].push_back(maxHit);
-        ClNHits[idx].push_back(nhit);
         ClT[idx].push_back(clustT);
-        ClTPC[idx].push_back(int(clustTPC));
+        ClTPC[idx].push_back(clustTPC);
         ClX[idx].push_back(clustX);
         ClY[idx].push_back(clustY);
         ClZ[idx].push_back(clustZ);
@@ -1236,174 +1292,244 @@ namespace solar
     } // Finished first cluster processing
 
     //-------------------------------------------------------------------- Cluster Matching -------------------------------------------------------------------------//
-    std::vector<std::vector<float>> MVecGenFrac = {};
+    std::vector<int> MVecMainID = {};
     std::vector<unsigned int> MVecGen = {};
-    std::vector<int> MVecNHit = {}, MVecInd0NHits = {}, MVecInd1NHits = {}, MVecMainID = {}, MVecTPC = {}, MVecInd0TPC = {}, MVecInd1TPC = {};
-    std::vector<float> MVecTime = {}, MVecCharge = {}, MVecMaxCharge = {}, MVecInd0Charge = {}, MVecInd1Charge = {}, MVecInd0MaxCharge = {}, MVecInd1MaxCharge = {}, MVecInd0dT = {}, MVecInd1dT = {};
-    std::vector<float> MVecInd0RecoY = {}, MVecInd1RecoY = {}, MVecRecY = {}, MVecRecZ = {};
-    std::vector<float> MVecFracE = {}, MVecFracGa = {}, MVecFracNe = {}, MVecFracRest = {}, MVecPur = {}, MVecInd0Pur = {}, MVecInd1Pur = {}, MVecGenPur = {};
-
-    for (int ii = 0; ii < int(AllPlaneClusters[2].size()); ii++)
+    std::vector<std::vector<float>> MVecGenFrac = {};
+    std::vector<float> MVecFracE = {}, MVecFracGa = {}, MVecFracNe = {}, MVecFracRest = {}, MVecGenPur = {};
+    std::vector<std::vector<int>> MVecNHits = {{}, {}, {}}, MVecTPC = {{}, {}, {}}, MVecChannel = {{}, {}, {}};
+    std::vector<std::vector<float>> MVecPur = {{}, {}, {}}, MVecMaxCharge = {{}, {}, {}}, MVecCharge = {{}, {}, {}}, MVecTime = {{}, {}, {}}, MVecRecoY = {{}, {}, {}}, MVecRecoZ = {{}, {}, {}};
+    std::vector<std::vector<float>> MVecDirDir = {{}, {}, {}}, MatchedClCompleteness = {{}, {}, {}}, MVecDT = {{}, {}, {}};
+    
+    if (fTestLatestFeatures)
     {
-      bool match = false;
-      int ind0clustNHits = 0, ind1clustNHits = 0;
-      int ind0clustTPC = 0, ind1clustTPC = 0;
-      double ind0clustY = -1e6, ind1clustY = -1e6, ind0clustMaxCharge = 0, ind1clustMaxCharge = 0, ind0clustCharge = 0, ind1clustCharge = 0;
-      double ind0clustdT = fClusterMatchTime, ind1clustdT = fClusterMatchTime;
-      if (!AllPlaneClusters[2][ii].empty())
+      std::vector<std::vector<int>>  MatchedClustersIdx = {{}, {}, {}};
+      std::vector<std::vector<std::vector<recob::Hit>>> MatchedClusters = {{}, {}, {}};
+    
+      std::string SolarClusterInfo = "SolarClusterInfo: ";
+      SolarClusterInfo = SolarClusterInfo + "(" + ProducerUtils::str(Clusters0.size()) + "," + ProducerUtils::str(Clusters1.size()) + "," + ProducerUtils::str(Clusters2.size()) + ")";
+      lowe->MatchClusters(SignalTrackIDs, MatchedClustersIdx, MatchedClusters, ClustersIdx, AllPlaneClusters, MVecNHits, MVecChannel, MVecTime, MVecRecoY, MVecRecoZ, MVecDirDir, MVecCharge, MVecPur, MatchedClCompleteness, clockData, true);
+      
+      int MatchedClusterNum = int(MatchedClustersIdx[2].size());
+      SolarClusterInfo = SolarClusterInfo + "\nFound " + ProducerUtils::str(MatchedClusterNum) + " MatchedClusters (from col. plane loop)!";
+      
+      for (int ThisClIdx = 0; ThisClIdx < MatchedClusterNum; ThisClIdx++)
       {
-        if (!AllPlaneClusters[0].empty())
-        {
-          for (int jj = 0; jj < int(AllPlaneClusters[0].size()); jj++)
+        MVecTime[2][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
+        for (int plane = 0; plane < 2; plane++) {
+          int RefClIdx = ClIdxMap[MatchedClustersIdx[plane][ThisClIdx]][1]; // Get the cluster index in the plane
+          if (MVecTime[plane][ThisClIdx] > -1e6)
           {
-            if (abs(ClNHits[0][jj] - ClNHits[2][ii]) / ClNHits[2][ii] > fClusterMatchNHit || abs(ClCharge[0][jj] - ClCharge[2][ii]) / ClCharge[2][ii] > fClusterMatchCharge)
-            {
-              continue;
-            }
-            if (abs(ClT[2][ii] - ClT[0][jj]) < fClusterMatchTime && abs(fClusterInd0MatchTime - abs(ClT[2][ii] - ClT[0][jj])) < abs(fClusterInd0MatchTime - ind0clustdT))
-            {
-              ind0clustY = ClY[0][jj] + (ClZ[2][ii] - ClZ[0][jj]) / (Cldzdy[0][jj]);
-              ind0clustdT = abs(ClT[2][ii] - ClT[0][jj]);
-              ind0clustNHits = int(AllPlaneClusters[0][jj].size());
-              ind0clustCharge = ClCharge[0][jj];
-              ind0clustMaxCharge = ClMaxCharge[0][jj];
-              ind0clustTPC = ClTPC[0][jj];
-              if (ind0clustY > -fDetectorSizeY && ind0clustY < fDetectorSizeY)
-              {
-                match = true;
-              }
-              mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster in plane 0 !!! --- Position x = " << ClX[0][jj] << ", y = " << ClY[0][jj] << ", z = " << ClZ[0][jj];
-              mf::LogDebug("SolarNuAna") << "Reconstructed position y = " << ind0clustY << ", z = " << ClZ[2][ii];
-            }
+            MVecTime[plane][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
+            MVecDT[plane].push_back(abs(MVecTime[2][ThisClIdx] - MVecTime[plane][ThisClIdx]));
+            MVecTPC[plane].push_back(ClTPC[plane][RefClIdx]);
+            MVecMaxCharge[plane].push_back(ClMaxCharge[plane][RefClIdx]);
+            SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane " + ProducerUtils::str(plane) + " with time " + ProducerUtils::str(MVecTime[plane][ThisClIdx]) + " and charge " + ProducerUtils::str(MVecCharge[plane][ThisClIdx]) + " with TPC " + ProducerUtils::str(MVecTPC[plane][ThisClIdx]);
+          }
+          else
+          {
+            MVecDT[plane].push_back(-1e6);
+            MVecTPC[plane].push_back(-1);
+            MVecMaxCharge[plane].push_back(-1e6);
+            SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane " + ProducerUtils::str(plane) + " with time -1e6 and charge -1e6 with TPC -1";
           }
         }
-        if (!AllPlaneClusters[1].empty())
-        {
-          for (int zz = 0; zz < int(AllPlaneClusters[1].size()); zz++)
-          {
-            if (abs(ClNHits[1][zz] - ClNHits[2][ii]) / ClNHits[2][ii] > fClusterMatchNHit || abs(ClCharge[1][zz] - ClCharge[2][ii]) / ClCharge[2][ii] > fClusterMatchCharge)
-            {
-              continue;
-            }
-            if (abs(ClT[2][ii] - ClT[1][zz]) < fClusterMatchTime && abs(fClusterInd1MatchTime - abs(ClT[2][ii] - ClT[1][zz])) < abs(fClusterInd1MatchTime - ind1clustdT))
-            {
-              ind1clustY = ClY[1][zz] + (ClZ[2][ii] - ClZ[1][zz]) / (Cldzdy[1][zz]);
-              ind1clustdT = abs(ClT[2][ii] - ClT[1][zz]);
-              ind1clustNHits = int(AllPlaneClusters[1][zz].size());
-              ind1clustCharge = ClCharge[1][zz];
-              ind1clustMaxCharge = ClMaxCharge[1][zz];
-              ind1clustTPC = ClTPC[1][zz];
-              if (ind1clustY > -fDetectorSizeY && ind1clustY < fDetectorSizeY)
-              {
-                match = true;
-              }
-              mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster in plane 1 !!! --- Position x = " << ClX[1][zz] << ", y = " << ClY[1][zz] << ", z = " << ClZ[1][zz];
-              mf::LogDebug("SolarNuAna") << "Reconstructed position y = " << ind1clustY << ", z = " << ClZ[2][ii];
-            }
-          } // Loop over ind1 clusters
-        }
-      } // Loop over ind clusters
-      else
-      {
-        mf::LogDebug("SolarNuAna") << "Cluster " << ii << " in plane 2 has no hits";
+        int RefClIdx = ClIdxMap[MatchedClustersIdx[2][ThisClIdx]][1]; // Get the plane index of the matched cluster
+        MVecTPC[2].push_back(ClTPC[2][RefClIdx]);
+        MVecMaxCharge[2].push_back(ClMaxCharge[2][RefClIdx]);
+        MVecGenPur.push_back(ClGenPur[2][RefClIdx]);
+        MVecMainID.push_back(ClMainID[2][RefClIdx]);
+        MVecGen.push_back(ClGen[2][RefClIdx]);
+        MVecFracE.push_back(ClFracE[2][RefClIdx]);
+        MVecFracGa.push_back(ClFracGa[2][RefClIdx]);
+        MVecFracNe.push_back(ClFracNe[2][RefClIdx]);
+        MVecFracRest.push_back(ClFracRest[2][RefClIdx]);  
+        MVecGenFrac.push_back(ClVecGenPur[2][RefClIdx]);
+        SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane 2 with time " + ProducerUtils::str(MVecTime[2][ThisClIdx]) + " and charge " + ProducerUtils::str(MVecCharge[2][ThisClIdx]) + " with TPC " + ProducerUtils::str(MVecTPC[2][ThisClIdx]);
       }
+      producer->PrintInColor(SolarClusterInfo, ProducerUtils::GetColor("yellow"), "Debug");
+    }
 
-      //--------------------------------------------------------- Export Matched cluster vectors ------------------------------------------------------------------//
-      if (match == true)
+    else {
+      for (int ii = 0; ii < int(AllPlaneClusters[2].size()); ii++)
       {
-        // Cluster Charge
-        MVecCharge.push_back(ClCharge[2][ii]);
-        MVecMaxCharge.push_back(ClMaxCharge[2][ii]);
-        MVecInd0Charge.push_back(ind0clustCharge);
-        MVecInd1Charge.push_back(ind1clustCharge);
-        MVecInd0MaxCharge.push_back(ind0clustMaxCharge);
-        MVecInd1MaxCharge.push_back(ind1clustMaxCharge);
-        // Cluster Hits
-        MVecNHit.push_back(ClNHits[2][ii]);
-        MVecInd0NHits.push_back(ind0clustNHits);
-        MVecInd1NHits.push_back(ind1clustNHits);
-        // Cluster TPC
-        MVecTPC.push_back(ClTPC[2][ii]);
-        MVecInd0TPC.push_back(ind0clustTPC);
-        MVecInd1TPC.push_back(ind1clustTPC);
-        // Cluster Time
-        MVecTime.push_back(ClT[2][ii] * clockData.TPCClock().TickPeriod()); // Convert to us
-        MVecInd0dT.push_back(ind0clustdT);
-        MVecInd1dT.push_back(ind1clustdT);
-        // Cluster RecoY
-        MVecInd0RecoY.push_back(ind0clustY);
-        MVecInd1RecoY.push_back(ind1clustY);
-        // Cluster RecoZ
-        MVecRecZ.push_back(ClZ[2][ii]);
-        // Cluster Signal Fractions
-        MVecFracE.push_back(ClFracE[2][ii]);
-        MVecFracGa.push_back(ClFracGa[2][ii]);
-        MVecFracNe.push_back(ClFracNe[2][ii]);
-        MVecFracRest.push_back(ClFracRest[2][ii]);
-        // Cluster Signal Purity
-        MVecInd0Pur.push_back(ClPur[0][ii]);
-        MVecInd1Pur.push_back(ClPur[1][ii]);
-        MVecPur.push_back(ClPur[2][ii]);
-        // Cluster Gen and GenFraction
-        MVecMainID.push_back(ClMainID[2][ii]);
-        MVecGen.push_back(ClGen[2][ii]);
-        MVecGenPur.push_back(ClGenPur[2][ii]);
-        MVecGenFrac.push_back(ClVecGenPur[2][ii]);
-
-        float buffer = 1;
-        if ((ind0clustY > -buffer * fDetectorSizeY && ind0clustY < buffer * fDetectorSizeY) && (ind1clustY > -buffer * fDetectorSizeY && ind1clustY < buffer * fDetectorSizeY))
+        bool match = false;
+        // int ind0clustIndex = -1, ind1clustIndex = -1;
+        int ind0clustNHits = 0, ind1clustNHits = 0;
+        int ind0clustTPC = -1, ind1clustTPC = -1;
+        double ind0clustY = -1e6, ind1clustY = -1e6, ind0clustMaxCharge = -1e6, ind1clustMaxCharge = -1e6, ind0clustCharge = -1e6, ind1clustCharge = -1e6;
+        double ind0clustdT = fClusterMatchTime, ind1clustdT = fClusterMatchTime;
+        if (!AllPlaneClusters[2][ii].empty())
         {
-          mf::LogDebug("SolarNuAna") << "BOTH IND RECO INSIDE OF DETECTOR";
-          MVecRecY.push_back((ind0clustY + ind1clustY) / 2);
-        }
-        else if (ind0clustY > -buffer * fDetectorSizeY && ind0clustY < buffer * fDetectorSizeY)
-        {
-          mf::LogDebug("SolarNuAna") << "IND1 OUTSIDE OF DETECTOR";
-          MVecRecY.push_back(ind0clustY);
-        }
-        else if (ind1clustY > -buffer * fDetectorSizeY && ind1clustY < buffer * fDetectorSizeY)
-        {
-          mf::LogDebug("SolarNuAna") << "IND0 OUTSIDE OF DETECTOR";
-          MVecRecY.push_back(ind1clustY);
-        }
+          if (!AllPlaneClusters[0].empty())
+          {
+            // std::cout << " - Matching cluster " << ii << " with time " << ClT[2][ii] << std::endl;
+            for (int jj = 0; jj < int(AllPlaneClusters[0].size()); jj++)
+            {
+              if (abs(ClNHits[0][jj] - ClNHits[2][ii]) / ClNHits[2][ii] > fClusterMatchNHit || 
+                  abs(ClCharge[0][jj] - ClCharge[2][ii]) / ClCharge[2][ii] > fClusterMatchCharge)
+              {
+                continue;
+              }
+              // std::cout << "    Checking Ind0 cluster with index " << jj << " and time " << ClT[0][jj] << std::endl;
+              if (abs(ClT[2][ii] - ClT[0][jj]) < fClusterMatchTime && abs(fClusterInd0MatchTime - abs(ClT[2][ii] - ClT[0][jj])) < abs(fClusterInd0MatchTime - ind0clustdT))
+              {
+                ind0clustY = ClY[0][jj] + (ClZ[2][ii] - ClZ[0][jj]) / (Cldzdy[0][jj]);
+                ind0clustdT = abs(ClT[2][ii] - ClT[0][jj]);
+                ind0clustNHits = int(AllPlaneClusters[0][jj].size());
+                ind0clustCharge = ClCharge[0][jj];
+                ind0clustMaxCharge = ClMaxCharge[0][jj];
+                ind0clustTPC = ClTPC[0][jj];
+                // ind0clustIndex = jj;
+                if (ind0clustY > -fDetectorSizeY && ind0clustY < fDetectorSizeY)
+                {
+                  match = true;
+                }
+                mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster in plane 0 !!! --- Position x = " << ClX[0][jj] << ", y = " << ClY[0][jj] << ", z = " << ClZ[0][jj];
+                mf::LogDebug("SolarNuAna") << "Reconstructed position y = " << ind0clustY << ", z = " << ClZ[2][ii];
+              }
+            }
+          }
+          if (!AllPlaneClusters[1].empty())
+          {
+            for (int zz = 0; zz < int(AllPlaneClusters[1].size()); zz++)
+            {
+              if (abs(ClNHits[1][zz] - ClNHits[2][ii]) / ClNHits[2][ii] > fClusterMatchNHit || abs(ClCharge[1][zz] - ClCharge[2][ii]) / ClCharge[2][ii] > fClusterMatchCharge)
+              {
+                continue;
+              }
+              // std::cout << "    Checking Ind1 cluster with index " << zz << " and time " << ClT[1][zz] << std::endl;
+              if (abs(ClT[2][ii] - ClT[1][zz]) < fClusterMatchTime && abs(fClusterInd1MatchTime - abs(ClT[2][ii] - ClT[1][zz])) < abs(fClusterInd1MatchTime - ind1clustdT))
+              {
+                ind1clustY = ClY[1][zz] + (ClZ[2][ii] - ClZ[1][zz]) / (Cldzdy[1][zz]);
+                ind1clustdT = abs(ClT[2][ii] - ClT[1][zz]);
+                ind1clustNHits = int(AllPlaneClusters[1][zz].size());
+                ind1clustCharge = ClCharge[1][zz];
+                ind1clustMaxCharge = ClMaxCharge[1][zz];
+                ind1clustTPC = ClTPC[1][zz];
+                // ind1clustIndex = zz;
+                if (ind1clustY > -fDetectorSizeY && ind1clustY < fDetectorSizeY)
+                {
+                  match = true;
+                }
+                mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster in plane 1 !!! --- Position x = " << ClX[1][zz] << ", y = " << ClY[1][zz] << ", z = " << ClZ[1][zz];
+                mf::LogDebug("SolarNuAna") << "Reconstructed position y = " << ind1clustY << ", z = " << ClZ[2][ii];
+              }
+            } // Loop over ind1 clusters
+          }
+        } // Loop over ind clusters
         else
         {
-          mf::LogDebug("SolarNuAna") << "RECO OUTSIDE OF DETECTOR";
-          MVecRecY.push_back((ind0clustY + ind1clustY) / 2);
-          if (ClGen[2][ii] == 1)
-          {
-            mf::LogWarning("SolarNuAna") << "Signal cluster reconstructed outside of detector volume! RecoY = " << ProducerUtils::str((ind0clustY + ind1clustY) / 2);
-          }
+          mf::LogDebug("SolarNuAna") << "Cluster " << ii << " in plane 2 has no hits";
         }
 
-        // Print in color if the cluster is matched
-        mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster !!! ";
-        mf::LogDebug("SolarNuAna") << " - Cluster " << ProducerUtils::str(ClMainID[2][ii]) << " Gen " << ProducerUtils::str(ClGen[2][ii]) << " Purity " << ProducerUtils::str(ClGenPur[2][ii]) << " Hits " << ProducerUtils::str(ClNHits[2][ii]);
-        mf::LogDebug("SolarNuAna") << " - Hits(ind0, ind1, col) " << ProducerUtils::str(ind0clustNHits) << ", " << ProducerUtils::str(ind1clustNHits) << ", " << ProducerUtils::str(ClNHits[2][ii]);
-        mf::LogDebug("SolarNuAna") << " - Positions y(ind0, ind1) = " << ProducerUtils::str(ind0clustY) << ", " << ProducerUtils::str(ind1clustY) << ", z = " << ProducerUtils::str(ClZ[2][ii]) << "\n";
-      } // if (match == true)
-    } // Loop over collection plane clusters
+        //--------------------------------------------------------- Export Matched cluster vectors ------------------------------------------------------------------//
+        if (match == true)
+        {
+          // std::cout << "    ***Matched cluster " << ii << " to Ind0: " << ind0clustIndex << ", Ind1: " << ind1clustIndex << std::endl;
+          // Cluster Charge
+          MVecCharge[0].push_back(ind0clustCharge);
+          MVecCharge[1].push_back(ind1clustCharge);
+          MVecCharge[2].push_back(ClCharge[2][ii]);
+          MVecMaxCharge[0].push_back(ind0clustMaxCharge);
+          MVecMaxCharge[1].push_back(ind1clustMaxCharge);
+          MVecMaxCharge[2].push_back(ClMaxCharge[2][ii]);
+          // Cluster Hits
+          MVecNHits[0].push_back(ind0clustNHits);
+          MVecNHits[1].push_back(ind1clustNHits);
+          MVecNHits[2].push_back(ClNHits[2][ii]);
+          // Cluster TPC
+          MVecTPC[0].push_back(ind0clustTPC);
+          MVecTPC[1].push_back(ind1clustTPC);
+          MVecTPC[2].push_back(ClTPC[2][ii]);
+          // Cluster Time
+          MVecDT[0].push_back(ind0clustdT * clockData.TPCClock().TickPeriod());
+          MVecDT[1].push_back(ind1clustdT * clockData.TPCClock().TickPeriod());
+          MVecTime[0].push_back(ClT[0][ii] * clockData.TPCClock().TickPeriod()); // Convert to us
+          MVecTime[1].push_back(ClT[1][ii] * clockData.TPCClock().TickPeriod()); // Convert to us
+          MVecTime[2].push_back(ClT[2][ii] * clockData.TPCClock().TickPeriod()); // Convert to us
+          // Cluster RecoY
+          MVecRecoY[0].push_back(ind0clustY);
+          MVecRecoY[1].push_back(ind1clustY);
+          // Cluster RecoZ
+          MVecRecoZ[0].push_back(ClZ[0][ii]);
+          MVecRecoZ[1].push_back(ClZ[1][ii]);
+          MVecRecoZ[2].push_back(ClZ[2][ii]);
+          // Cluster Signal Fractions
+          MVecFracE.push_back(ClFracE[2][ii]);
+          MVecFracGa.push_back(ClFracGa[2][ii]);
+          MVecFracNe.push_back(ClFracNe[2][ii]);
+          MVecFracRest.push_back(ClFracRest[2][ii]);
+          // Cluster Signal Purity
+          MVecPur[0].push_back(ClPur[0][ii]);
+          MVecPur[1].push_back(ClPur[1][ii]);
+          MVecPur[2].push_back(ClPur[2][ii]);
+          // Cluster Gen and GenFraction
+          MVecMainID.push_back(ClMainID[2][ii]);
+          MVecGen.push_back(ClGen[2][ii]);
+          MVecGenPur.push_back(ClGenPur[2][ii]);
+          MVecGenFrac.push_back(ClVecGenPur[2][ii]);
 
+          float buffer = 1;
+          if ((ind0clustY > -buffer * fDetectorSizeY && ind0clustY < buffer * fDetectorSizeY) && (ind1clustY > -buffer * fDetectorSizeY && ind1clustY < buffer * fDetectorSizeY))
+          {
+            mf::LogDebug("SolarNuAna") << "BOTH IND RECO INSIDE OF DETECTOR";
+            MVecRecoY[2].push_back((ind0clustY + ind1clustY) / 2);
+          }
+          else if (ind0clustY > -buffer * fDetectorSizeY && ind0clustY < buffer * fDetectorSizeY)
+          {
+            mf::LogDebug("SolarNuAna") << "IND1 OUTSIDE OF DETECTOR";
+            MVecRecoY[2].push_back(ind0clustY);
+          }
+          else if (ind1clustY > -buffer * fDetectorSizeY && ind1clustY < buffer * fDetectorSizeY)
+          {
+            mf::LogDebug("SolarNuAna") << "IND0 OUTSIDE OF DETECTOR";
+            MVecRecoY[2].push_back(ind1clustY);
+          }
+          else
+          {
+            mf::LogDebug("SolarNuAna") << "RECO OUTSIDE OF DETECTOR";
+            MVecRecoY[2].push_back((ind0clustY + ind1clustY) / 2);
+            if (ClGen[2][ii] == 1)
+            {
+              mf::LogWarning("SolarNuAna") << "Signal cluster reconstructed outside of detector volume! RecoY = " << ProducerUtils::str((ind0clustY + ind1clustY) / 2);
+            }
+          }
+
+          // Print in color if the cluster is matched
+          mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster !!! ";
+          mf::LogDebug("SolarNuAna") << " - Cluster " << ProducerUtils::str(ClMainID[2][ii]) << " Gen " << ProducerUtils::str(ClGen[2][ii]) << " Purity " << ProducerUtils::str(ClGenPur[2][ii]) << " Hits " << ProducerUtils::str(ClNHits[2][ii]);
+          mf::LogDebug("SolarNuAna") << " - Hits(ind0, ind1, col) " << ProducerUtils::str(ind0clustNHits) << ", " << ProducerUtils::str(ind1clustNHits) << ", " << ProducerUtils::str(ClNHits[2][ii]);
+          mf::LogDebug("SolarNuAna") << " - Positions y(ind0, ind1) = " << ProducerUtils::str(ind0clustY) << ", " << ProducerUtils::str(ind1clustY) << ", z = " << ProducerUtils::str(ClZ[2][ii]) << "\n";
+        } // if (match == true)
+        else
+        {
+          // std::cout << "    No match found for index " << ii << ". Skipping..." << std::endl;
+        }
+      } // Loop over collection plane clusters
+    } // Finished cluster matching
     //-------------------------------------------------------------------- Cluster Tree Export -------------------------------------------------------------------------//
     // Loop over matched clusters and export to tree if all conditions are satisfied
-    for (int i = 0; i < int(MVecNHit.size()); i++)
+    std::string sClustersReco = "\n# ClusterReco: Looping over " + ProducerUtils::str(int(MVecNHits[2].size())) + " matched clusters";
+    producer->PrintInColor(sClustersReco, ProducerUtils::GetColor("green"));
+    for (int i = 0; i < int(MVecNHits[2].size()); i++)
     {
-      if (fClusterPreselectionSignal && MVecPur[i] == 0)
+      if (fClusterPreselectionSignal && MVecPur[2][i] == 0)
       {
         continue;
       }
-
       bool TrackMatch = false;
+      bool AdjClusterMatch = false;
       std::string sFlashReco = "";
       std::string sVertexReco = "";
       std::string sClusterReco = "";
       std::string sResultColor = "white";
+      std::string sAdjClusters = "";
       float OpFlashResidual = 0;
       float MatchedOpFlashPE = -1e6;
       float MatchedOpFlashResidual = 1e6;
       float MatchedOpFlashX = -1e6;
 
-      if (MVecNHit[i] > fClusterPreselectionNHits)
+      if (MVecNHits[2][i] > fClusterPreselectionNHits)
       {
         MPrimary = true;
         MAdjClNum = 0;
@@ -1451,7 +1577,7 @@ namespace solar
         MTrackStart = {-1e6, -1e6, -1e6};
         MTrackEnd = {-1e6, -1e6, -1e6};
 
-        for (int j = 0; j < int(MVecNHit.size()); j++)
+        for (int j = 0; j < int(MVecNHits[2].size()); j++)
         {
           if (j == i)
           {
@@ -1459,44 +1585,42 @@ namespace solar
           }
 
           double ClusterDistance = 0;
-          // std::cout << "Printing cluster TPCs: " << MVecTPC[i] << ", " << MVecTPC[j] << std::endl;
-          // std::cout << "Printing associated TPC drift lengths: " << TPCIDdriftLength[MVecTPC[i]] << ", " << TPCIDdriftLength[MVecTPC[j]] << std::endl;
-          // std::cout << "Printing associated TPC drift times: " << TPCIDdriftTime[MVecTPC[i]] << ", " << TPCIDdriftTime[MVecTPC[j]] << std::endl;
-          producer->ComputeDistance3D(ClusterDistance, MVecTime[i], MVecRecY[i], MVecRecZ[i], MVecTime[j], MVecRecY[j], MVecRecZ[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
+          producer->ComputeDistance3D(ClusterDistance, MVecTime[2][i], MVecRecoY[2][i], MVecRecoZ[2][i], MVecTime[2][j], MVecRecoY[2][j], MVecRecoZ[2][j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
           if (ClusterDistance > fAdjClusterRad)
           {
             continue;
           }
-
-          if (MVecCharge[j] < fMinClusterCharge)
+          sAdjClusters += "    - Cluster " + ProducerUtils::str(j) + " at distance " + ProducerUtils::str(ClusterDistance) + " with time " + ProducerUtils::str(MVecTime[2][j]) + " and charge " + ProducerUtils::str(MVecCharge[2][j]) + " in TPC " + ProducerUtils::str(MVecTPC[2][j]);
+          if (MVecCharge[2][j] < fMinClusterCharge)
           {
             continue;
           }
-
-          if (MVecCharge[j] > MVecCharge[i])
+          sAdjClusters += " and hits " + ProducerUtils::str(MVecNHits[2][j]) + "\n";
+          if (MVecCharge[2][j] > MVecCharge[2][i])
           {
             MPrimary = false;
           }
-
           MAdjClNum += 1;
           if (MVecGen[i] == MVecGen[j])
           {
             MSignalAdjClNum += 1;
           }
-          MAdjClTime.push_back(MVecTime[j]);
-          MAdjClCharge.push_back(MVecCharge[j]);
-          MAdjClInd0Charge.push_back(MVecInd0Charge[j]);
-          MAdjClInd1Charge.push_back(MVecInd1Charge[j]);
-          MAdjClMaxCharge.push_back(MVecMaxCharge[j]);
-          MAdjClInd0MaxCharge.push_back(MVecInd0MaxCharge[j]);
-          MAdjClInd1MaxCharge.push_back(MVecInd1MaxCharge[j]);
-          MAdjClNHits.push_back(MVecNHit[j]);
-          MAdjClInd0NHits.push_back(MVecInd0NHits[j]);
-          MAdjClInd1NHits.push_back(MVecInd1NHits[j]);
-          MAdjClRecoY.push_back(MVecRecY[j]);
-          MAdjClRecoZ.push_back(MVecRecZ[j]);
-          MAdjClR.push_back(sqrt(pow(MVecRecY[i] - MVecRecY[j], 2) + pow(MVecRecZ[i] - MVecRecZ[j], 2)));
-          MAdjClPur.push_back(MVecPur[j]);
+          // If the cluster is matched, add the information to the vectors
+          AdjClusterMatch = true;
+          MAdjClTime.push_back(MVecTime[2][j]);
+          MAdjClInd0Charge.push_back(MVecCharge[0][j]);
+          MAdjClInd1Charge.push_back(MVecCharge[1][j]);
+          MAdjClCharge.push_back(MVecCharge[2][j]);
+          MAdjClMaxCharge.push_back(MVecMaxCharge[2][j]);
+          MAdjClInd0MaxCharge.push_back(MVecMaxCharge[0][j]);
+          MAdjClInd1MaxCharge.push_back(MVecMaxCharge[1][j]);
+          MAdjClNHits.push_back(MVecNHits[2][j]);
+          MAdjClInd0NHits.push_back(MVecNHits[0][j]);
+          MAdjClInd1NHits.push_back(MVecNHits[1][j]);
+          MAdjClRecoY.push_back(MVecRecoY[2][j]);
+          MAdjClRecoZ.push_back(MVecRecoZ[2][j]);
+          MAdjClR.push_back(sqrt(pow(MVecRecoY[2][i] - MVecRecoY[2][j], 2) + pow(MVecRecoZ[2][i] - MVecRecoZ[2][j], 2)));
+          MAdjClPur.push_back(MVecPur[2][j]);
           MAdjClGen.push_back(MVecGen[j]);
           MAdjClGenPur.push_back(MVecGenPur[j]);
           MAdjClMainID.push_back(MVecMainID[j]);
@@ -1535,7 +1659,7 @@ namespace solar
         }
 
         sResultColor = "yellow";
-        if (MVecPur[i] > 0)
+        if (MVecPur[2][i] > 0)
         {
           sResultColor = "green";
         }
@@ -1545,24 +1669,27 @@ namespace solar
         }
         if (MPrimary)
         {
-          sClusterReco += "*** Matched preselection cluster: \n";
+          sClusterReco += "*** Matched preselection cluster: " + ProducerUtils::str(i) + "\n";
           sClusterReco += " - MainTrackID " + ProducerUtils::str(MVecMainID[i]) + "\n";
-          sClusterReco += " - Purity " + ProducerUtils::str(MVecGenPur[i]) + " Hits " + ProducerUtils::str(MVecNHit[i]) + "\n";
           if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1))
           {
-            sClusterReco += " - Gen " + ProducerUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1] + "\n";
+            sClusterReco += " - Gen " + ProducerUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1];
           }
           else
           {
-            sClusterReco += " - Gen ?? -> Unknown\n";
+            sClusterReco += " - Gen ?? -> Unknown";
           }
+          sClusterReco += " TPC " + ProducerUtils::str(MVecTPC[2][i]) + "\n";
           // sClusterReco += " - Truth X,Y,Z ( " + ProducerUtils::str(MVecMainX[i]) + ", " + ProducerUtils::str(MVecMainY[i]) + ", " + ProducerUtils::str(MVecMainZ[i]) + " )\n";
-          sClusterReco += " - TPC " + ProducerUtils::str(MVecTPC[i]) + "\n";
-          sClusterReco += " - #AdjCl " + ProducerUtils::str(MAdjClNum) + " ( " + ProducerUtils::str(MSignalAdjClNum) + " signal )\n";
-          sClusterReco += " - Reco Time,Y,Z ( " + ProducerUtils::str(MVecTime[i]) + ", " + ProducerUtils::str(MVecRecY[i]) + ", " + ProducerUtils::str(MVecRecZ[i]) + " )\n";
+          sClusterReco += " - Purity " + ProducerUtils::str(MVecGenPur[i]) + " Hits " + ProducerUtils::str(MVecNHits[2][i]) + "\n";
+          sClusterReco += " - #AdjCl " + ProducerUtils::str(MAdjClNum) + " ( " + ProducerUtils::str(MSignalAdjClNum) + " signal ):\n";
+          if (AdjClusterMatch) {sClusterReco += sAdjClusters;}
+          sClusterReco += " - RecoCol  Time,Y,Z ( " + ProducerUtils::str(MVecTime[2][i]) + ", " + ProducerUtils::str(MVecRecoY[2][i]) + ", " + ProducerUtils::str(MVecRecoZ[2][i]) + " )\n";
+          sClusterReco += " - RecoInd0 Time,Y,Z ( " + ProducerUtils::str(MVecTime[0][i]) + ", " + ProducerUtils::str(MVecRecoY[0][i]) + ", " + ProducerUtils::str(MVecRecoZ[0][i]) + " )\n";
+          sClusterReco += " - RecoInd1 Time,Y,Z ( " + ProducerUtils::str(MVecTime[1][i]) + ", " + ProducerUtils::str(MVecRecoY[1][i]) + ", " + ProducerUtils::str(MVecRecoZ[1][i]) + " )\n";
           
           if (fSaveTrackInfo){
-            TVector3 ThisClVertex = {0, MVecRecY[i], MVecRecZ[i]};
+            TVector3 ThisClVertex = {0, MVecRecoY[2][i], MVecRecoZ[2][i]};
             float MaxVertexDistance = 10; // if track is further away from ThisClVertex than
             for (int i = 0; i < TrackNum; i++)
             { // using index loop to get track idx
@@ -1594,7 +1721,7 @@ namespace solar
         {
           float OpFlashR = -1e6;
           // Skip flashes with time outside the cluster time window
-          if ((MVecTime[i] - OpFlashTime[j]) < 0 || (MVecTime[i] - OpFlashTime[j]) > TPCIDdriftTime[MVecTPC[i]])
+          if ((MVecTime[2][i] - OpFlashTime[j]) < 0 || (MVecTime[2][i] - OpFlashTime[j]) > TPCIDdriftTime[MVecTPC[2][i]])
           {
             continue;
           }
@@ -1603,63 +1730,63 @@ namespace solar
           double MAdjFlashX = 0;
           
           // For HD 1x2x6 (only 1 APA) the x coordinate is determined by the TPC number
-          if (fGeometry == "HD" && MVecTPC[i]%2 != 0)
+          if (fGeometry == "HD" && MVecTPC[2][i]%2 != 0)
           {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
           }
-          else if (fGeometry == "HD" && MVecTPC[i]%2 == 0)
+          else if (fGeometry == "HD" && MVecTPC[2][i]%2 == 0)
           {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
             MAdjFlashX = -MAdjFlashX;
           }
           else if (fGeometry == "VD")
           {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
             // Change the x distance to the x coordinate of the VD geometry [-driftLength/2, driftLength/2]
-            MAdjFlashX = TPCIDdriftLength[MVecTPC[i]] / 2 - MAdjFlashX;
+            MAdjFlashX = TPCIDdriftLength[MVecTPC[2][i]] / 2 - MAdjFlashX;
           }
           else
           {
             producer->PrintInColor("Unknown geometry " + fGeometry, ProducerUtils::GetColor("red"));
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[i]], TPCIDdriftTime[MVecTPC[i]]);
+            producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
           }
 
           // Make an eliptical cut on the flash position based on the clusters plane
           if (fGeometry == "VD" && OpFlashPlane[j] == 0) // Cathode flashes
           {
-            if (pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
+            if (pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
             {
               continue;
             }
-            OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
+            OpFlashR = sqrt(pow(MVecRecoY[2][i] - OpFlashY[j], 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2));
           }
           else if (fGeometry == "VD" && (OpFlashPlane[j] == 1 || OpFlashPlane[j] == 2)) // Membrane flashes
           {
             if (fAdjOpFlashMembraneProjection){
-              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
                 continue;
               }
             }
             else{
-              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
                 continue;
               }
             }
-            OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
+            OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2));
           } 
           else if (fGeometry == "VD" && (OpFlashPlane[j] == 3 || OpFlashPlane[j] == 4)) // End-Cap flashes
           {
             if (fAdjOpFlashEndCapProjection){
-              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1){
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1){
                 continue;
               }
             }
             else{
-              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
                 continue;
               }
             }
-            OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecY[i] - OpFlashY[j], 2));
+            OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2));
           }
           else if (fGeometry == "VD" && OpFlashPlane[j] == -1)
           {
@@ -1668,11 +1795,11 @@ namespace solar
 
           if (fGeometry == "HD")
           {
-            if (pow(MVecRecY[i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
+            if (pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
             {
               continue;
             }
-            OpFlashR = sqrt(pow(MVecRecY[i] - OpFlashY[j], 2) + pow(MVecRecZ[i] - OpFlashZ[j], 2));
+            OpFlashR = sqrt(pow(MVecRecoY[2][i] - OpFlashY[j], 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2));
           }
 
           MAdjFlashR.push_back(OpFlashR);
@@ -1688,9 +1815,10 @@ namespace solar
           MAdjFlashSTD.push_back(OpFlashSTD[j]);
           MAdjFlashPur.push_back(OpFlashPur[j]);
           // Compute the residual between the predicted cluster signal and the flash
+          adjophits->FlashMatchResidual(OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]));
+          // Print the flash information for debugging
           std::string sFlashMatching = "Testing flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]);
           producer->PrintInColor(sFlashMatching, ProducerUtils::GetColor(sResultColor), "Debug");
-          adjophits->FlashMatchResidual(OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecY[i]), double(MVecRecZ[i]));
           // Make a cut on the flash PE and MaxPE distributions
           if (OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut || OpFlashPE[j] < fAdjOpFlashMinPECut)
           {
@@ -1717,7 +1845,6 @@ namespace solar
             MFlashRecoY = OpFlashY[j];
             MFlashRecoZ = OpFlashZ[j];
             MFlashResidual = OpFlashResidual;
-
             // Create an output string with the flash information
             sFlashReco = "*** Matched flash: \n - Purity " + ProducerUtils::str(OpFlashPur[j]) +
               " Plane " + ProducerUtils::str(OpFlashPlane[j]) +
@@ -1728,7 +1855,6 @@ namespace solar
               " Fast " + ProducerUtils::str(OpFlashFast[j]) +
               " Residual " + ProducerUtils::str(OpFlashResidual) + "\n" +
               " - Reco Time,Y,Z ( " + ProducerUtils::str(MFlashTime) + ", " + ProducerUtils::str(OpFlashY[j]) + ", " + ProducerUtils::str(OpFlashZ[j]) + " )" + "\n";
-
             MatchedOpFlashX = MAdjFlashX;
             MatchedOpFlashResidual = OpFlashResidual;
             MatchedOpFlashPE = MFlashPE;
@@ -1737,7 +1863,7 @@ namespace solar
         }
         sVertexReco += "*** Reconstructed Interaction Vertex: \n";
         sVertexReco += " - True X,Y,Z ( " + ProducerUtils::str(SignalParticleX) + ", " + ProducerUtils::str(SignalParticleY) + ", " + ProducerUtils::str(SignalParticleZ) + " )" + "\n";
-        sVertexReco += " - Reco X,Y,Z ( " + ProducerUtils::str(MatchedOpFlashX) + ", " + ProducerUtils::str(MVecRecY[i]) + ", " + ProducerUtils::str(MVecRecZ[i]) + " )";
+        sVertexReco += " - Reco X,Y,Z ( " + ProducerUtils::str(MatchedOpFlashX) + ", " + ProducerUtils::str(MVecRecoY[2][i]) + ", " + ProducerUtils::str(MVecRecoZ[2][i]) + " )";
         sClusterReco += sFlashReco;
         sClusterReco += sVertexReco;
         if (fClusterPreselectionFlashMatch && MatchedOpFlashPE < 0)
@@ -1745,40 +1871,40 @@ namespace solar
           continue;
         } 
         // Fill the tree with the cluster information and the adjacent clusters and flashes
-        MInd0Pur = MVecInd0Pur[i];
-        MInd1Pur = MVecInd1Pur[i];
-        MPur = MVecPur[i];
+        MInd0Pur = MVecPur[0][i];
+        MInd1Pur = MVecPur[1][i];
+        MPur = MVecPur[2][i];
         MGen = MVecGen[i];
         MGenPur = MVecGenPur[i];
         MGenFrac = MVecGenFrac[i];
         MSignalFrac = {MVecFracE[i], MVecFracGa[i], MVecFracNe[i], MVecFracRest[i]};
         // Cluster TPC
-        MTPC = MVecTPC[i];
-        MInd0TPC = MVecInd0TPC[i];
-        MInd1TPC = MVecInd1TPC[i];
+        MInd0TPC = MVecTPC[0][i];
+        MInd1TPC = MVecTPC[1][i];
+        MTPC = MVecTPC[2][i];
         // Cluster Charge
-        MCharge = MVecCharge[i];
-        MMaxCharge = MVecMaxCharge[i];
-        MInd0Charge = MVecInd0Charge[i];
-        MInd1Charge = MVecInd1Charge[i];
-        MInd0MaxCharge = MVecInd0MaxCharge[i];
-        MInd1MaxCharge = MVecInd1MaxCharge[i];
+        MInd0Charge = MVecCharge[0][i];
+        MInd1Charge = MVecCharge[1][i];
+        MCharge = MVecCharge[2][i];
+        MInd0MaxCharge = MVecMaxCharge[0][i];
+        MInd1MaxCharge = MVecMaxCharge[1][i];
+        MMaxCharge = MVecMaxCharge[2][i];
         // Cluster Hits
-        MNHit = MVecNHit[i];
-        MInd0NHits = MVecInd0NHits[i];
-        MInd1NHits = MVecInd1NHits[i];
+        MInd0NHits = MVecNHits[0][i];
+        MInd1NHits = MVecNHits[1][i];
+        MNHit = MVecNHits[2][i];
         // Cluster Time
-        MTime = MVecTime[i];
-        MInd0dTime = MVecInd0dT[i];
-        MInd1dTime = MVecInd1dT[i];
+        MInd0dTime = MVecDT[0][i];
+        MInd1dTime = MVecDT[1][i];
+        MTime = MVecTime[2][i];
         // Cluster RecoX
         MRecX = MatchedOpFlashX;
         // Cluster RecoY
-        MRecY = MVecRecY[i];
-        MInd0RecoY = MVecInd0RecoY[i];
-        MInd1RecoY = MVecInd1RecoY[i];
+        MInd0RecoY = MVecRecoY[0][i];
+        MInd1RecoY = MVecRecoY[1][i];
+        MRecY = MVecRecoY[2][i];
         // Cluster RecoZ
-        MRecZ = MVecRecZ[i];
+        MRecZ = MVecRecoZ[2][i];
         // Cluster MainID
         MMainID = MVecMainID[i];
 
@@ -1864,14 +1990,6 @@ namespace solar
   // Reset variables for each event
   void SolarNuAna::ResetVariables()
   {
-    SignalParticleE = 0;
-    SignalParticleP = 0;
-    SignalParticleK = 0;
-    SignalParticleX = 0;
-    SignalParticleY = 0;
-    SignalParticleZ = 0;
-    SignalParticlePDG = 0;
-    SignalParticleTime = 0;
     TrackNum = 0;
     OpHitNum = 0;
     OpFlashNum = 0;
@@ -1891,19 +2009,14 @@ namespace solar
     MFlashRecoZ = -1e6;
     MFlashResidual = -1e6;
     MFlashCorrect = false;
-    SignalElectronDepList = {};
-    SignalPDGList = {};
-    SignalPDGDepList = {};
-    SignalIDList = {}, SignalIDDepList = {};
-    SignalMotherList = {};
-    SignalEList = {}, SignalPList = {}, SignalKList = {}, SignalTimeList = {}, SignalEndXList = {}, SignalEndYList = {}, SignalEndZList = {};
-    SignalEDepList = {}, SignalXDepList = {}, SignalYDepList = {}, SignalZDepList = {};
-    SignalMaxEDepList = {}, SignalMaxEDepXList = {}, SignalMaxEDepYList = {}, SignalMaxEDepZList = {};
-    SOpHitChannel = {}, SOpHitPur = {}, SOpHitPE = {}, SOpHitX = {}, SOpHitY = {}, SOpHitZ = {}, SOpHitTime = {}, SOpHitFlashID = {};
-    SOpHitPlane = {};
-    TPart = {}, GeneratorParticles = {};
-    HitNum = {};
-    ClusterNum = {};
+    SignalParticleE = 0;
+    SignalParticleP = 0;
+    SignalParticleK = 0;
+    SignalParticleX = 0;
+    SignalParticleY = 0;
+    SignalParticleZ = 0;
+    SignalParticlePDG = 0;
+    SignalParticleTime = 0;
     OpFlashPur.clear();
     OpFlashID.clear();
     OpFlashPE.clear();
@@ -1917,6 +2030,19 @@ namespace solar
     OpFlashDeltaT.clear();
     OpFlashNHits.clear();
     OpFlashPlane.clear();
+    HitNum = {};
+    ClusterNum = {};
+    SOpHitPlane = {};
+    SignalPDGList = {};
+    SignalPDGDepList = {};
+    SignalMotherList = {};
+    SignalElectronDepList = {};
+    TPart = {}, GeneratorParticles = {};
+    SignalIDList = {}, SignalIDDepList = {};
+    SignalEDepList = {}, SignalXDepList = {}, SignalYDepList = {}, SignalZDepList = {};
+    SignalMaxEDepList = {}, SignalMaxEDepXList = {}, SignalMaxEDepYList = {}, SignalMaxEDepZList = {};
+    SOpHitChannel = {}, SOpHitPur = {}, SOpHitPE = {}, SOpHitX = {}, SOpHitY = {}, SOpHitZ = {}, SOpHitTime = {}, SOpHitFlashID = {};
+    SignalEList = {}, SignalPList = {}, SignalKList = {}, SignalTimeList = {}, SignalEndXList = {}, SignalEndYList = {}, SignalEndZList = {};
   }
 } // namespace solar
 DEFINE_ART_MODULE(solar::SolarNuAna)
