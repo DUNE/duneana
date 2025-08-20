@@ -146,7 +146,7 @@ namespace solar
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     std::unique_ptr<producer::ProducerUtils> producer;
     std::unique_ptr<solar::AdjOpHitsUtils> adjophits;
-    std::unique_ptr<solar::LowEUtils> lowe;
+    std::unique_ptr<lowe::LowEUtils> lowe;
   };
 #endif
 
@@ -155,7 +155,7 @@ namespace solar
       : EDAnalyzer(p),
         producer(new producer::ProducerUtils(p)),
         adjophits(new solar::AdjOpHitsUtils(p)),
-        lowe(new solar::LowEUtils(p))
+        lowe(new lowe::LowEUtils(p))
   {
     this->reconfigure(p);
   }
@@ -534,7 +534,7 @@ namespace solar
       if (tpcid.isValid) {
         // Fill the TPC map with the TPC ID
         const double driftLength = cryostat.TPC(tpcid).DriftDistance();
-        const double driftTime = driftLength / art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData).DriftVelocity();
+        const double driftTime = driftLength / detProp.DriftVelocity();
         TPCIDMap[tpcid.TPC] = tpcid;
         TPCIDdriftLength[tpcid.TPC] = driftLength;
         TPCIDdriftTime[tpcid.TPC] = driftTime;
