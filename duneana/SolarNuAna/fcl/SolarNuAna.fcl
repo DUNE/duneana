@@ -45,6 +45,7 @@ BEGIN_PROLOG
     GenerateAdjCluster:         true         # Generate adjacent clusters.
     MinClusterCharge:           0.           # Min Charge for adj. clusters in [ADCxTick].
     AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
+    AdjClusterSingleMatch:      false        # If true, each adjacent cluster is allowed to match only one primary cluster.
 
     GenerateAdjOpFlash:         false        # Generate OpFlashes.
     OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
@@ -54,7 +55,6 @@ BEGIN_PROLOG
     OpFlashAlgoPE:              1.5          # PE threshold to look for adj. OpHits.
     OpFlashAlgoTriggerPE:       1.5          # PE threshold to trigger an OpFlash.
     OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
-    # OpFlashAlgoCentroid:        false        # Use the centroid computation of the flash based on a likelihood estimation.
 
     AdjOpFlashX:                  100.         # X distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashY:                  100.         # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
