@@ -290,8 +290,8 @@ namespace solar
     fMCTruthTree->Branch("SignalParticleTime", &SignalParticleTime, "SignalParticleTime/F"); // True signal time [tick]
     fMCTruthTree->Branch("OpHitNum", &OpHitNum, "OpHitNum/I");                               // Number of OpHits
     fMCTruthTree->Branch("OpFlashNum", &OpFlashNum, "OpFlashNum/I");                         // Number of OpFlashes
-    fMCTruthTree->Branch("HitNum", &HitNum);                                                 // Number of hits in each TPC plane
-    fMCTruthTree->Branch("ClusterNum", &ClusterNum);                                         // Number of clusters in each TPC plane
+    fMCTruthTree->Branch("HitNum", &HitNum, "HitNum/I");                                     // Number of hits in each TPC plane
+    fMCTruthTree->Branch("ClusterNum", &ClusterNum, "ClusterNum/I");                         // Number of clusters in each TPC plane
     fMCTruthTree->Branch("TrackNum", &TrackNum, "TrackNum/I");                               // Number of PMTracks
     
     if (fSaveSignalDaughters)
@@ -646,8 +646,10 @@ namespace solar
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     std::set<int> SignalTrackIDs;                                    // Signal TrackIDs to be used in OpFlash matching
     std::vector<std::vector<int>> ClPartTrackIDs = {{}, {}, {}, {}}; // Track IDs corresponding to each kind of MCTruth particle  {11,22,2112,else}
+    std::map<int, float> SignalMaxEDepMap, SignalMaxEDepXMap, SignalMaxEDepYMap, SignalMaxEDepZMap;
     art::Handle<std::vector<simb::MCTruth>> ThisHandle;
     std::string sSignalTruth = "";
+
     evt.getByLabel(fLabels[0], ThisHandle);
     if (ThisHandle)
     {
@@ -737,7 +739,6 @@ namespace solar
             SignalIDList.push_back((*SignalParticle)->TrackId());
             SignalMotherList.push_back((*SignalParticle)->Mother());
           }
-          std::map<int, float> SignalMaxEDepMap, SignalMaxEDepXMap, SignalMaxEDepYMap, SignalMaxEDepZMap;
           std::vector<const sim::IDE *> ides = bt_serv->TrackIdToSimIDEs_Ps((*SignalParticle)->TrackId());
           for (auto const &ide : ides)
           {
@@ -1301,12 +1302,11 @@ namespace solar
     } // Finished first cluster processing
 
     //-------------------------------------------------------------------- Cluster Matching -------------------------------------------------------------------------//
-    std::vector<int> MVecMainID = {};
     std::vector<unsigned int> MVecGen = {};
     std::vector<std::vector<float>> MVecGenFrac = {};
     std::vector<float> MVecFracE = {}, MVecFracGa = {}, MVecFracNe = {}, MVecFracRest = {}, MVecGenPur = {};
     std::vector<std::vector<int>>  MatchedClustersIdx = {{}, {}, {}};
-    std::vector<std::vector<int>> MVecNHits = {{}, {}, {}}, MVecTPC = {{}, {}, {}}, MVecChannel = {{}, {}, {}};
+    std::vector<std::vector<int>> MVecMainID = {{}, {}, {}}, MVecNHits = {{}, {}, {}}, MVecTPC = {{}, {}, {}}, MVecChannel = {{}, {}, {}};
     std::vector<std::vector<float>> MVecPur = {{}, {}, {}}, MVecMaxCharge = {{}, {}, {}}, MVecCharge = {{}, {}, {}}, MVecTime = {{}, {}, {}}, MVecRecoX = {{}, {}, {}}, MVecRecoY = {{}, {}, {}}, MVecRecoZ = {{}, {}, {}};
     std::vector<std::vector<float>> MVecDirDir = {{}, {}, {}}, MatchedClCompleteness = {{}, {}, {}}, MVecdT = {{}, {}, {}};
     std::vector<solar::LowECluster> SolarClusters;
@@ -1328,7 +1328,7 @@ namespace solar
     else {
       std::string SolarClusterInfo = "SolarClusterInfo: ";
       SolarClusterInfo = SolarClusterInfo + "(" + ProducerUtils::str(Clusters0.size()) + "," + ProducerUtils::str(Clusters1.size()) + "," + ProducerUtils::str(Clusters2.size()) + ")";
-      lowe->MatchClusters(SignalTrackIDs, MatchedClustersIdx, MatchedClusters, ClustersIdx, AllPlaneClusters, MVecNHits, MVecChannel, MVecTime, MVecRecoY, MVecRecoZ, MVecDirDir, MVecCharge, MVecPur, MatchedClCompleteness, clockData, true);
+      lowe->MatchClusters(SignalTrackIDs, MatchedClustersIdx, MatchedClusters, ClustersIdx, AllPlaneClusters, MVecMainID, MVecNHits, MVecChannel, MVecTime, MVecRecoY, MVecRecoZ, MVecDirDir, MVecCharge, MVecPur, MatchedClCompleteness, clockData, true);
 
       SolarClusterInfo = SolarClusterInfo + "\nFound " + ProducerUtils::str(int(MatchedClustersIdx[2].size())) + " MatchedClusters (from col. plane loop)!";
       for (int ThisClIdx = 0; ThisClIdx < int(MatchedClustersIdx[2].size()); ThisClIdx++)
@@ -1337,6 +1337,7 @@ namespace solar
         for (int plane = 0; plane < 2; plane++)
         {
           int RefClIdx = ClIdxMap[MatchedClustersIdx[plane][ThisClIdx]][1]; // Get the cluster index in the plane
+          MVecMainID[plane].push_back(ClMainID[plane][RefClIdx]); 
           if (MVecTime[plane][ThisClIdx] > -1e6) {
             MVecTime[plane][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
             MVecdT[plane].push_back(abs(MVecTime[2][ThisClIdx] - MVecTime[plane][ThisClIdx]));
@@ -1353,11 +1354,11 @@ namespace solar
           }
         }
         int RefClIdx = ClIdxMap[MatchedClustersIdx[2][ThisClIdx]][1]; // Get the plane index of the matched cluster
+        MVecMainID[2].push_back(ClMainID[2][RefClIdx]);
         MVecRecoX[2].push_back(ClT[2][RefClIdx] *driftLength/driftTime); // Convert to microseconds and then to cm
         MVecTPC[2].push_back(ClTPC[2][RefClIdx]);
         MVecMaxCharge[2].push_back(ClMaxCharge[2][RefClIdx]);
         MVecGenPur.push_back(ClGenPur[2][RefClIdx]);
-        MVecMainID.push_back(ClMainID[2][RefClIdx]);
         MVecGen.push_back(ClGen[2][RefClIdx]);
         MVecFracE.push_back(ClFracE[2][RefClIdx]);
         MVecFracGa.push_back(ClFracGa[2][RefClIdx]);
@@ -1375,6 +1376,7 @@ namespace solar
           continue;
         }
         std::vector<float> clustPos = {MVecRecoX[2][i], MVecRecoY[2][i], MVecRecoZ[2][i]};
+        int clustMainID = MVecMainID[2][i];
         int clustNHits = MVecNHits[2][i];
         int clustChannel = MVecChannel[2][i];
         float clustCharge = MVecCharge[2][i];
@@ -1408,7 +1410,7 @@ namespace solar
           }
         }
 
-        solar::LowECluster ThisSolarCluster(clustPos, clustNHits, clustChannel, clustCharge, clustTime, clustPurity, clustCompleteness, clustVector);
+        solar::LowECluster ThisSolarCluster(clustPos, clustMainID, clustNHits, clustChannel, clustCharge, clustTime, clustPurity, clustCompleteness, clustVector);
         SolarClusters.push_back(ThisSolarCluster);
       }    
     }
@@ -1536,12 +1538,12 @@ namespace solar
           MAdjClPur.push_back(MVecPur[2][j]);
           MAdjClGen.push_back(MVecGen[j]);
           MAdjClGenPur.push_back(MVecGenPur[j]);
-          MAdjClMainID.push_back(MVecMainID[j]);
+          MAdjClMainID.push_back(MVecMainID[2][j]);
 
           // If mother exists add the mother information
           const simb::MCParticle *MAdjClTruth;
           int TerminalOutput = ProducerUtils::supress_stdout();
-          MAdjClTruth = pi_serv->TrackIdToParticle_P(MVecMainID[j]);
+          MAdjClTruth = pi_serv->TrackIdToParticle_P(MVecMainID[2][j]);
           ProducerUtils::resume_stdout(TerminalOutput);
           if (MAdjClTruth == 0)
           {
@@ -1583,7 +1585,7 @@ namespace solar
         if (MPrimary)
         {
           sClusterReco += "*** Matched preselection cluster: " + ProducerUtils::str(i) + "\n";
-          sClusterReco += " - MainTrackID " + ProducerUtils::str(MVecMainID[i]) + "\n";
+          sClusterReco += " - MainTrackID " + ProducerUtils::str(MVecMainID[2][i]) + "\n";
           if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1))
           {
             sClusterReco += " - Gen " + ProducerUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1];
@@ -1776,7 +1778,7 @@ namespace solar
           MAdjFlashResidual.push_back(OpFlashResidual);
         }
         sVertexReco += "*** Reconstructed Interaction Vertex: \n";
-        sVertexReco += " - True X,Y,Z ( " + ProducerUtils::str(SignalParticleX) + ", " + ProducerUtils::str(SignalParticleY) + ", " + ProducerUtils::str(SignalParticleZ) + " )" + "\n";
+        sVertexReco += " - True X,Y,Z ( " + ProducerUtils::str(SignalMaxEDepXMap[MVecMainID[2][i]]) + ", " + ProducerUtils::str(SignalMaxEDepYMap[MVecMainID[2][i]]) + ", " + ProducerUtils::str(SignalMaxEDepZMap[MVecMainID[2][i]]) + " )" + "\n";
         sVertexReco += " - Reco X,Y,Z ( " + ProducerUtils::str(MatchedOpFlashX) + ", " + ProducerUtils::str(MVecRecoY[2][i]) + ", " + ProducerUtils::str(MVecRecoZ[2][i]) + " )";
         sClusterReco += sFlashReco;
         sClusterReco += sVertexReco;
@@ -1820,12 +1822,12 @@ namespace solar
         // Cluster RecoZ
         MRecZ = MVecRecoZ[2][i];
         // Cluster MainID
-        MMainID = MVecMainID[i];
+        MMainID = MVecMainID[2][i];
 
         // If mother exists add the mother information
         const simb::MCParticle *MClTruth;
         int TerminalOutput = ProducerUtils::supress_stdout();
-        MClTruth = pi_serv->TrackIdToParticle_P(MVecMainID[i]);
+        MClTruth = pi_serv->TrackIdToParticle_P(MVecMainID[2][i]);
         ProducerUtils::resume_stdout(TerminalOutput);
         if (MClTruth == 0)
         {
