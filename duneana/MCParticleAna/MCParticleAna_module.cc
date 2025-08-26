@@ -65,7 +65,7 @@ namespace solar
 
     // --- Input settings imported from the fcl
     std::string fGeometry;
-    int fDetectorSizeY, fDetectorSizeZ, fMCParticlePDG;
+    int fMCParticlePDG;
     float fMCParticleMinKE;
     std::vector<std::string> fParticleLabels;
 
@@ -79,6 +79,7 @@ namespace solar
     std::vector<std::map<int, simb::MCParticle>> GeneratorParticles = {};
 
     // --- Declare our services
+    art::ServiceHandle<geo::Geometry> geom;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     std::unique_ptr<producer::ProducerUtils> producer;
   };
@@ -96,9 +97,6 @@ namespace solar
   void MCParticleAna::reconfigure(fhicl::ParameterSet const &p)
   {
     fParticleLabels = p.get<std::vector<std::string>>("ParticleLabelVector");
-    fGeometry = p.get<std::string>("Geometry");
-    fDetectorSizeY = p.get<int>("DetectorSizeY");
-    fDetectorSizeZ = p.get<int>("DetectorSizeZ");
     fMCParticleMinKE = p.get<float>("MCParticleMinKE");
     fMCParticlePDG = p.get<int>("MCParticlePDG");
   } // Reconfigure
@@ -113,9 +111,6 @@ namespace solar
     fMCParticleTree = tfs->make<TTree>("MCParticleTree", "MCParticleTree");
 
     // Larsoft Config info.
-    fConfigTree->Branch("Geometry", &fGeometry);
-    fConfigTree->Branch("DetectorSizeY", &fDetectorSizeY);
-    fConfigTree->Branch("DetectorSizeZ", &fDetectorSizeZ);
     fConfigTree->Branch("MCParticleMinKE", &fMCParticleMinKE);
     fConfigTree->Branch("MCParticlePDG", &fMCParticlePDG);
 
@@ -165,7 +160,11 @@ namespace solar
     Event = evt.event();
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     Flag = rand() % 10000000000;
+    fGeometry = geom->DetectorName();
     std::string sHead = "";
+    sHead = sHead + "\n#########################################";
+    sHead = sHead + "\nAnalyzing event: " + ProducerUtils::str(Event);
+    sHead = sHead + "\nDetector: " + fGeometry;
     sHead = sHead + "\nTPC Frequency in [MHz]: " + ProducerUtils::str(clockData.TPCClock().Frequency());
     sHead = sHead + "\nTPC Tick in [us]: " + ProducerUtils::str(clockData.TPCClock().TickPeriod());
     sHead = sHead + "\nEvent Flag: " + ProducerUtils::str(Flag);
