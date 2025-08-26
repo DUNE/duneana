@@ -5,12 +5,16 @@ BEGIN_PROLOG
 
   solar_nu_ana_hd:
   {
-    module_type:  "SolarNuAna"
-    GEANT4Label:  "largeant"     # The label for the process which ran GEANT4
-    HitLabel:		  "hitfd" 	     # String for the process that made the reco hits
-    TrackLabel:   "pmtracktc"    # The label for the process which ran the PMTrack
-    OpHitLabel:   "ophitspe"     # The label for the process which ran the OpHit
-    OpFlashLabel: "solarflash"   # The label for the process which ran the OpFlash
+    module_type:      "SolarNuAna"
+    GEANT4Label:      "largeant"     # The label for the process which ran GEANT4
+    HitLabel:		      "hitfd" 	     # String for the process that made the reco hits
+    ClusterLabel:     "planecluster" # The label for the process which ran the "perplane" hit clustering
+    SolarClusterLabel:"solarcluster" # The label for the process which ran the solar clustering
+    TrackLabel:       "pmtracktc"    # The label for the process which ran the PMTrack
+    OpHitLabel:       "ophitspe"     # The label for the process which ran the OpHit
+    OpFlashLabel:     "solarflash"   # The label for the process which ran the OpFlash
+    OpFlashTime2us:    false         # If true, the OpFlash time is in [ticks] and will be converted to [us].
+    OpFlashTimeOffset: 0.0           # Time offset to be applied to the OpFlash time in [us] units.
 
     #====================================================================================#
     # The following are the labels for the signal and background processes
@@ -19,9 +23,6 @@ BEGIN_PROLOG
     BackgroundLabelVector: []
 
     #====================================================================================#
-    Geometry:                   "HD"
-    DetectorSizeY:              600          # 1 TPC Y length in [cm].
-    DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
     ClusterChargeVariable:      "Integral"   # Charge variable to use for cluster matching: "Integral" or "SummedADC".
     XACathodeX:                 0            # X position of the VD cathode XAs in [cm].
     XAMembraneY:                0            # Y position of the VD membrane XAs in [cm].
@@ -30,6 +31,7 @@ BEGIN_PROLOG
     ClusterAlgoTime:            25           # Time window to look for plane clusters in [tick] units.
     ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
+    GenerateSolarCluster:       true         # Generate SolarClusters from here defined matching cireteria
     ClusterMatchNHit:           2            # NHit fraction to match clusters. abs(NHitsCol - NHitsInd) / NHitsCol < ClusterMatchNHit.
     ClusterMatchTime:           20.0         # Time window to look for ind. plane clusters in [tick] units.
     ClusterMatchCharge:         0.6          # Charge fraction to match clusters. abs(ChargeCol - ChargeInd) / ChargeCol < ClusterMatchCharge.
@@ -92,13 +94,11 @@ BEGIN_PROLOG
   solar_nu_ana_vd.OpHitLabel:          "ophit10ppm"
   solar_nu_ana_vd.OpFlashLabel:        "solarflash"
   solar_nu_ana_vd.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
-  solar_nu_ana_vd.Geometry:            "VD"
-  solar_nu_ana_vd.DetectorSizeY:       680 
-  solar_nu_ana_vd.DetectorSizeZ:       2100
   solar_nu_ana_vd.XACathodeX:         -327.5
   solar_nu_ana_vd.XAMembraneY:         743.302
   solar_nu_ana_vd.XAFinalCapZ:         2188.38
   solar_nu_ana_vd.XAStartCapZ:        -96.5
+  solar_nu_ana_vd.OpFlashAlgoRad:      500.
   solar_nu_ana_vd.AdjOpFlashX:         200.
   solar_nu_ana_vd.AdjOpFlashY:         200.
   solar_nu_ana_vd.AdjOpFlashZ:         200.
