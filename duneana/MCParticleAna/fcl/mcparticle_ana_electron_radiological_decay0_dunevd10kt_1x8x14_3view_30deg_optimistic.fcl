@@ -1,0 +1,3 @@
+#include "mcparticle_ana_radiological_decay0_dunevd10kt_1x8x14_3view_30deg_optimistic.fcl"
+
+physics.analyzers.mcparticleana.MCParticlePDG: 11 # For electron particles
