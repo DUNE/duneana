@@ -1,0 +1,7 @@
+# Specific configuration for investigating energy depositions of signal events.
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD-VD
+
+#include "solar_ana_flash_radiological_decay0_dunevd10kt_1x8x14_3view_30deg_optimistic.fcl"
+
+physics.analyzers.solarnuana.SaveSignalDaughters: true
+physics.analyzers.solarnuana.AdjOpFlashMembraneProjection: true

@@ -53,6 +53,7 @@
 #include "dunecore/ProducerUtils/ProducerUtils.h"
 #include "dunereco/LowEUtils/LowEUtils.h"
 
+using namespace lowe;
 using namespace producer;
 
 namespace solar
@@ -86,35 +87,36 @@ namespace solar
         std::vector<std::string> ProcessList,
         bool HeavDebug);
 
-    void FillClusterHitVectors(std::vector<recob::Hit> Cluster,
-                               std::vector<int> &TPC,
-                               std::vector<int> &Channel,
-                               std::vector<double> &MotherX,
-                               std::vector<double> &MotherY,
-                               std::vector<double> &MotherZ,
-                               std::vector<double> &MotherE,
-                               std::vector<double> &MotherP,
-                               std::vector<int> &MotherPDG,
-                               std::vector<double> &AncestorX,
-                               std::vector<double> &AncestorY,
-                               std::vector<double> &AncestorZ,
-                               std::vector<double> &AncestorE,
-                               std::vector<double> &AncestorP,
-                               std::vector<int> &AncestorPDG,
-                               std::vector<double> &Charge,
-                               std::vector<double> &Time,
-                               std::vector<double> &Y,
-                               std::vector<double> &Z,
-                               std::vector<double> &Dir,
-                               detinfo::DetectorClocksData clockData,
-                               bool HeavDebug);
+    void FillClusterHitVectors(
+      std::vector<recob::Hit> Cluster,
+      std::vector<int> &TPC,
+      std::vector<int> &Channel,
+      std::vector<double> &MotherX,
+      std::vector<double> &MotherY,
+      std::vector<double> &MotherZ,
+      std::vector<double> &MotherE,
+      std::vector<double> &MotherP,
+      std::vector<int> &MotherPDG,
+      std::vector<double> &AncestorX,
+      std::vector<double> &AncestorY,
+      std::vector<double> &AncestorZ,
+      std::vector<double> &AncestorE,
+      std::vector<double> &AncestorP,
+      std::vector<int> &AncestorPDG,
+      std::vector<double> &Charge,
+      std::vector<double> &Time,
+      std::vector<double> &Y,
+      std::vector<double> &Z,
+      std::vector<double> &Dir,
+      detinfo::DetectorClocksData clockData,
+      bool HeavDebug);
 
     std::vector<std::vector<std::vector<recob::Hit>>> MatchClusters(
-        std::vector<std::vector<std::vector<recob::Hit>>> Clusters,
-        std::vector<std::vector<int>> &ClNHits,
-        std::vector<std::vector<float>> &ClT,
-        std::vector<std::vector<float>> &ClCharge,
-        bool HeavDebug);
+      std::vector<std::vector<std::vector<recob::Hit>>> Clusters,
+      std::vector<std::vector<int>> &ClNHits,
+      std::vector<std::vector<float>> &ClT,
+      std::vector<std::vector<float>> &ClCharge,
+      bool HeavDebug);
 
     // std::vector<double> ComputeInterpolationRecoY(
     //     int Event,
@@ -182,7 +184,7 @@ namespace solar
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     std::unique_ptr<solar::AdjOpHitsUtils> adjophits;
     std::unique_ptr<producer::ProducerUtils> producer;
-    std::unique_ptr<solar::LowEUtils> lowe;
+    std::unique_ptr<lowe::LowEUtils> lowe;
   };
 #endif
 
@@ -191,7 +193,7 @@ namespace solar
       : EDAnalyzer(p),
         adjophits(new solar::AdjOpHitsUtils(p)),
         producer(new producer::ProducerUtils(p)),
-        lowe(new solar::LowEUtils(p))
+        lowe(new lowe::LowEUtils(p))
   {
     this->reconfigure(p);
   }
@@ -882,28 +884,29 @@ namespace solar
   // }
 
   //......................................................
-  void LowEAna::FillClusterHitVectors(std::vector<recob::Hit> Cluster,
-                                      std::vector<int> &TPC,
-                                      std::vector<int> &Channel,
-                                      std::vector<double> &MotherX,
-                                      std::vector<double> &MotherY,
-                                      std::vector<double> &MotherZ,
-                                      std::vector<double> &MotherE,
-                                      std::vector<double> &MotherP,
-                                      std::vector<int> &MotherPDG,
-                                      std::vector<double> &AncestorX,
-                                      std::vector<double> &AncestorY,
-                                      std::vector<double> &AncestorZ,
-                                      std::vector<double> &AncestorE,
-                                      std::vector<double> &AncestorP,
-                                      std::vector<int> &AncestorPDG,
-                                      std::vector<double> &Charge,
-                                      std::vector<double> &Time,
-                                      std::vector<double> &Y,
-                                      std::vector<double> &Z,
-                                      std::vector<double> &Dir,
-                                      detinfo::DetectorClocksData ClockData,
-                                      bool HeavDebug)
+  void LowEAna::FillClusterHitVectors(
+    std::vector<recob::Hit> Cluster,
+    std::vector<int> &TPC,
+    std::vector<int> &Channel,
+    std::vector<double> &MotherX,
+    std::vector<double> &MotherY,
+    std::vector<double> &MotherZ,
+    std::vector<double> &MotherE,
+    std::vector<double> &MotherP,
+    std::vector<int> &MotherPDG,
+    std::vector<double> &AncestorX,
+    std::vector<double> &AncestorY,
+    std::vector<double> &AncestorZ,
+    std::vector<double> &AncestorE,
+    std::vector<double> &AncestorP,
+    std::vector<int> &AncestorPDG,
+    std::vector<double> &Charge,
+    std::vector<double> &Time,
+    std::vector<double> &Y,
+    std::vector<double> &Z,
+    std::vector<double> &Dir,
+    detinfo::DetectorClocksData ClockData,
+    bool HeavDebug)
   /*
    */
   {
