@@ -1,4 +1,4 @@
-#include "mcparticle_ana_radiological_decay0_dune10kt_1x2x6_centralAPA.fcl"
+#include "mcparticle_ana_all_radiological_decay0_dune10kt_1x2x6_centralAPA.fcl"
 
 physics.analyzers.mcparticleana.MCParticlePDG: 11 # For electron particles
 physics.analyzers.mcparticleana.MCParticleMinKE: 4. # MeV
