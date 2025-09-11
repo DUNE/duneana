@@ -1648,8 +1648,8 @@ namespace solar
           }
           else if (fGeometry == "VD" && (OpFlashPlane[j] == 1 || OpFlashPlane[j] == 2)) { // Membrane flashes
             if (fAdjOpFlashMembraneProjection) {
-              if (MVecRecoY[2][i] * OpFlashY[j] < 0) { continue; } // Cluster and flash on different sides of the membrane are not compatible
-              else if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1) { continue; }
+              if (MVecRecoY[2][i] * OpFlashY[j] < 0) { continue; } // Only consider clusters and flashes on the same side of the detector
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1) { continue; }
             }
             else {
               if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1) { continue; }
@@ -1658,15 +1658,9 @@ namespace solar
           } 
           else if (fGeometry == "VD" && (OpFlashPlane[j] == 3 || OpFlashPlane[j] == 4)) { // End-Cap flashes
             if (fAdjOpFlashEndCapProjection){
-              if (MVecRecoZ[2][i] > fidVolZ / 2 && OpFlashPlane[j] == 3) {
-                continue; // Cluster and flash on different sides of the volume are not compatible
-              }
-              else if (MVecRecoZ[2][i] < fidVolZ / 2 && OpFlashPlane[j] == 4) {
-                continue; // Cluster and flash on different sides of the volume are not compatible
-              }
-              else if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1){
-                continue;
-              }
+              if (MVecRecoZ[2][i] < fidVolZ / 2 && OpFlashPlane[j] == 3) { continue; } // Only consider clusters and flashes on the same half of the volume
+              if (MVecRecoZ[2][i] > fidVolZ / 2 && OpFlashPlane[j] == 4) { continue; } // Only consider clusters and flashes on the same half of the volume
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1){ continue; }
             }
             else{
               if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
