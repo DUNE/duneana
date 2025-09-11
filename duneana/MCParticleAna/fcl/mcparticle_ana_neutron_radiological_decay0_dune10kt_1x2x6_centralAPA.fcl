@@ -1,4 +1,3 @@
 #include "mcparticle_ana_all_radiological_decay0_dune10kt_1x2x6_centralAPA.fcl"
 
 physics.analyzers.mcparticleana.MCParticlePDG: 2112 # For neutron particles
-physics.analyzers.mcparticleana.MCParticleMinKE: 4. # MeV
