@@ -975,7 +975,7 @@ namespace solar
           SOpHitY.push_back(OpHitXYZ.Y());
           SOpHitZ.push_back(OpHitXYZ.Z());
           SOpHitFlashID.push_back(i);
-          SOpHitPlane.push_back(adjophits->GetOpHitPlane(OpHitPtr));
+          SOpHitPlane.push_back(adjophits->GetOpHitPlane(OpHitPtr, 0.01)); // Get plane assignment for the OpHit
         } // End of OpHit loop
 
         // Check that all OpHits are assigned to the same plane
@@ -985,11 +985,11 @@ namespace solar
           if (SOpHitPlane[j] != SOpHitPlane[0])
           {
             FlashPlane = -1;
-            mf::LogError("SolarNuAna") << "OpHits are not assigned to the same plane!";
+            mf::LogError("SolarNuAna") << "OpHits are not assigned to the same plane! First plane " << SOpHitPlane[0] << " and plane " << SOpHitPlane[j] << " for OpHit " << j;
           }
           else
           {
-            FlashPlane = SOpHitPlane[0];
+            FlashPlane = TheFlash.Frame(); // Assumes the frame has been set to be the plane in the OpFlash producer
           }
         }
 
