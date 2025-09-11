@@ -176,11 +176,9 @@ namespace solar
     //----------------------------------------------------------------- Create maps for ID tracking -----------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     // --- Fill MC Truth IDs to tracking vectors. Get a list of all of my particles in one chunk. ---
-    const sim::ParticleList &PartList = pi_serv->ParticleList();
     std::vector<int> ParticelTypeCount = {0, 0, 0, 0, 0}; // {"alpha", "electron", "gamma", "neutron", "other"}
-
+    int TotalParticles = 0;
     std::string sMcTruth = "";
-    sMcTruth = sMcTruth + "\nThere are a total of " + ProducerUtils::str(int(PartList.size())) + " Particles in the event\n";
 
     // Loop over all bkg handles and collect track IDs
     for (size_t i = 0; i < fParticleLabels.size(); i++)
@@ -195,6 +193,7 @@ namespace solar
         for (auto const &ParticleTruth : *ThisHandle)
         {
           int NParticles = ParticleTruth.NParticles();
+          TotalParticles = TotalParticles + NParticles;
           sMcTruth = sMcTruth + "\n# of particles " + ProducerUtils::str(NParticles) + "\tfrom gen " + ProducerUtils::str(int(i) + 1) + " " + fParticleLabels[i];
           ParticleLabelID = i+1;
           for (int j = 0; j < NParticles; j++)
@@ -258,6 +257,7 @@ namespace solar
         trackids.push_back(ThisGeneratorIDs);
       }
     }
+    sMcTruth = sMcTruth + "\nThere are a total of " + ProducerUtils::str(TotalParticles) + " Particles in the event\n";
     AlphaCount = ParticelTypeCount[0];
     ElectronCount = ParticelTypeCount[1];
     GammaCount = ParticelTypeCount[2];

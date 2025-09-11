@@ -23,7 +23,7 @@ physics:
 { 
   analyzers:
   {
-    mcparticleana: @local::solar_nu_ana_vd_1x8x14_optimisitic
+    mcparticleana: @local::solar_nu_ana_vd_1x8x14_optimistic
   }
   ana: [ mcparticleana ]
   end_paths: [ ana ] 
