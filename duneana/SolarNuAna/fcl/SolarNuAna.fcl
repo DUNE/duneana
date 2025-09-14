@@ -5,16 +5,16 @@ BEGIN_PROLOG
 
   solar_nu_ana_hd:
   {
-    module_type:      "SolarNuAna"
-    GEANT4Label:      "largeant"     # The label for the process which ran GEANT4
-    HitLabel:		      "hitfd" 	     # String for the process that made the reco hits
-    ClusterLabel:     "planecluster" # The label for the process which ran the "perplane" hit clustering
-    SolarClusterLabel:"solarcluster" # The label for the process which ran the solar clustering
-    TrackLabel:       "pmtracktc"    # The label for the process which ran the PMTrack
-    OpHitLabel:       "ophitspe"     # The label for the process which ran the OpHit
-    OpFlashLabel:     "solarflash"   # The label for the process which ran the OpFlash
-    OpFlashTime2us:    false         # If true, the OpFlash time is in [ticks] and will be converted to [us].
-    OpFlashTimeOffset: 0.0           # Time offset to be applied to the OpFlash time in [us] units.
+    module_type:       "SolarNuAna"
+    GEANT4Label:       "largeant"     # The label for the process which ran GEANT4
+    HitLabel:		       "hitfd" 	      # String for the process that made the reco hits
+    ClusterLabel:      "planecluster" # The label for the process which ran the "perplane" hit clustering
+    SolarClusterLabel: "solarcluster" # The label for the process which ran the solar clustering
+    TrackLabel:        "pmtracktc"    # The label for the process which ran the PMTrack
+    OpHitLabel:        "ophitspe"     # The label for the process which ran the OpHit
+    OpFlashLabel:      "solarflash"   # The label for the process which ran the OpFlash
+    OpFlashTime2us:     false         # If true, the OpFlash time is in [ticks] and will be converted to [us]. For other producers than "solarflash".
+    OpFlashTimeOffset:  0.0           # Time offset to be applied to the OpFlash time in [us] units.
 
     #====================================================================================#
     # The following are the labels for the signal and background processes
@@ -24,19 +24,20 @@ BEGIN_PROLOG
 
     #====================================================================================#
     ClusterChargeVariable:      "Integral"   # Charge variable to use for cluster matching: "Integral" or "SummedADC".
+    OpHitTimeVariable:          "PeakTime"   # Time variable to use for OpHit selection: "PeakTime" or "StartTime".
     XACathodeX:                 0            # X position of the VD cathode XAs in [cm].
     XAMembraneY:                0            # Y position of the VD membrane XAs in [cm].
     XAFinalCapZ:                0            # Z position of the VD final cap XAs in [cm].
     XAStartCapZ:                0            # Z position of the VD start cap XAs in [cm].
-    ClusterAlgoTime:            25           # Time window to look for plane clusters in [tick] units.
+    ClusterAlgoTime:            12.5         # Time window to look for plane clusters in [us] units.
     ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
     
     GenerateSolarCluster:       true         # Generate SolarClusters from here defined matching cireteria
     ClusterMatchNHit:           2            # NHit fraction to match clusters. abs(NHitsCol - NHitsInd) / NHitsCol < ClusterMatchNHit.
-    ClusterMatchTime:           20.0         # Time window to look for ind. plane clusters in [tick] units.
+    ClusterMatchTime:           10.0         # Time window to look for ind. plane clusters in [us] units.
     ClusterMatchCharge:         0.6          # Charge fraction to match clusters. abs(ChargeCol - ChargeInd) / ChargeCol < ClusterMatchCharge.
-    ClusterInd0MatchTime:       0.00         # Wirecell seems to have made this obsolete.
-    ClusterInd1MatchTime:       0.00         # Wirecell seems to have made this obsolete.
+    ClusterInd0MatchTime:       0.00         # Time delay between Col and Ind0 in [us]. Wirecell seems to have made this obsolete
+    ClusterInd1MatchTime:       0.00         # Time delay between Col and Ind0 in [us]. Wirecell seems to have made this obsolete.
     
     ClusterPreselectionSignal:     true      # If true, the cluster must be signal particle to be saved.
     ClusterPreselectionPrimary:    true      # If true, the cluster must be primary particle to be saved.
@@ -45,28 +46,28 @@ BEGIN_PROLOG
     ClusterPreselectionFlashMatch: false     # If true, the cluster must be matched with a flash to be saved.
 
     GenerateAdjCluster:         true         # Generate adjacent clusters.
-    MinClusterCharge:           0.           # Min Charge for adj. clusters in [ADCxTick].
+    MinClusterCharge:           0.           # Min Charge for adj. clusters in [ADC x tick].
     AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
     AdjClusterSingleMatch:      false        # If true, each adjacent cluster is allowed to match only one primary cluster.
 
     GenerateAdjOpFlash:         false        # Generate OpFlashes.
     OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
-    OpFlashAlgoMinTime:         0.60         # Negative time window to look for adj. OpHits in [tick] units.
-    OpFlashAlgoMaxTime:         1.00         # Positive time window to look for adj. OpHits in [tick] units.
-    OpFlashAlgoRad:             300          # Distance to look for adj. OpHits in [cm] units.
+    OpFlashAlgoMinTime:         0.05         # Negative time window to look for adj. OpHits in [us] units.
+    OpFlashAlgoMaxTime:         0.10         # Positive time window to look for adj. OpHits in [us] units.
+    OpFlashAlgoRad:             500          # Distance to look for adj. OpHits in [cm] units.
     OpFlashAlgoPE:              1.5          # PE threshold to look for adj. OpHits.
     OpFlashAlgoTriggerPE:       1.5          # PE threshold to trigger an OpFlash.
     OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
 
-    AdjOpFlashX:                  100.         # X distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashY:                  100.         # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashZ:                  100.         # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashMaxPERatioCut:      1.00         # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
-    AdjOpFlashMinPECut:           20.0         # Cut on the minimum OpHit PE. From average bkg rate of ~20 PE per tick.
-    AdjOpFlashMinNHitCut:         3            # Cut on the minimum number of OpHits in the OpFlash.
-    AdjOpFlashMembraneProjection: false        # If true, the OpFlash matching is projected on the membrane planes for VD.
-    AdjOpFlashEndCapProjection:   false        # If true, the OpFlash matching is projected on the end cap planes for VD.
-    FlashMatchByResidual:         false        # Match flashes by residual. Alternative is to match by MaxFlashPE.
+    AdjOpFlashX:                  100.       # X distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashY:                  100.       # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashZ:                  100.       # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashMaxPERatioCut:      1.00       # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
+    AdjOpFlashMinPECut:           20.0       # Cut on the minimum OpHit PE.
+    AdjOpFlashMinNHitCut:         3          # Cut on the minimum number of OpHits in the OpFlash.
+    AdjOpFlashMembraneProjection: false      # If true, the OpFlash matching is projected on the membrane planes for VD.
+    AdjOpFlashEndCapProjection:   false      # If true, the OpFlash matching is projected on the end cap planes for VD.
+    FlashMatchByResidual:         false      # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
     SaveSignalDaughters:        false        # Save the daughters of the signal particles.
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
@@ -98,8 +99,8 @@ BEGIN_PROLOG
   solar_nu_ana_vd.XAMembraneY:           743.302
   solar_nu_ana_vd.XAFinalCapZ:           2188.38
   solar_nu_ana_vd.XAStartCapZ:          -96.5
-  solar_nu_ana_vd.OpFlashAlgoMinTime:    2.0
-  solar_nu_ana_vd.OpFlashAlgoMaxTime:    2.0
+  solar_nu_ana_vd.OpFlashAlgoMinTime:    0.20
+  solar_nu_ana_vd.OpFlashAlgoMaxTime:    0.20
   solar_nu_ana_vd.OpFlashAlgoRad:        500.
   solar_nu_ana_vd.AdjOpFlashX:           100.
   solar_nu_ana_vd.AdjOpFlashY:           100.
