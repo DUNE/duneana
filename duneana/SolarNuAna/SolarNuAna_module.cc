@@ -194,17 +194,17 @@ namespace solar
     fXAMembraneY = p.get<float>("XAMembraneY");
     fXAStartCapZ = p.get<float>("XAStartCapZ");
     fXAFinalCapZ = p.get<float>("XAFinalCapZ");
-    fOpFlashAlgoMinTime = p.get<double>("OpFlashAlgoMinTime");
-    fOpFlashAlgoMaxTime = p.get<double>("OpFlashAlgoMaxTime");
+    fOpFlashAlgoMinTime = p.get<double>("OpFlashAlgoMinTime", 0.010); // 10 ns [0.6 tick]
+    fOpFlashAlgoMaxTime = p.get<double>("OpFlashAlgoMaxTime", 0.016); // 16 ns [1 tick]
     fOpFlashAlgoRad = p.get<double>("OpFlashAlgoRad");
     fOpFlashAlgoPE = p.get<float>("OpFlashAlgoPE");
     fOpFlashAlgoTriggerPE = p.get<float>("OpFlashAlgoTriggerPE");
     fOpFlashAlgoHotVertexThld = p.get<float>("OpFlashAlgoHotVertexThld");
     fAdjOpFlashMembraneProjection = p.get<bool>("AdjOpFlashMembraneProjection");
     fAdjOpFlashEndCapProjection = p.get<bool>("AdjOpFlashEndCapProjection");
-    fAdjOpFlashX = p.get<float>("AdjOpFlashX");
-    fAdjOpFlashY = p.get<float>("AdjOpFlashY");
-    fAdjOpFlashZ = p.get<float>("AdjOpFlashZ");
+    fAdjOpFlashX = p.get<float>("AdjOpFlashX", 100.0);
+    fAdjOpFlashY = p.get<float>("AdjOpFlashY", 100.0);
+    fAdjOpFlashZ = p.get<float>("AdjOpFlashZ", 100.0);
     fAdjOpFlashMaxPERatioCut = p.get<float>("AdjOpFlashMaxPERatioCut");
     fAdjOpFlashMinPECut = p.get<float>("AdjOpFlashMinPECut");
     fAdjOpFlashMinNHitCut = p.get<int>("AdjOpFlashMinNHitCut");
@@ -287,7 +287,7 @@ namespace solar
     fMCTruthTree->Branch("Event", &Event, "Event/I");                                        // Event number
     fMCTruthTree->Branch("Flag", &Flag, "Flag/I");                                           // Flag used to match truth with reco tree entries
     fMCTruthTree->Branch("TruthPart", &TPart);                                               // Number particles per generator
-    fMCTruthTree->Branch("Interaction", &sInteraction);                                    // True signal interaction process
+    fMCTruthTree->Branch("Interaction", &sInteraction);                                      // True signal interaction process
     fMCTruthTree->Branch("SignalParticleE", &SignalParticleE, "SignalParticleE/F");          // True signal energy [MeV]
     fMCTruthTree->Branch("SignalParticleP", &SignalParticleP, "SignalParticleP/F");          // True signal momentum [MeV]
     fMCTruthTree->Branch("SignalParticleK", &SignalParticleK, "SignalParticleK/F");          // True signal K.E. [MeV]
@@ -360,7 +360,7 @@ namespace solar
     fSolarNuAnaTree->Branch("Event", &Event, "Event/I");                                        // Event number
     fSolarNuAnaTree->Branch("Flag", &Flag, "Flag/I");                                           // Flag used to match truth with reco tree entries
     fSolarNuAnaTree->Branch("TruthPart", &TPart);                                               // Number particles per generator
-    fSolarNuAnaTree->Branch("Interaction", &sInteraction);                                    // True signal interaction process
+    fSolarNuAnaTree->Branch("Interaction", &sInteraction);                                      // True signal interaction process
     fSolarNuAnaTree->Branch("SignalParticleE", &SignalParticleE, "SignalParticleE/F");          // True signal energy [MeV]
     fSolarNuAnaTree->Branch("SignalParticleP", &SignalParticleP, "SignalParticleP/F");          // True signal momentum [MeV]
     fSolarNuAnaTree->Branch("SignalParticleK", &SignalParticleK, "SignalParticleK/F");          // True signal K.E. [MeV]
@@ -583,6 +583,7 @@ namespace solar
     sHead = sHead + "\n#########################################";
     sHead = sHead + "\nEvent: " + ProducerUtils::str(Event) + " Flag: " + ProducerUtils::str(Flag);
     sHead = sHead + "\nGeometry: " + geoName + " (" + fGeometry + ")";
+    sHead = sHead + "\nSignal Label: " + fLabels[0];
     sHead = sHead + "\nPDS Frequency in [MHz]: " + ProducerUtils::str(clockData.OpticalClock().Frequency());
     sHead = sHead + "\nPDS Tick in [us]: " + ProducerUtils::str(clockData.OpticalClock().TickPeriod(), 3);
     sHead = sHead + "\nTPC Frequency in [MHz]: " + ProducerUtils::str(clockData.TPCClock().Frequency());
@@ -1607,7 +1608,7 @@ namespace solar
           if ((MVecTime[2][i] - OpFlashTime[j]) < 0 || (MVecTime[2][i] - OpFlashTime[j]) > TPCIDdriftTime[MVecTPC[2][i]]) { continue; }          
           producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
 
-          if (fGeometry == "HD" && OpFlashX[j] < 0) {
+          if (fGeometry == "HD" && MVecTPC[2][i]%2 == 0) {
             MAdjFlashX = -MAdjFlashX;
           }
           if (fGeometry == "VD") {
