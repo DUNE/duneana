@@ -583,6 +583,7 @@ namespace solar
     sHead = sHead + "\n#########################################";
     sHead = sHead + "\nEvent: " + ProducerUtils::str(Event) + " Flag: " + ProducerUtils::str(Flag);
     sHead = sHead + "\nGeometry: " + geoName + " (" + fGeometry + ")";
+    sHead = sHead + "\nSignal Label: " + fLabels[0];
     sHead = sHead + "\nPDS Frequency in [MHz]: " + ProducerUtils::str(clockData.OpticalClock().Frequency());
     sHead = sHead + "\nPDS Tick in [us]: " + ProducerUtils::str(clockData.OpticalClock().TickPeriod(), 3);
     sHead = sHead + "\nTPC Frequency in [MHz]: " + ProducerUtils::str(clockData.TPCClock().Frequency());

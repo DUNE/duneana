@@ -52,8 +52,8 @@ BEGIN_PROLOG
 
     GenerateAdjOpFlash:         false        # Generate OpFlashes.
     OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
-    OpFlashAlgoMinTime:         0.05         # Negative time window to look for adj. OpHits in [us] units.
-    OpFlashAlgoMaxTime:         0.10         # Positive time window to look for adj. OpHits in [us] units.
+    OpFlashAlgoMinTime:         0.005        # Negative time window to look for adj. OpHits in [us] units.
+    OpFlashAlgoMaxTime:         0.01         # Positive time window to look for adj. OpHits in [us] units.
     OpFlashAlgoRad:             500          # Distance to look for adj. OpHits in [cm] units.
     OpFlashAlgoPE:              1.5          # PE threshold to look for adj. OpHits.
     OpFlashAlgoTriggerPE:       1.5          # PE threshold to trigger an OpFlash.
@@ -99,8 +99,8 @@ BEGIN_PROLOG
   solar_nu_ana_vd.XAMembraneY:           743.302
   solar_nu_ana_vd.XAFinalCapZ:           2188.38
   solar_nu_ana_vd.XAStartCapZ:          -96.5
-  solar_nu_ana_vd.OpFlashAlgoMinTime:    0.20
-  solar_nu_ana_vd.OpFlashAlgoMaxTime:    0.20
+  solar_nu_ana_vd.OpFlashAlgoMinTime:    0.03
+  solar_nu_ana_vd.OpFlashAlgoMaxTime:    0.03
   solar_nu_ana_vd.OpFlashAlgoRad:        500.
   solar_nu_ana_vd.AdjOpFlashX:           100.
   solar_nu_ana_vd.AdjOpFlashY:           100.
