@@ -64,6 +64,8 @@ BEGIN_PROLOG
     AdjOpFlashZ:                  100.       # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
     AdjOpFlashMaxPERatioCut:      1.00       # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:           20.0       # Cut on the minimum OpHit PE.
+    AdjOpFlashMinPEAttenuate:     true       # If true, the minimum PE cut is attenuated after a full drift length.
+    AdjOpFlashMinPEAttenuation:   0.5        # Linear attenuation on the minimum PE cut after a full drift length.
     AdjOpFlashMinNHitCut:         3          # Cut on the minimum number of OpHits in the OpFlash.
     AdjOpFlashMembraneProjection: false      # If true, the OpFlash matching is projected on the membrane planes for VD.
     AdjOpFlashEndCapProjection:   false      # If true, the OpFlash matching is projected on the end cap planes for VD.

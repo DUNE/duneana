@@ -84,12 +84,12 @@ namespace solar
     std::vector<std::string> fLabels, fBackgroundLabels;
     std::string fSignalLabel, fClusterLabel, fSolarClusterLabel, fClusterChargeVariable, fOpHitTimeVariable;
     int fDetectorSizeY, fDetectorSizeZ, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut;
-    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
+    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fAdjOpFlashMinPEAttenuation, fClusterMatchNHit, fClusterAlgoTime;
     float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld, fXACathodeX, fXAMembraneY, fXAStartCapZ, fXAFinalCapZ;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
     bool fGenerateSolarCluster, fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
     bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveTrackInfo;
-    bool fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
+    bool fAdjOpFlashMinPEAttenuate, fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
     bool fOpFlashTime2us; // If true, the OpFlash time is in ticks, and we convert it to microseconds.
 
     // --- Our TTrees, and its associated variables.
@@ -207,6 +207,8 @@ namespace solar
     fAdjOpFlashZ = p.get<float>("AdjOpFlashZ", 100.0);
     fAdjOpFlashMaxPERatioCut = p.get<float>("AdjOpFlashMaxPERatioCut");
     fAdjOpFlashMinPECut = p.get<float>("AdjOpFlashMinPECut");
+    fAdjOpFlashMinPEAttenuate = p.get<bool>("AdjOpFlashMinPEAttenuate");
+    fAdjOpFlashMinPEAttenuation = p.get<float>("AdjOpFlashMinPEAttenuation");
     fAdjOpFlashMinNHitCut = p.get<int>("AdjOpFlashMinNHitCut");
     fFlashMatchByResidual = p.get<bool>("FlashMatchByResidual");
     fSaveSignalDaughters = p.get<bool>("SaveSignalDaughters");
@@ -275,6 +277,8 @@ namespace solar
     fConfigTree->Branch("AdjOpFlashZ", &fAdjOpFlashZ);
     fConfigTree->Branch("AdjOpFlashMaxPERatioCut", &fAdjOpFlashMaxPERatioCut);
     fConfigTree->Branch("AdjOpFlashMinPECut", &fAdjOpFlashMinPECut);
+    fConfigTree->Branch("AdjOpFlashMinPEAttenuate", &fAdjOpFlashMinPEAttenuate);
+    fConfigTree->Branch("AdjOpFlashMinPEAttenuation", &fAdjOpFlashMinPEAttenuation);
     fConfigTree->Branch("AdjOpFlashMinNHitCut", &fAdjOpFlashMinNHitCut);
     fConfigTree->Branch("FlashMatchByResidual", &fFlashMatchByResidual);
     fConfigTree->Branch("SaveSignalDaughters", &fSaveSignalDaughters);
@@ -1604,10 +1608,10 @@ namespace solar
         {
           // Skip flashes with time outside the cluster time window
           float OpFlashR = -1e6;
-          double MAdjFlashX = 0;
+          double MAdjFlashX = 0, MAdjFlashDrift = 0;
           if ((MVecTime[2][i] - OpFlashTime[j]) < 0 || (MVecTime[2][i] - OpFlashTime[j]) > TPCIDdriftTime[MVecTPC[2][i]]) { continue; }          
           producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
-
+          MAdjFlashDrift = MAdjFlashX;
           if (fGeometry == "HD" && MVecTPC[2][i]%2 == 0) {
             MAdjFlashX = -MAdjFlashX;
           }
@@ -1672,19 +1676,23 @@ namespace solar
           adjophits->FlashMatchResidual(OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]));
           // Print the flash information for debugging
           sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + " with residual " + ProducerUtils::str(OpFlashResidual) + "\n";
-          // Make a cut on the flash PE and MaxPE distributions
-          if (OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut || OpFlashPE[j] < fAdjOpFlashMinPECut)
-          {
+          // Make a cut on the flash PE. If attenuation is activated, the further the flash, the less PE is required.
+          if (fAdjOpFlashMinPEAttenuate) {
+            if (OpFlashPE[j] <  fAdjOpFlashMinPECut - fAdjOpFlashMinPEAttenuation*fAdjOpFlashMinPECut*MAdjFlashDrift/TPCIDdriftLength[MVecTPC[2][i]]) { continue; }
+          }
+          else {
+            if (OpFlashPE[j] < fAdjOpFlashMinPECut) { continue; }
+          }
+          // Make a cut on the flash MaxPE/PE ratio.
+          if (OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut) {
             continue;
           }
-          // Create a cut based on a sigmoid function of the opflash number of hits versus the associated drift time
-          if (OpFlashNHits[j] < fAdjOpFlashMinNHitCut)
-          {
+          // Create a cut based on a sigmoid function of the opflash number of hits versus the associated drift time.
+          if (OpFlashNHits[j] < fAdjOpFlashMinNHitCut) {
             continue;
           }
-          // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash
-          if ((fFlashMatchByResidual && OpFlashResidual < MatchedOpFlashResidual) || (!fFlashMatchByResidual && OpFlashPE[j] > MatchedOpFlashPE))
-          {
+          // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
+          if ((fFlashMatchByResidual && OpFlashResidual < MatchedOpFlashResidual) || (!fFlashMatchByResidual && OpFlashPE[j] > MatchedOpFlashPE)) {
             MFlashR = OpFlashR;
             MFlashPE = OpFlashPE[j];
             MFlashFast = OpFlashFast[j];
@@ -1698,7 +1706,7 @@ namespace solar
             MFlashRecoY = OpFlashY[j];
             MFlashRecoZ = OpFlashZ[j];
             MFlashResidual = OpFlashResidual;
-            // Create an output string with the flash information
+            // Create an output string with the flash information.
             sFlashReco = "*** Matched flash: \n - Purity " + ProducerUtils::str(OpFlashPur[j]) +
               " Plane " + ProducerUtils::str(OpFlashPlane[j]) +
               " #Hits " + ProducerUtils::str(OpFlashNHits[j]) +
@@ -1717,7 +1725,7 @@ namespace solar
         
         producer->PrintInColor(sFlashMatching, ProducerUtils::GetColor(sResultColor), "Debug");
 
-        if (fLabels[0] != "marley") { // If not marley, save the true signal particle information based on the mainID
+        if (fLabels[0] != "marley") { // If not marley, save the true signal particle information based on the mainID.
           SignalParticlePDG = SignalPDGMap[SignalPrimaryMap[MVecMainID[2][i]]];
           SignalParticleE = SignalEMap[SignalPrimaryMap[MVecMainID[2][i]]];
           SignalParticleP = SignalPMap[SignalPrimaryMap[MVecMainID[2][i]]];
@@ -1739,7 +1747,7 @@ namespace solar
         if (fClusterPreselectionFlashMatch && MatchedOpFlashPE < 0) {
           continue;
         } 
-        // Fill the tree with the cluster information and the adjacent clusters and flashes
+        // Fill the tree with the cluster information and the adjacent clusters and flashes.
         MInd0Pur = MVecPur[0][i];
         MInd1Pur = MVecPur[1][i];
         MPur = MVecPur[2][i];
@@ -1801,7 +1809,7 @@ namespace solar
           MMainP = 1e3 * MClTruth->P();
           MMainK = MMainE - 1e3 * MClTruth->Mass();
           MMainTime = MClTruth->T();
-          // If exists add the parent information
+          // If exists add the parent information.
           const simb::MCParticle *MClParentTruth;
 
           int TerminalOutput = ProducerUtils::supress_stdout();
@@ -1832,7 +1840,7 @@ namespace solar
         hYTruth->Fill(MRecY - SignalParticleY, SignalParticleY);
         hZTruth->Fill(MRecZ - SignalParticleZ, SignalParticleZ);
       }
-      // Check if the string sClusterReco is not empty and print it in color
+      // Check if the string sClusterReco is not empty and print it in color.
       if (sClusterReco != "") { producer->PrintInColor(sClusterReco, ProducerUtils::GetColor(sResultColor)); }
     }
     fMCTruthTree->Fill();
