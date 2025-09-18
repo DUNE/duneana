@@ -72,7 +72,7 @@ namespace solar
     void analyze(art::Event const &evt) override;
     void reconfigure(fhicl::ParameterSet const &p);
     void beginJob() override;
-
+    void endJob() override;
   private:
     // --- Some of our own functions.
     void ResetVariables();
@@ -82,16 +82,17 @@ namespace solar
 
     // --- Input settings imported from the fcl
     std::vector<std::string> fLabels, fBackgroundLabels;
-    std::string fSignalLabel, fClusterLabel, fSolarClusterLabel, fClusterChargeVariable, fOpHitTimeVariable;
-    int fDetectorSizeY, fDetectorSizeZ, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut;
+    std::string fSignalLabel, fClusterLabel, fSolarClusterLabel, fClusterChargeVariable, fOpHitTimeVariable, fAdjOpFlashMinPEAttenuate;
+    int fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut, fAdjOpFlashMinPEAttenuationStrength;
+    float fMaxSignalK; 
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fAdjOpFlashMinPEAttenuation, fClusterMatchNHit, fClusterAlgoTime;
     float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld, fXACathodeX, fXAMembraneY, fXAStartCapZ, fXAFinalCapZ;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
     bool fGenerateSolarCluster, fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
     bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveTrackInfo;
-    bool fAdjOpFlashMinPEAttenuate, fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
+    bool fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
     bool fOpFlashTime2us; // If true, the OpFlash time is in ticks, and we convert it to microseconds.
-
+    std::vector<bool> SelectedEvents; // List of events that pass the selection. 0 = not selected, 1 = selected.
     // --- Our TTrees, and its associated variables.
     TTree *fConfigTree;
     TTree *fMCTruthTree;
@@ -173,6 +174,7 @@ namespace solar
     fOpFlashLabel = p.get<std::string>("OpFlashLabel", "solarflash");
     fOpFlashTime2us = p.get<bool>("OpFlashTime2us", false);      // If true, the OpFlash time is in ticks, and we convert it to microseconds.
     fOpFlashTimeOffset = p.get<float>("OpFlashTimeOffset", 0.0); // Time offset to be applied to the OpFlash time (in us if fOpFlashTime2us is true, in ticks otherwise)
+    fMaxSignalK = p.get<float>("MaxSignalK", 30.0); // Maximum kinetic energy in [MeV] of the particle considered as signal
     fClusterAlgoTime = p.get<float>("ClusterAlgoTime", 12.5);    // Time window (in us) to look for hits to be clustered together
     fClusterAlgoAdjChannel = p.get<int>("ClusterAlgoAdjChannel");
     fGenerateSolarCluster = p.get<bool>("GenerateSolarCluster",true);
@@ -187,9 +189,9 @@ namespace solar
     fClusterPreselectionTrack = p.get<bool>("ClusterPreselectionTrack", false);
     fClusterPreselectionFlashMatch = p.get<bool>("ClusterPreselectionFlashMatch", false);
     fGenerateAdjCluster = p.get<bool>("GenerateAdjCluster", true);
-    fAdjClusterRad = p.get<float>("AdjClusterRad");
-    fMinClusterCharge = p.get<float>("MinClusterCharge");
-    fGenerateAdjOpFlash = p.get<bool>("GenerateAdjOpFlash");
+    fAdjClusterRad = p.get<float>("AdjClusterRad", 100.0);
+    fMinClusterCharge = p.get<float>("MinClusterCharge", 0.0);
+    fGenerateAdjOpFlash = p.get<bool>("GenerateAdjOpFlash", false);
     fXACathodeX = p.get<float>("XACathodeX");
     fXAMembraneY = p.get<float>("XAMembraneY");
     fXAStartCapZ = p.get<float>("XAStartCapZ");
@@ -207,8 +209,8 @@ namespace solar
     fAdjOpFlashZ = p.get<float>("AdjOpFlashZ", 100.0);
     fAdjOpFlashMaxPERatioCut = p.get<float>("AdjOpFlashMaxPERatioCut");
     fAdjOpFlashMinPECut = p.get<float>("AdjOpFlashMinPECut");
-    fAdjOpFlashMinPEAttenuate = p.get<bool>("AdjOpFlashMinPEAttenuate");
-    fAdjOpFlashMinPEAttenuation = p.get<float>("AdjOpFlashMinPEAttenuation");
+    fAdjOpFlashMinPEAttenuate = p.get<std::string>("AdjOpFlashMinPEAttenuate");
+    fAdjOpFlashMinPEAttenuation = p.get<float>("AdjOpFlashMinPEAttenuation", 2);
     fAdjOpFlashMinNHitCut = p.get<int>("AdjOpFlashMinNHitCut");
     fFlashMatchByResidual = p.get<bool>("FlashMatchByResidual");
     fSaveSignalDaughters = p.get<bool>("SaveSignalDaughters");
@@ -235,6 +237,7 @@ namespace solar
 
     // Larsoft Config info.
     fConfigTree->Branch("SignalLabel", &fSignalLabel);
+    fConfigTree->Branch("MaxSignalK", &fMaxSignalK);
     fConfigTree->Branch("GEANT4Label", &fGEANTLabel);
     fConfigTree->Branch("HitLabel", &fHitLabel);
     fConfigTree->Branch("ClusterLabel", &fClusterLabel);
@@ -279,6 +282,7 @@ namespace solar
     fConfigTree->Branch("AdjOpFlashMinPECut", &fAdjOpFlashMinPECut);
     fConfigTree->Branch("AdjOpFlashMinPEAttenuate", &fAdjOpFlashMinPEAttenuate);
     fConfigTree->Branch("AdjOpFlashMinPEAttenuation", &fAdjOpFlashMinPEAttenuation);
+    fConfigTree->Branch("AdjOpFlashMinPEAttenuatioStrength", &fAdjOpFlashMinPEAttenuationStrength);
     fConfigTree->Branch("AdjOpFlashMinNHitCut", &fAdjOpFlashMinNHitCut);
     fConfigTree->Branch("FlashMatchByResidual", &fFlashMatchByResidual);
     fConfigTree->Branch("SaveSignalDaughters", &fSaveSignalDaughters);
@@ -286,6 +290,7 @@ namespace solar
     fConfigTree->Branch("SaveSignalOpHits", &fSaveSignalOpHits);
     fConfigTree->Branch("SaveOpFlashInfo", &fSaveOpFlashInfo);
     fConfigTree->Branch("SaveTrackInfo", &fSaveTrackInfo);
+    fConfigTree->Branch("SelectedEvents", &SelectedEvents);
 
     // MC Truth info.
     fMCTruthTree->Branch("Event", &Event, "Event/I");                                        // Event number
@@ -508,7 +513,7 @@ namespace solar
 
     fConfigTree->AddFriend(fSolarNuAnaTree);
     fMCTruthTree->AddFriend(fSolarNuAnaTree);
-    fConfigTree->Fill();
+    SelectedEvents.clear();
 
     // --- Our Histograms...
     hDriftTime = tfs->make<TH2F>("hDriftTime", "hDriftTime", 100, -400., 400., 100, 0., 10000.);
@@ -534,6 +539,7 @@ namespace solar
     ThisGeneratorParts.clear();
     Event = evt.event();
     Flag = rand() % 10000000000;
+    bool SelectedEvent = false;
     // Initialize the services we need
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
@@ -584,19 +590,20 @@ namespace solar
     producer->PrintInColor(sTPCMap, ProducerUtils::GetColor("yellow"), "Debug");
 
     std::string sHead = "";
-    sHead = sHead + "\n#########################################";
-    sHead = sHead + "\nEvent: " + ProducerUtils::str(Event) + " Flag: " + ProducerUtils::str(Flag);
-    sHead = sHead + "\nGeometry: " + geoName + " (" + fGeometry + ")";
-    sHead = sHead + "\nSignal Label: " + fLabels[0];
-    sHead = sHead + "\nPDS Frequency in [MHz]: " + ProducerUtils::str(clockData.OpticalClock().Frequency());
-    sHead = sHead + "\nPDS Tick in [us]: " + ProducerUtils::str(clockData.OpticalClock().TickPeriod(), 3);
-    sHead = sHead + "\nTPC Frequency in [MHz]: " + ProducerUtils::str(clockData.TPCClock().Frequency());
-    sHead = sHead + "\nTPC Tick in [us]: " + ProducerUtils::str(clockData.TPCClock().TickPeriod());
-    sHead = sHead + "\nTPC Map: " + ProducerUtils::str(TPCIDMap.size()) + " TPCs found";
-    sHead = sHead + "\nTPC DriftLength in [cm]: " + ProducerUtils::str(driftLength);
-    sHead = sHead + "\nTPC DriftTime in [us]: " + ProducerUtils::str(driftTime);
-    sHead = sHead + "\nFiducial Volume in [cm]: " + ProducerUtils::str(fidVolX) + ", " + ProducerUtils::str(fidVolY) + ", " + ProducerUtils::str(fidVolZ);
-    sHead = sHead + "\n#########################################";
+    sHead = sHead + "\n###################################################";
+    sHead = sHead + "\nEvent:\t\t\t" + ProducerUtils::str(Event);
+    sHead = sHead + "\nFlag:\t\t\t" + ProducerUtils::str(Flag);
+    sHead = sHead + "\nGeometry:\t\t" + geoName + " (" + fGeometry + ")";
+    sHead = sHead + "\nSignal Label:\t\t" + fLabels[0];
+    sHead = sHead + "\nPDS Frequency in [MHz]:\t" + ProducerUtils::str(clockData.OpticalClock().Frequency());
+    sHead = sHead + "\nPDS Tick in [us]:\t" + ProducerUtils::str(clockData.OpticalClock().TickPeriod(), 3);
+    sHead = sHead + "\nTPC Frequency in [MHz]:\t" + ProducerUtils::str(clockData.TPCClock().Frequency());
+    sHead = sHead + "\nTPC Tick in [us]:\t" + ProducerUtils::str(clockData.TPCClock().TickPeriod());
+    sHead = sHead + "\nTPC Map:\t\t" + ProducerUtils::str(TPCIDMap.size()-1) + " TPCs";
+    sHead = sHead + "\nTPC DriftLength in [cm]:" + ProducerUtils::str(driftLength);
+    sHead = sHead + "\nTPC DriftTime in [us]:\t" + ProducerUtils::str(driftTime);
+    sHead = sHead + "\nFiducial Volume in [cm]:" + ProducerUtils::str(fidVolX) + ", " + ProducerUtils::str(fidVolY) + ", " + ProducerUtils::str(fidVolZ);
+    sHead = sHead + "\n###################################################";
     producer->PrintInColor(sHead, ProducerUtils::GetColor("magenta"));
 
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -858,7 +865,14 @@ namespace solar
       }
     }
     producer->PrintInColor(sSignalTruth, ProducerUtils::GetColor("yellow"));
-
+    if (SignalParticleK < fMaxSignalK) {
+      producer->PrintInColor("\nKinetic energy of signal particle is below threshold of " + ProducerUtils::str(fMaxSignalK) + " MeV. Selecting event.\n", ProducerUtils::GetColor("yellow"));
+      SelectedEvent = true; // Skip event if signal particle kinetic energy is above threshold
+    }
+    else {
+      producer->PrintInColor("\nKinetic energy of signal particle is above threshold of " + ProducerUtils::str(fMaxSignalK) + " MeV. Skipping event.\n", ProducerUtils::GetColor("red"), "Warning");
+    }
+    if (SelectedEvent) {
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //---------------------------------------------------------------------- PMTrack Analysis -----------------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -1677,11 +1691,15 @@ namespace solar
           // Print the flash information for debugging
           sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + " with residual " + ProducerUtils::str(OpFlashResidual) + "\n";
           // Make a cut on the flash PE. If attenuation is activated, the further the flash, the less PE is required.
-          if (fAdjOpFlashMinPEAttenuate) {
-            if (OpFlashPE[j] <  fAdjOpFlashMinPECut - fAdjOpFlashMinPEAttenuation*fAdjOpFlashMinPECut*MAdjFlashDrift/TPCIDdriftLength[MVecTPC[2][i]]) { continue; }
+          if (fAdjOpFlashMinPEAttenuate == "asymptotic") {
+              if (OpFlashPE[j] < fAdjOpFlashMinPECut - fAdjOpFlashMinPEAttenuation * (1-pow(pow(10,fAdjOpFlashMinPEAttenuationStrength), -MAdjFlashDrift / TPCIDdriftLength[MVecTPC[2][i]])) * fAdjOpFlashMinPECut) { continue; }
+          }
+          else if (fAdjOpFlashMinPEAttenuate == "linear") {
+              if (OpFlashPE[j] < fAdjOpFlashMinPECut - fAdjOpFlashMinPEAttenuation * pow(MAdjFlashDrift / TPCIDdriftLength[MVecTPC[2][i]], 2) * fAdjOpFlashMinPECut) { continue; }
           }
           else {
             if (OpFlashPE[j] < fAdjOpFlashMinPECut) { continue; }
+            producer->PrintInColor("Warning: Unknown fAdjOpFlashMinPEAttenuate option " + fAdjOpFlashMinPEAttenuate + ", using flat cut", ProducerUtils::GetColor("red"), "Warning");
           }
           // Make a cut on the flash MaxPE/PE ratio.
           if (OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut) {
@@ -1833,20 +1851,32 @@ namespace solar
             MMainParentTime = MClParentTruth->T();
           }
         }
-
-        fSolarNuAnaTree->Fill();
-        hDriftTime->Fill(MainElectronEndPointX, MTime);
-        hXTruth->Fill(MRecX - SignalParticleX, SignalParticleX);
-        hYTruth->Fill(MRecY - SignalParticleY, SignalParticleY);
-        hZTruth->Fill(MRecZ - SignalParticleZ, SignalParticleZ);
+        if (SignalParticleK < fMaxSignalK) {
+          fSolarNuAnaTree->Fill();
+          hDriftTime->Fill(MainElectronEndPointX, MTime);
+          hXTruth->Fill(MRecX - SignalParticleX, SignalParticleX);
+          hYTruth->Fill(MRecY - SignalParticleY, SignalParticleY);
+          hZTruth->Fill(MRecZ - SignalParticleZ, SignalParticleZ);
+        }
       }
       // Check if the string sClusterReco is not empty and print it in color.
       if (sClusterReco != "") { producer->PrintInColor(sClusterReco, ProducerUtils::GetColor(sResultColor)); }
+    } // Loop over clusters
+    if (SignalParticleK < fMaxSignalK) {
+      fMCTruthTree->Fill();
+      SelectedEvents.push_back(1);
     }
-    fMCTruthTree->Fill();
+    else {
+      SelectedEvents.push_back(0);
+    }
     producer->PrintInColor("-----------------------------------------------------------------------------------------\n", ProducerUtils::GetColor("green"));
+    } // SelectedEvent
   }
-
+  void SolarNuAna::endJob()
+  {
+    producer->PrintInColor("Finished running the SolarNuAna module", ProducerUtils::GetColor("magenta"));
+    fConfigTree->Fill();
+  }
   //......................................................................................................................//
   // Reset variables for each event
   void SolarNuAna::ResetVariables()
