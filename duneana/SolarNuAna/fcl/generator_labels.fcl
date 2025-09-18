@@ -133,7 +133,7 @@ BEGIN_PROLOG
     "U238ChainGenInAnode",
     "Th232ChainGenInAnode",
     "Rn222ChainGenInPDS",
-    "K42From42ArGenInUpperMesh",
+    "K42From42ArGenInUpperMesh1x8x14",
     "Rn222ChainFromPo218GenInUpperMesh1x8x14",
     "Rn222ChainFromPb214GenInUpperMesh1x8x14",
     "Rn222ChainFromBi214GenInUpperMesh1x8x14",
