@@ -14,7 +14,7 @@ BEGIN_PROLOG
     OpHitLabel:        "ophitspe"     # The label for the process which ran the OpHit
     OpFlashLabel:      "solarflash"   # The label for the process which ran the OpFlash
     OpFlashTime2us:     false         # If true, the OpFlash time is in [ticks] and will be converted to [us]. For other producers than "solarflash".
-    OpFlashTimeOffset:  0.0           # Time offset to be applied to the OpFlash time in [us] units.
+    OpFlashTimeOffset:  18.1          # Time offset to be applied to the OpFlash time in [us] units.
 
     #====================================================================================#
     # The following are the labels for the signal and background processes
@@ -25,7 +25,7 @@ BEGIN_PROLOG
 
     #====================================================================================#
     ClusterChargeVariable:      "Integral"   # Charge variable to use for cluster matching: "Integral" or "SummedADC".
-    OpHitTimeVariable:          "PeakTime"   # Time variable to use for OpHit selection: "PeakTime" or "StartTime".
+    OpHitTimeVariable:          "StartTime"  # Time variable to use for OpHit selection: "PeakTime" or "StartTime".
     XACathodeX:                 0            # X position of the VD cathode XAs in [cm].
     XAMembraneY:                0            # Y position of the VD membrane XAs in [cm].
     XAFinalCapZ:                0            # Z position of the VD final cap XAs in [cm].
@@ -99,6 +99,7 @@ BEGIN_PROLOG
   solar_nu_ana_vd.HitLabel:              "gaushit"
   solar_nu_ana_vd.OpHitLabel:            "ophit10ppm"
   solar_nu_ana_vd.OpFlashLabel:          "solarflash"
+  solar_nu_ana_vd.OpFlashTimeOffset:       0
   solar_nu_ana_vd.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
   solar_nu_ana_vd.XACathodeX:           -327.5
   solar_nu_ana_vd.XAMembraneY:           743.302
