@@ -1341,17 +1341,17 @@ namespace solar
         // MVecTime[2][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
         for (int plane = 0; plane < 2; plane++)
         {
-          int RefClIdx = ClIdxMap[MatchedClustersIdx[plane][ThisClIdx]][1]; // Get the cluster index in the plane
-          MVecMainID[plane].push_back(ClMainID[plane][RefClIdx]); 
-          if (MVecTime[plane][ThisClIdx] > -1e6) {
-            // MVecTime[plane][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
+          if (MVecTime[plane][ThisClIdx] > -1e6) { // There is a matched cluster in this plane
+            int RefClIdx = ClIdxMap[MatchedClustersIdx[plane][ThisClIdx]][1]; // Get the cluster index in the plane 
+            MVecMainID[plane].push_back(ClMainID[plane][RefClIdx]); 
             MVecdT[plane].push_back(abs(MVecTime[2][ThisClIdx] - MVecTime[plane][ThisClIdx]));
             MVecTPC[plane].push_back(ClTPC[plane][RefClIdx]);
             MVecMaxCharge[plane].push_back(ClMaxCharge[plane][RefClIdx]);
             SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane " + ProducerUtils::str(plane) + " with time " + ProducerUtils::str(MVecTime[plane][ThisClIdx]) + " and charge " + ProducerUtils::str(MVecCharge[plane][ThisClIdx]) + " with TPC " + ProducerUtils::str(MVecTPC[plane][ThisClIdx]);
           }
           
-          else {
+          else { // No matched cluster in this plane, fill with -1
+            MVecMainID[plane].push_back(-1);
             MVecdT[plane].push_back(-1e6);
             MVecTPC[plane].push_back(-1);
             MVecMaxCharge[plane].push_back(-1e6);
