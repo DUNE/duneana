@@ -210,7 +210,7 @@ namespace solar
     fAdjOpFlashMaxPERatioCut = p.get<float>("AdjOpFlashMaxPERatioCut");
     fAdjOpFlashMinPECut = p.get<float>("AdjOpFlashMinPECut");
     fAdjOpFlashMinPEAttenuate = p.get<std::string>("AdjOpFlashMinPEAttenuate");
-    fAdjOpFlashMinPEAttenuation = p.get<float>("AdjOpFlashMinPEAttenuation", 2);
+    fAdjOpFlashMinPEAttenuationStrength = p.get<float>("AdjOpFlashMinPEAttenuationStrength", 4);
     fAdjOpFlashMinNHitCut = p.get<int>("AdjOpFlashMinNHitCut");
     fFlashMatchByResidual = p.get<bool>("FlashMatchByResidual");
     fSaveSignalDaughters = p.get<bool>("SaveSignalDaughters");
@@ -282,7 +282,7 @@ namespace solar
     fConfigTree->Branch("AdjOpFlashMinPECut", &fAdjOpFlashMinPECut);
     fConfigTree->Branch("AdjOpFlashMinPEAttenuate", &fAdjOpFlashMinPEAttenuate);
     fConfigTree->Branch("AdjOpFlashMinPEAttenuation", &fAdjOpFlashMinPEAttenuation);
-    fConfigTree->Branch("AdjOpFlashMinPEAttenuatioStrength", &fAdjOpFlashMinPEAttenuationStrength);
+    fConfigTree->Branch("AdjOpFlashMinPEAttenuationStrength", &fAdjOpFlashMinPEAttenuationStrength);
     fConfigTree->Branch("AdjOpFlashMinNHitCut", &fAdjOpFlashMinNHitCut);
     fConfigTree->Branch("FlashMatchByResidual", &fFlashMatchByResidual);
     fConfigTree->Branch("SaveSignalDaughters", &fSaveSignalDaughters);
