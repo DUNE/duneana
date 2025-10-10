@@ -71,7 +71,11 @@ BEGIN_PROLOG
     AdjOpFlashMinPEAttenuation:   1.0         # Asymptotic growth attenuation on the minimum PE cut after a full drift length.
     AdjOpFlashMinPEAttenuate:    "linear" # Type of attenuation to apply to the minimum PE cut: "linear" or "asymptotic".
     AdjOpFlashMinPEAttenuationStrength: 10    # For "asymptotic" attenuation. Strength expressed as powers of 10.
-    
+    AdjOpFlashMinPELightMap: {
+      "Amplitude":   [-1.1011e-7, 5.0670e-4, 1.6480e0]
+      "Attenuation": [1.7061e-7, -7.2303e-4, 1.0623e0]
+      "Correction":  [3.1135e-7, -1.3050e-3, 7.6113e-1]
+    }   # Quadratic fit parameters for attenuation correction based in logarithm light map.
     FlashMatchByResidual:         false       # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
     SaveSignalDaughters:        false        # Save the daughters of the signal particles.
@@ -114,6 +118,11 @@ BEGIN_PROLOG
   solar_nu_ana_vd.AdjOpFlashZ:           100.
   solar_nu_ana_vd.AdjOpFlashMinPECut:    0.0
   solar_nu_ana_vd.AdjOpFlashMinPEAttenuation: 1.0
+  solar_nu_ana_vd.AdjOpFlashMinPELightMap: {
+    "Amplitude":   [1.7578e-7, -4.9589e-4, 1.2519e0]
+    "Attenuation": [4.9682e-7, -2.5242e-3, 1.2541e0]
+    "Correction":  [1.0516e-7, -1.1637e-3, 1.5118e0]
+  }
 
   solar_nu_ana_vd_1x8x14_optimistic: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x14_optimistic.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_optimistic

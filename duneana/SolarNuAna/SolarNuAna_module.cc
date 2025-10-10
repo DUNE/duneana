@@ -56,6 +56,7 @@
 #include "dunecore/ProducerUtils/ProducerUtils.h"
 #include "dunereco/LowEUtils/LowEUtils.h"
 
+using namespace lowe;
 using namespace producer;
 
 namespace solar
@@ -1623,10 +1624,9 @@ namespace solar
         {
           // Skip flashes with time outside the cluster time window
           float OpFlashR = -1e6;
-          double MAdjFlashX = 0, MAdjFlashDrift = 0;
+          double MAdjFlashX = 0;
           if ((MVecTime[2][i] - OpFlashTime[j]) < 0 || (MVecTime[2][i] - OpFlashTime[j]) > TPCIDdriftTime[MVecTPC[2][i]]) { continue; }          
           producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
-          MAdjFlashDrift = MAdjFlashX;
           if (fGeometry == "HD" && MVecTPC[2][i]%2 == 0) {
             MAdjFlashX = -MAdjFlashX;
           }
@@ -1691,24 +1691,12 @@ namespace solar
           adjophits->FlashMatchResidual(OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]));
           // Print the flash information for debugging
           sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + " with residual " + ProducerUtils::str(OpFlashResidual) + "\n";
-          // Make a cut on the flash PE. If attenuation is activated, the further the flash, the less PE is required.
-          if (fAdjOpFlashMinPEAttenuate == "asymptotic") {
-              if (OpFlashPE[j] < fAdjOpFlashMinPECut - fAdjOpFlashMinPEAttenuation * (1-pow(pow(10,fAdjOpFlashMinPEAttenuationStrength), -MAdjFlashDrift / TPCIDdriftLength[MVecTPC[2][i]])) * fAdjOpFlashMinPECut) { continue; }
-          }
-          else if (fAdjOpFlashMinPEAttenuate == "linear") {
-              if (OpFlashPE[j] < fAdjOpFlashMinPECut - fAdjOpFlashMinPEAttenuation * pow(MAdjFlashDrift / TPCIDdriftLength[MVecTPC[2][i]], 2) * fAdjOpFlashMinPECut) { continue; }
-          }
-          else {
-            if (OpFlashPE[j] < fAdjOpFlashMinPECut) { continue; }
-            producer->PrintInColor("Warning: Unknown fAdjOpFlashMinPEAttenuate option " + fAdjOpFlashMinPEAttenuate + ", using flat cut", ProducerUtils::GetColor("red"), "Warning");
-          }
-          // Make a cut on the flash MaxPE/PE ratio.
-          if (OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut) {
+          // Make a cut on the flash MaxPE/PE ratio and the number of hits
+          if ( OpFlashNHits[j] < fAdjOpFlashMinNHitCut || OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut ) {
             continue;
           }
-          // Create a cut based on a sigmoid function of the opflash number of hits versus the associated drift time.
-          if (OpFlashNHits[j] < fAdjOpFlashMinNHitCut) {
-            continue;
+          if ( lowe->SelectPDSFlashPE(TPCIDdriftTime[MVecTPC[2][i]], MVecCharge[2][i] - OpFlashTime[j], MVecCharge[2][i], OpFlashPE[j]) == false ) {
+              continue; // Skip flashes that don't pass the PE selection
           }
           // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
           if ((fFlashMatchByResidual && OpFlashResidual < MatchedOpFlashResidual) || (!fFlashMatchByResidual && OpFlashPE[j] > MatchedOpFlashPE)) {
