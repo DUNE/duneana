@@ -69,7 +69,7 @@ BEGIN_PROLOG
     AdjOpFlashMaxPERatioCut:      1.00        # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
     AdjOpFlashMinPECut:           0.0         # Cut on the minimum OpHit PE.
     AdjOpFlashMinPEAttenuation:   1.0         # Asymptotic growth attenuation on the minimum PE cut after a full drift length.
-    AdjOpFlashMinPEAttenuate:    "linear" # Type of attenuation to apply to the minimum PE cut: "linear" or "asymptotic".
+    AdjOpFlashMinPEAttenuate:    "flat"       # Type of attenuation to apply to the minimum PE cut: "linear" or "asymptotic".
     AdjOpFlashMinPEAttenuationStrength: 10    # For "asymptotic" attenuation. Strength expressed as powers of 10.
     AdjOpFlashMinPELightMap: {
       "Amplitude":   [-1.1011e-7, 5.0670e-4, 1.6480e0]
@@ -127,7 +127,7 @@ BEGIN_PROLOG
   solar_nu_ana_vd_1x8x14_optimistic: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x14_optimistic.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_optimistic
 
-    solar_nu_ana_vd_1x8x14_shielded: @local::solar_nu_ana_vd
+  solar_nu_ana_vd_1x8x14_shielded: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x14_shielded.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_shielded
 
   solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
