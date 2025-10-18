@@ -1028,7 +1028,7 @@ namespace solar
             SOpHitTime.push_back(OpHit.PeakTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
             
           SOpHitChannel.push_back(OpHit.OpChannel());
-          SOpHitPlane.push_back(adjophits->GetOpHitPlane(OpHitPtr, 0.01)); // Get plane assignment for the OpHit
+          SOpHitPlane.push_back(adjophits->GetOpHitPlane(OpHitPtr, 0.1)); // Get plane assignment for the OpHit
         } // End of OpHit loop
 
         OpHitVec.push_back(MatchedHits);
