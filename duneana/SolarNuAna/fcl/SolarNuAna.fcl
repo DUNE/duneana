@@ -112,7 +112,7 @@ BEGIN_PROLOG
   solar_nu_ana_vd.XAStartCapZ:          -96.5
   solar_nu_ana_vd.OpFlashAlgoMinTime:    0.03
   solar_nu_ana_vd.OpFlashAlgoMaxTime:    0.03
-  solar_nu_ana_vd.OpFlashAlgoRad:        500.
+  solar_nu_ana_vd.OpFlashAlgoRad:        600.
   solar_nu_ana_vd.AdjOpFlashMinPELightMap: [
     ["Amplitude", [1.7578e-7, -4.9589e-4, 1.2519e0]],
     ["Attenuation", [4.9682e-7, -2.5242e-3, 1.2541e0]],
