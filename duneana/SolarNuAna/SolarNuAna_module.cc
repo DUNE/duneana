@@ -88,6 +88,7 @@ namespace solar
     float fMaxSignalK; 
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fAdjOpFlashMinPEAttenuation, fClusterMatchNHit, fClusterAlgoTime;
     float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld, fXACathodeX, fXAMembraneY, fXAStartCapZ, fXAFinalCapZ;
+    bool fOpFlashAlgoHitDuplicates;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
     bool fGenerateSolarCluster, fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
     bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveTrackInfo;
@@ -203,6 +204,7 @@ namespace solar
     fOpFlashAlgoPE = p.get<float>("OpFlashAlgoPE");
     fOpFlashAlgoTriggerPE = p.get<float>("OpFlashAlgoTriggerPE");
     fOpFlashAlgoHotVertexThld = p.get<float>("OpFlashAlgoHotVertexThld");
+    fOpFlashAlgoHitDuplicates = p.get<bool>("OpFlashAlgoHitDuplicates");
     fAdjOpFlashMembraneProjection = p.get<bool>("AdjOpFlashMembraneProjection");
     fAdjOpFlashEndCapProjection = p.get<bool>("AdjOpFlashEndCapProjection");
     fAdjOpFlashX = p.get<float>("AdjOpFlashX", 100.0);
@@ -275,6 +277,7 @@ namespace solar
     fConfigTree->Branch("OpFlashAlgoPE", &fOpFlashAlgoPE);
     fConfigTree->Branch("OpFlashAlgoTriggerPE", &fOpFlashAlgoTriggerPE);
     fConfigTree->Branch("OpFlashAlgoHotVertexThld", &fOpFlashAlgoHotVertexThld);
+    fConfigTree->Branch("OpFlashAlgoHitDuplicates", &fOpFlashAlgoHitDuplicates);
     fConfigTree->Branch("AdjOpFlashMembraneProjection", &fAdjOpFlashMembraneProjection);
     fConfigTree->Branch("AdjOpFlashEndCapProjection", &fAdjOpFlashEndCapProjection);
     fConfigTree->Branch("AdjOpFlashX", &fAdjOpFlashX);
