@@ -1338,7 +1338,7 @@ namespace solar
     else {
       std::string SolarClusterInfo = "SolarClusterInfo: ";
       SolarClusterInfo = SolarClusterInfo + "(" + ProducerUtils::str(Clusters0.size()) + "," + ProducerUtils::str(Clusters1.size()) + "," + ProducerUtils::str(Clusters2.size()) + ")";
-      lowe->MatchClusters(SignalTrackIDs, MatchedClustersIdx, MatchedClusters, ClustersIdx, AllPlaneClusters, MVecMainID, MVecNHits, MVecChannel, MVecTime, MVecRecoY, MVecRecoZ, MVecDirDir, MVecCharge, MVecPur, MatchedClCompleteness, clockData, true);
+      lowe->MatchClusters(SignalTrackIDs, MatchedClustersIdx, MatchedClusters, ClustersIdx, AllPlaneClusters, MVecMainID, MVecNHits, MVecTPC, MVecChannel, MVecTime, MVecRecoY, MVecRecoZ, MVecDirDir, MVecCharge, MVecPur, MatchedClCompleteness, clockData, true);
 
       SolarClusterInfo = SolarClusterInfo + "\nFound " + ProducerUtils::str(int(MatchedClustersIdx[2].size())) + " MatchedClusters (from col. plane loop)!";
       for (int ThisClIdx = 0; ThisClIdx < int(MatchedClustersIdx[2].size()); ThisClIdx++)
@@ -1350,7 +1350,6 @@ namespace solar
             int RefClIdx = ClIdxMap[MatchedClustersIdx[plane][ThisClIdx]][1]; // Get the cluster index in the plane 
             MVecMainID[plane].push_back(ClMainID[plane][RefClIdx]); 
             MVecdT[plane].push_back(abs(MVecTime[2][ThisClIdx] - MVecTime[plane][ThisClIdx]));
-            MVecTPC[plane].push_back(ClTPC[plane][RefClIdx]);
             MVecMaxCharge[plane].push_back(ClMaxCharge[plane][RefClIdx]);
             SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane " + ProducerUtils::str(plane) + " with time " + ProducerUtils::str(MVecTime[plane][ThisClIdx]) + " and charge " + ProducerUtils::str(MVecCharge[plane][ThisClIdx]) + " with TPC " + ProducerUtils::str(MVecTPC[plane][ThisClIdx]);
           }
@@ -1358,7 +1357,6 @@ namespace solar
           else { // No matched cluster in this plane, fill with -1
             MVecMainID[plane].push_back(-1);
             MVecdT[plane].push_back(-1e6);
-            MVecTPC[plane].push_back(-1);
             MVecMaxCharge[plane].push_back(-1e6);
             SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane " + ProducerUtils::str(plane) + " with time -1e6 and charge -1e6 with TPC -1";
           }
@@ -1366,7 +1364,6 @@ namespace solar
         int RefClIdx = ClIdxMap[MatchedClustersIdx[2][ThisClIdx]][1]; // Get the plane index of the matched cluster
         MVecMainID[2].push_back(ClMainID[2][RefClIdx]);
         MVecRecoX[2].push_back(ClT[2][RefClIdx] *driftLength/driftTime); // Convert to microseconds and then to cm
-        MVecTPC[2].push_back(ClTPC[2][RefClIdx]);
         MVecMaxCharge[2].push_back(ClMaxCharge[2][RefClIdx]);
         MVecGenPur.push_back(ClGenPur[2][RefClIdx]);
         MVecGen.push_back(ClGen[2][RefClIdx]);
