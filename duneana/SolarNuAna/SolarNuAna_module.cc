@@ -1385,6 +1385,7 @@ namespace solar
         std::vector<float> clustPos = {MVecRecoX[2][i], MVecRecoY[2][i], MVecRecoZ[2][i]};
         int clustMainID = MVecMainID[2][i];
         int clustNHits = MVecNHits[2][i];
+        int clustTPC = MVecTPC[2][i];
         int clustChannel = MVecChannel[2][i];
         float clustCharge = MVecCharge[2][i];
         float clustTime = MVecTime[2][i];
@@ -1417,7 +1418,7 @@ namespace solar
           }
         }
 
-        solar::LowECluster ThisSolarCluster(clustPos, clustMainID, clustNHits, clustChannel, clustCharge, clustTime, clustPurity, clustCompleteness, clustVector);
+        solar::LowECluster ThisSolarCluster(clustPos, clustMainID, clustNHits, clustTPC, clustChannel, clustCharge, clustTime, clustPurity, clustCompleteness, clustVector);
         SolarClusters.push_back(ThisSolarCluster);
       }    
     }
