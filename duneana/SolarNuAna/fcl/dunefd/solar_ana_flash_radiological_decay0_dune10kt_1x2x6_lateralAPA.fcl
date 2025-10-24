@@ -4,5 +4,7 @@
 #include "solar_ana_radiological_decay0_dune10kt_1x2x6_lateralAPA.fcl"
 
 physics.analyzers.solarnuana.GenerateAdjOpFlash: true
-physics.analyzers.solarnuana.OpFlashAlgoNHit:    3
+physics.analyzers.solarnuana.AdjOpFlashX: 100.
+physics.analyzers.solarnuana.AdjOpFlashY: 100.
+physics.analyzers.solarnuana.AdjOpFlashZ: 100.
 physics.analyzers.solarnuana.SaveOpFlashInfo:    true

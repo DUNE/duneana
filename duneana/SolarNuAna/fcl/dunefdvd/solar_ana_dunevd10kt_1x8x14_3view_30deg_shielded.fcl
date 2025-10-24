@@ -1,0 +1,9 @@
+# solar_ana_dunevd10kt_1x8x14_3view_30deg_shielded.fcl
+#
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD
+
+#include "solar_ana_dunevd10kt_1x8x14_3view_30deg.fcl"
+
+physics.analyzers.solarnuana: @local::solar_nu_ana_vd_1x8x14_shielded
+
+services.TFileService.fileName: "solar_ana_dunevd10kt_1x8x14_3view_30deg_shielded_hist.root"
