@@ -1,0 +1,15 @@
+BEGIN_PROLOG
+dunefd_simphotoncounter:
+{
+  module_type:            "SimPhotonCounter"
+  Verbosity:               2
+  InputModule:             ["PDFastSim"]
+  InputModuleCode:         [1]
+  MakeAllPhotonsTree:      true
+  MakeDetectedPhotonsTree: true
+  MakeOpDetsTree:          true
+  MakeOpDetsGeoTree:       true
+  IncludePhotonTime:       true
+  MakeOpDetEventsTree:     true
+}
+END_PROLOG
