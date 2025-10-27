@@ -1506,6 +1506,7 @@ namespace solar
           double ClusterDistance = 0;
           producer->ComputeDistance3D(ClusterDistance, MVecTime[2][i], MVecRecoY[2][i], MVecRecoZ[2][i], MVecTime[2][j], MVecRecoY[2][j], MVecRecoZ[2][j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
           if (MVecCharge[2][j] < fMinClusterCharge) { continue; } // Skip clusters that are too small
+          if (MVecTPC[2][j]%2 != MVecTPC[2][i]%2) { continue; } // Skip clusters that are in different sides of the detector
           if (ClusterDistance > fAdjClusterRad) { continue; } // Skip clusters that are too far
 
           sAdjClusters += "    - Cluster " + ProducerUtils::str(j) + " at distance " + ProducerUtils::str(ClusterDistance) + " with time " + ProducerUtils::str(MVecTime[2][j]) + " and charge " + ProducerUtils::str(MVecCharge[2][j]) + " in TPC " + ProducerUtils::str(MVecTPC[2][j]);
