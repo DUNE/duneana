@@ -24,6 +24,8 @@ public:
 
 private:
   // config
+  std::string fDetector;
+
   double fFVInsetMinX;
   double fFVInsetMaxX;
   double fFVInsetMinY;
@@ -72,6 +74,7 @@ CalibAnaTreeSelectStoppingTrack::CalibAnaTreeSelectStoppingTrack(const fhicl::Pa
   fMediandQdxRRMax(p.get<double>("MediandQdxRRMax", 5.)),
   fCheckFiducialX(p.get<bool>("CheckFiducialX"))
 {
+
   // Get the fiducial volume info
   const geo::GeometryCore *geometry = lar::providerFrom<geo::Geometry>();
 
@@ -138,14 +141,20 @@ bool CalibAnaTreeSelectStoppingTrack::Select(const TrackInfo &t) {
 
   for (const dune::TrackHitInfo &h: t.hits2) {
 	// In PDHD, TPC 1 and 5 Beam-side, 2 and 6 other side
-	hit_is_BeamSide = (h.h.tpc == 1 or h.h.tpc == 5);
-	hit_is_NoBeamSide = (h.h.tpc == 2 or h.h.tpc == 6);
+	if (fDetector == "PDHD") { 
+		hit_is_BeamSide = (h.h.tpc == 1 || h.h.tpc == 5);
+		hit_is_NoBeamSide = (h.h.tpc == 2 || h.h.tpc == 6);
+	}
+	if (fDetector == "PDVD") {
+                hit_is_BeamSide = (h.h.tpc >= 8 && h.h.tpc <= 15);
+                hit_is_NoBeamSide = (h.h.tpc >=0 && h.h.tpc <= 7);
+	}
 
-	if (h.oncalo && hit_is_BeamSide == 1) {
+	if (h.oncalo && hit_is_BeamSide) {
 		if (maxBeam < 0. || h.h.time > maxBeam) maxBeam = h.h.time;
 		if (minBeam < 0. || h.h.time < minBeam) minBeam = h.h.time;
 	}
-	if (h.oncalo && hit_is_NoBeamSide == 1) {
+	if (h.oncalo && hit_is_NoBeamSide) {
 		if (maxNoBeam < 0. || h.h.time > maxNoBeam) maxNoBeam = h.h.time;
 		if (minNoBeam < 0. || h.h.time < minNoBeam) minNoBeam = h.h.time;
 	}

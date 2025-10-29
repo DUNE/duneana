@@ -1,6 +1,59 @@
 BEGIN_PROLOG
 
-dune_calibanatree: {
+### Selection Tools ###
+
+# PDHD Data Selection Tools
+
+pdhd_data_stopping_selection: {
+  tool_type: CalibAnaTreeSelectStoppingTrack
+  FVInsetMinX: 40
+  FVInsetMaxX: 40
+  FVInsetMinY: 40
+  FVInsetMaxY: 40
+  FVInsetMinZ: 40
+  FVInsetMaxZ: 40
+  MinTimeTickInset: 100
+  MaxTimeTickInset: 100
+  EndMediandQdxCut: 115 # Note: PDHD Data uses 2 different values for TPC gain. This will fail to select many stopping tracks using lower gain
+  NumberTimeSamples: 5888
+  MediandQdxRRMax: 5.
+  CheckFiducialX: false
+  RequireDownwards: false
+}
+
+pdhd_data_a2c_selection: {
+  tool_type: CalibAnaTreeSelectAnode2CathodeTrack
+  TickCut: 4200
+  RequireT0: true
+}
+
+# SelectAll doesnt need any modification by detector
+dune_calibanatree_selectall: {
+   tool_type: CalibAnaTreeSelectAllTracks
+   RequireT0: true
+}
+
+# PDHD MC Selection Tools
+pdhd_mc_stopping_selection: @local::pdhd_data_stopping_selection
+
+pdhd_mc_a2c_selection: @local::pdhd_data_a2c_selection
+
+# PDVD Data Selection Tools
+pdvd_data_stopping_selection: @local::pdhd_data_stopping_selection
+pdvd_data_stopping_selection.EndMedianQdxCut: 200
+
+pdvd_data_a2c_selection: @local::pdhd_mc_a2c_selection
+
+# PDVD MC Selection Tools
+pdvd_mc_stopping_selection: @local::pdhd_data_stopping_selection
+
+pdvd_mc_a2c_selection: @local::pdhd_mc_a2c_selection
+
+
+### Analyzers ###
+
+# PDHD Data
+pdhd_calibanatree_data: {
    module_type:                  CalibAnaTree
    RadiusInt:                    4
    RadiusExt:                    10
@@ -11,7 +64,7 @@ dune_calibanatree: {
    PFPproducer:                  "pandora"
    G4producer:                   "largeant"
    SimChannelproducer:           ""
-   HITproducer:                  "fasthit" # for standard sims, use gaushit, or pandora
+   HITproducer:                  "hitpdune" # for standard sims, use gaushit, or pandora
    RawDigitproducers:            ["daq"]
    RequireT0:                    true
    HitRawDigitsTickCollectWidth: 200
@@ -22,63 +75,51 @@ dune_calibanatree: {
    TrackEndHitWireBox:           60
    TrackEndHitTimeBox:           300
    SilenceMissingDataProducts:   true
-   SelectionTools:               []
+   SelectionTools:               [@local::pdhd_data_stopping_selection, @local::pdhd_data_a2c_selection, @local::dune_calibanatree_selectall]
    Verbose:                      false # to switch the verbose output on
 }
 
-stopping_selection: {
-  tool_type: CalibAnaTreeSelectStoppingTrack
-  FVInsetMinX: 40
-  FVInsetMaxX: 40
-  FVInsetMinY: 40
-  FVInsetMaxY: 40
-  FVInsetMinZ: 40
-  FVInsetMaxZ: 40
-  MinTimeTickInset: 100
-  MaxTimeTickInset: 100
-  EndMediandQdxCut: 85
-  NumberTimeSamples: 6000
-  MediandQdxRRMax: 5.
-  CheckFiducialX: false
+# PDHD MC
+pdhd_calibanatree_mc: @local::pdhd_calibanatree_data
+pdhd_calibanatree_mc.G4producer: "largeant"
+pdhd_calibanatree_mc.SimChannelproducer: "tpcrawdecoder:simpleSC" # before factorisation, use tpcrawdecoder for factorised sim scheme
+pdhd_calibanatree_mc.SelectionTools: [@local::pdhd_mc_stopping_selection, @local::pdhd_mc_a2c_selection, @local::dune_calibanatree_selectall]
+
+# PDVD Data
+pdvd_calibanatree_data: {
+   module_type:                  CalibAnaTree
+   RadiusInt:                    4
+   RadiusExt:                    10
+   CALOproducer:                 "pandoraGnocalo"
+   TRKproducer:                  "pandoraTrack"
+   TRKHMproducer:                "" # Track Hit Metadata module; same as TRKproducer by default
+   T0producers:                  ["pandora"]
+   PFPproducer:                  "pandora"
+   G4producer:                   "largeant"
+   SimChannelproducer:           ""
+   HITproducer:                  "gaushit" # for standard sims, use gaushit, or pandora
+   RawDigitproducers:            ["daq"]
+   RequireT0:                    true
+   HitRawDigitsTickCollectWidth: 200
+   HitRawDigitsWireCollectWidth: 5
+   DoTailFit:                    false
+   TailFitResidualRange:         5.
+   FillTrackEndHits:             true
+   TrackEndHitWireBox:           60
+   TrackEndHitTimeBox:           300
+   SilenceMissingDataProducts:   true
+   SelectionTools:               [@local::pdvd_data_stopping_selection, @local::pdvd_data_a2c_selection, @local::dune_calibanatree_selectall]
+   Verbose:                      false # to switch the verbose output on
 }
 
-a2c_selection: {
-  tool_type: CalibAnaTreeSelectAnode2CathodeTrack
-  TickCut: 4300
-  RequireT0: true
-}
-
-dune_calibanatree_selectall: {
-   tool_type: CalibAnaTreeSelectAllTracks
-   RequireT0: true 
-}
-
-dune_calibanatree.SelectionTools: [@local::stopping_selection, @local::a2c_selection, @local::dune_calibanatree_selectall]
-
-# Default MC config
-dune_calibanatree_mc: @local::dune_calibanatree
-dune_calibanatree_mc.G4producer: "largeant"
-dune_calibanatree_mc.SimChannelproducer: "tpcrawdecoder:simpleSC" # before factorisation, use tpcrawdecoder for factorised sim scheme
-
-pdhd_data_a2c_selection: @local::a2c_selection
-pdhd_data_a2c_selection.TickCut: 4200
-pdhd_mc_a2c_selection: @local::a2c_selection
-pdhd_mc_a2c_selection.TickCut: 4200
+#PDVD MC
+pdvd_calibanatree_mc: @local::pdvd_calibanatree_data
+pdvd_calibanatree_mc.SimChannelproducer: "tpcrawdecoder:simpleSC" # before factorisation, use tpcrawdecoder for factorised sim scheme
+pdvd_calibanatree_mc.SelectionTools: [@local::pdvd_mc_stopping_selection, @local::pdvd_mc_a2c_selection, @local::dune_calibanatree_selectall]
 
 
-pdhd_calibana_data: @local::dune_calibanatree
-pdhd_calibana_data.HITproducer: "hitpdune"
-pdhd_data_stopping_selection: @local::stopping_selection
-pdhd_data_stopping_selection.NumberTimeSamples: 5888
-pdhd_calibana_data.SelectionTools: [@local::pdhd_data_stopping_selection, @local::pdhd_data_a2c_selection, @local::dune_calibanatree_selectall]
-
-pdhd_mc_stopping_selection: @local::stopping_selection
-pdhd_calibana_mc: @local::dune_calibanatree_mc
-pdhd_calibana_mc.HITproducer: "hitpdune"
-pdhd_calibana_mc.SelectionTools: [@local::pdhd_mc_stopping_selection, @local::pdhd_mc_a2c_selection, @local::dune_calibanatree_selectall]
-
-
-dune_calibanatree_cluster:                            @local::dune_calibanatree_mc
+#Low Energy
+dune_calibanatree_cluster:                            @local::pdhd_calibanatree_mc
 
 dune_calibanatree_cluster.LowEnergyClusterAnalysis:   true
 dune_calibanatree_cluster.TrackAnalysis:              false

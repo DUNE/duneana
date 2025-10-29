@@ -15,6 +15,7 @@ public:
 
 private:
      // config
+     std::string fDetector;
      double fTickCut;
      };
   
@@ -34,17 +35,24 @@ private:
 		double hit_is_NoBeamSide = -1;
 
 		for (const dune::TrackHitInfo &h: t.hits2) {
-			// In PDHD, TPC 1 and 5 Beam-side
-		        hit_is_BeamSide = (h.h.tpc == 1 or h.h.tpc == 5);		
-			hit_is_NoBeamSide = (h.h.tpc == 2 or h.h.tpc == 6);		                
-
-			if (h.oncalo && hit_is_BeamSide == 1) {
-                        	if (maxBeam < 0. || h.h.time > maxBeam) maxBeam = h.h.time;
+			if (fDetector == "PDHD") {
+				// In PDHD, TPC 1 and 5 Beam-side
+				hit_is_BeamSide = (h.h.tpc == 1 or h.h.tpc == 5);		
+				hit_is_NoBeamSide = (h.h.tpc == 2 or h.h.tpc == 6);	
+			}
+                        if (fDetector == "PDVD") {
+                		// in PDVD, TPC 8-15 are beamside, 0-7 are other side
+				hit_is_BeamSide = (h.h.tpc >= 8 && h.h.tpc <= 15);
+		                hit_is_NoBeamSide = (h.h.tpc >=0 && h.h.tpc <= 7);
+                        }
+	       
+			if (h.oncalo && hit_is_BeamSide) {
+				if (maxBeam < 0. || h.h.time > maxBeam) maxBeam = h.h.time;
 				if (minBeam < 0. || h.h.time < minBeam) minBeam = h.h.time;
 			}
-			if (h.oncalo && hit_is_NoBeamSide == 1) {
-			        if (maxNoBeam < 0. || h.h.time > maxNoBeam) maxNoBeam = h.h.time;
-                                if (minNoBeam < 0. || h.h.time < minNoBeam) minNoBeam = h.h.time;
+			if (h.oncalo && hit_is_NoBeamSide) {
+				if (maxNoBeam < 0. || h.h.time > maxNoBeam) maxNoBeam = h.h.time;
+				if (minNoBeam < 0. || h.h.time < minNoBeam) minNoBeam = h.h.time;
 			}
 		}		
 

@@ -25,7 +25,7 @@ physics:
 {
   analyzers:
   {
-    calibana: @local::dune_calibanatree_mc
+    calibana: @local::pdhd_calibanatree_mc
   }
 
   filters: {}
@@ -33,4 +33,5 @@ physics:
   ana: [calibana]
   end_paths:     [ana]
 }
-physics.analyzers.calibana.IsPDHD:   true
+
+physics.analyzers.calibana.Detector: "PDHD"

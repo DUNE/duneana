@@ -274,7 +274,7 @@ private:
   bool fFillTrackEndHits;
   float fTrackEndHitWireBox;
   float fTrackEndHitTimeBox;
-
+  std::string fDetector;
 
   // tools
   std::vector<std::unique_ptr<dune::ICATSelectionTool>> fSelectionTools;

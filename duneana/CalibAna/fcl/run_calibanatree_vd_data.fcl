@@ -1,0 +1,41 @@
+#include "dune_calibanatree.fcl"
+#include "services_dune.fcl"
+
+process_name: CalibAna
+
+services: {
+  TFileService: { fileName: "calibanatree_out.root" }
+  @table::protodunevd_services            
+  #@table::dunefd_simulation_services      
+  BackTrackerService:        @local::standard_backtrackerservice
+  ParticleInventoryService:  @local::standard_particleinventoryservice
+}
+
+services.Geometry: @local::protodunevd_v5_geo
+
+
+source:
+{
+  module_type: RootInput
+  maxEvents:   -1        # Number of events to create
+}
+outputs:
+{}
+
+physics:
+{
+  analyzers:
+  {
+    calibana: @local::pdvd_calibanatree_data
+  }
+
+  filters: {}
+
+  ana: [calibana]
+  end_paths:     [ana]
+}
+
+physics.analyzers.calibana.Detector: "PDVD"
+
+services.DAPHNEChannelMapService.FileName:  "PDVD_PDS_Mapping_v07082025.json"
+services.WireReadout.PDMapTool.MappingFile: "PDVD_PDS_Mapping_v07082025.json"

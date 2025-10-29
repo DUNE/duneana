@@ -16,7 +16,8 @@ public:
     fRequireT0(p.get<bool>("RequireT0", true)),
     fInvert(p.get<bool>("Invert", false)),
     fNPreScale(p.get<unsigned>("PreScale", 1)),
-    fISelect(0)
+    fISelect(0) 
+
   {
       // Set ISelect to a random number
       // so that events get prescaled uniformly across runs
@@ -28,6 +29,8 @@ public:
 
   /// For external modules to call: run the actual selection
   bool DoSelect(const TrackInfo &t) {
+    
+	
 
     bool has_good_t0 = t.whicht0 >= 0;
     // Check if the T0 is allowed

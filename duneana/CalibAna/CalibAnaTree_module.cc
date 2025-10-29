@@ -114,6 +114,7 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
   fFillTrackEndHits             = p.get<bool>("FillTrackEndHits", true);
   fTrackEndHitWireBox           = p.get<float>("TrackEndHitWireBox", 60); // 30 cm in the plane projection
   fTrackEndHitTimeBox           = p.get<float>("TrackEndHitTimeBox", 300); // 150 us, about 25 cm
+  fDetector                     = p.get<std::string>("Detector", "NONE");  
 
   fRawDigitproducers            = p.get<std::vector<art::InputTag>>("RawDigitproducers", {}); 
  
@@ -127,9 +128,19 @@ dune::CalibAnaTree::CalibAnaTree(fhicl::ParameterSet const& p)
   fRawDigitproducers = p.get<std::vector<art::InputTag>>("RawDigitproducers", {});
 
   std::vector<fhicl::ParameterSet> selection_tool_configs(p.get<std::vector<fhicl::ParameterSet>>("SelectionTools"), {});
-  for (const fhicl::ParameterSet &p: selection_tool_configs) {
+  
+  //Forward detector type to selection tools
+
+  for (auto p : selection_tool_configs) {              // <-- copy, named 'p'
+    if (!p.has_key("Detector")) {
+      p.put<std::string>("Detector", fDetector);       // inject
+    }
     fSelectionTools.push_back(art::make_tool<dune::ICATSelectionTool>(p));
   }
+
+  //for (const fhicl::ParameterSet &p: selection_tool_configs) {
+  //  fSelectionTools.push_back(art::make_tool<dune::ICATSelectionTool>(p));
+  //}
 
   // Setup meta info
   fMeta.iproc = -1;
@@ -500,7 +511,10 @@ void dune::CalibAnaTree::analyze(art::Event const& e)
 
     // Save!
     if (select) {
-      if (fVerbose) std::cout << "Track Selected! By tool: " << i_select << std::endl;
+      if (fVerbose) { std::cout << "Track Selected! By tool: " << i_select << std::endl
+            << " (writing selected=" << fTrack->selected
+            << ", nprescale=" << fTrack->nprescale << ")\n";
+      }
       fTree_track->Fill();
     }
   }
