@@ -91,7 +91,7 @@ namespace solar
     bool fOpFlashAlgoHitDuplicates;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
     bool fGenerateSolarCluster, fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
-    bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveTrackInfo;
+    bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveAdjOpFlashInfo, fSaveTrackInfo;
     bool fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
     bool fOpFlashTime2us; // If true, the OpFlash time is in ticks, and we convert it to microseconds.
     std::vector<bool> SelectedEvents; // List of events that pass the selection. 0 = not selected, 1 = selected.
@@ -221,6 +221,7 @@ namespace solar
     fSaveSignalEDep = p.get<bool>("SaveSignalEDep");
     fSaveSignalOpHits = p.get<bool>("SaveSignalOpHits");
     fSaveOpFlashInfo = p.get<bool>("SaveOpFlashInfo");
+    fSaveAdjOpFlashInfo = p.get<bool>("SaveAdjOpFlashInfo");
     fSaveTrackInfo = p.get<bool>("SaveTrackInfo");
     // Generate the list of labels to be used in the analysis
     fLabels.push_back(fSignalLabel);
@@ -294,6 +295,7 @@ namespace solar
     fConfigTree->Branch("SaveSignalEDep", &fSaveSignalEDep);
     fConfigTree->Branch("SaveSignalOpHits", &fSaveSignalOpHits);
     fConfigTree->Branch("SaveOpFlashInfo", &fSaveOpFlashInfo);
+    fConfigTree->Branch("SaveAdjOpFlashInfo", &fSaveAdjOpFlashInfo);
     fConfigTree->Branch("SaveTrackInfo", &fSaveTrackInfo);
     fConfigTree->Branch("SelectedEvents", &SelectedEvents);
 
@@ -483,7 +485,7 @@ namespace solar
     fSolarNuAnaTree->Branch("AdjClEndZ", &MAdjClEndZ);                   // Adj. clusters' end Z [cm]
 
     // Adj. Flash info.
-    if (fSaveOpFlashInfo)
+    if (fSaveAdjOpFlashInfo)
     {
       fSolarNuAnaTree->Branch("AdjOpFlashR", &MAdjFlashR);               // Adj. flash' reco distance [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashPE", &MAdjFlashPE);             // Adj. flash' tot #PE [ADC*ticks]
