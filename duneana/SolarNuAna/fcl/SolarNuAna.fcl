@@ -51,7 +51,7 @@ BEGIN_PROLOG
     AdjClusterRad:              100.         # Radius to search for adj. clusters in [cm] units.
     AdjClusterSingleMatch:      false        # If true, each adjacent cluster is allowed to match only one primary cluster.
 
-    GenerateAdjOpFlash:         false        # Generate OpFlashes.
+    GenerateAdjOpFlash:         true         # Generate OpFlashes.
     OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
     OpFlashAlgoMinTime:         0.008        # Negative time window to look for adj. OpHits in [us] units.
     OpFlashAlgoMaxTime:         0.016        # Positive time window to look for adj. OpHits in [us] units.
@@ -83,6 +83,7 @@ BEGIN_PROLOG
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
+    SaveAdjOpFlashInfo:         true         # Save the AdjOpFlash information for each preselection cluster.
     SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
 
     TestLatestFeatures:         true         # If true, the latest features are used.

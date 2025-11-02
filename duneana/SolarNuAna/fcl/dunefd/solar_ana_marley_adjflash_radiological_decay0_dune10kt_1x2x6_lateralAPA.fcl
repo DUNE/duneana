@@ -1,10 +1,10 @@
-# Specific configuration for signal+bkg events with coustom flash generation
+# Specific configuration for investigating energy depositions of signal events.
 # Run SolarNuAna on the output of a standard reco workflow for DUNE FD
 
-#include "solar_ana_radiological_decay0_dune10kt_1x2x6_centralAPA.fcl"
+#include "solar_ana_radiological_decay0_dune10kt_1x2x6_lateralAPA.fcl"
 
+physics.analyzers.solarnuana.SaveSignalDaughters: true
 physics.analyzers.solarnuana.GenerateAdjOpFlash: true
-physics.analyzers.solarnuana.SaveOpFlashInfo:    true
 physics.analyzers.solarnuana.SaveAdjOpFlashInfo: true
 physics.analyzers.solarnuana.AdjOpFlashX: 100.
 physics.analyzers.solarnuana.AdjOpFlashY: 100.

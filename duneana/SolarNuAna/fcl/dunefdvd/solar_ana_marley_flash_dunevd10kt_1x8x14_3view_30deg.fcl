@@ -5,3 +5,4 @@
 
 physics.analyzers.solarnuana.GenerateAdjOpFlash: true
 physics.analyzers.solarnuana.SaveOpFlashInfo:    true
+physics.analyzers.solarnuana.SaveAdjOpFlashInfo: true
