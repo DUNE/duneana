@@ -1,7 +1,7 @@
 BEGIN_PROLOG
 dunefd_simphotoncounter:
 {
-  module_type:            "SimPhotonCounter"
+  module_type:             "SimPhotonCounterDUNE"
   Verbosity:               2
   InputModule:             ["PDFastSim"]
   InputModuleCode:         [1]
