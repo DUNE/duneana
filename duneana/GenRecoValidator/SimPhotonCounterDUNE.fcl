@@ -1,5 +1,5 @@
 BEGIN_PROLOG
-dunefd_simphotoncounter:
+dunefd_simphotoncounterDUNE:
 {
   module_type:             "SimPhotonCounterDUNE"
   Verbosity:               2

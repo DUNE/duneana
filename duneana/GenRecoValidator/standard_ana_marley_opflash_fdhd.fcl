@@ -31,7 +31,7 @@ physics:
    pmtracktceff:      @local::standard_neutrinotrackingeff
    flashmatch:        @local::standard_flashmatchana
    ophitana:          @local::dune_opflashana_deco
-   simphotons:        @local::dunefd_simphotoncounter        
+   simphotons:        @local::dunefd_simphotoncounterDUNE
  }
  #define the output stream, there could be more than one if using filters 
   stream1:  [ out1 ]
