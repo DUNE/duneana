@@ -53,6 +53,7 @@
 #include "dunecore/ProducerUtils/ProducerUtils.h"
 #include "dunereco/LowEUtils/LowEUtils.h"
 
+using namespace lowe;
 using namespace producer;
 
 namespace solar
@@ -86,35 +87,29 @@ namespace solar
         std::vector<std::string> ProcessList,
         bool HeavDebug);
 
-    void FillClusterHitVectors(std::vector<recob::Hit> Cluster,
-                               std::vector<int> &TPC,
-                               std::vector<int> &Channel,
-                               std::vector<double> &MotherX,
-                               std::vector<double> &MotherY,
-                               std::vector<double> &MotherZ,
-                               std::vector<double> &MotherE,
-                               std::vector<double> &MotherP,
-                               std::vector<int> &MotherPDG,
-                               std::vector<double> &AncestorX,
-                               std::vector<double> &AncestorY,
-                               std::vector<double> &AncestorZ,
-                               std::vector<double> &AncestorE,
-                               std::vector<double> &AncestorP,
-                               std::vector<int> &AncestorPDG,
-                               std::vector<double> &Charge,
-                               std::vector<double> &Time,
-                               std::vector<double> &Y,
-                               std::vector<double> &Z,
-                               std::vector<double> &Dir,
-                               detinfo::DetectorClocksData clockData,
-                               bool HeavDebug);
-
-    std::vector<std::vector<std::vector<recob::Hit>>> MatchClusters(
-        std::vector<std::vector<std::vector<recob::Hit>>> Clusters,
-        std::vector<std::vector<int>> &ClNHits,
-        std::vector<std::vector<float>> &ClT,
-        std::vector<std::vector<float>> &ClCharge,
-        bool HeavDebug);
+    void FillClusterHitVectors(
+      std::vector<recob::Hit> Cluster,
+      std::vector<int> &TPC,
+      std::vector<int> &Channel,
+      std::vector<double> &MotherX,
+      std::vector<double> &MotherY,
+      std::vector<double> &MotherZ,
+      std::vector<double> &MotherE,
+      std::vector<double> &MotherP,
+      std::vector<int> &MotherPDG,
+      std::vector<double> &AncestorX,
+      std::vector<double> &AncestorY,
+      std::vector<double> &AncestorZ,
+      std::vector<double> &AncestorE,
+      std::vector<double> &AncestorP,
+      std::vector<int> &AncestorPDG,
+      std::vector<double> &Charge,
+      std::vector<double> &Time,
+      std::vector<double> &Y,
+      std::vector<double> &Z,
+      std::vector<double> &Dir,
+      detinfo::DetectorClocksData clockData,
+      bool HeavDebug);
 
     // std::vector<double> ComputeInterpolationRecoY(
     //     int Event,
@@ -182,7 +177,7 @@ namespace solar
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     std::unique_ptr<solar::AdjOpHitsUtils> adjophits;
     std::unique_ptr<producer::ProducerUtils> producer;
-    std::unique_ptr<solar::LowEUtils> lowe;
+    std::unique_ptr<lowe::LowEUtils> lowe;
   };
 #endif
 
@@ -191,7 +186,7 @@ namespace solar
       : EDAnalyzer(p),
         adjophits(new solar::AdjOpHitsUtils(p)),
         producer(new producer::ProducerUtils(p)),
-        lowe(new solar::LowEUtils(p))
+        lowe(new lowe::LowEUtils(p))
   {
     this->reconfigure(p);
   }
@@ -515,10 +510,10 @@ namespace solar
     mf::LogInfo lcluster("clusters");
     std::string lclusterstr = "";
     // --- Now calculate the clusters ...
-    lowe->CalcAdjHits(Hits0, Clusters0, hAdjHits, hAdjHitsADCInt, false);
-    lowe->CalcAdjHits(Hits1, Clusters1, hAdjHits, hAdjHitsADCInt, false);
-    lowe->CalcAdjHits(Hits2, Clusters2, hAdjHits, hAdjHitsADCInt, false);
-    lowe->CalcAdjHits(Hits3, Clusters3, hAdjHits, hAdjHitsADCInt, false);
+    lowe->CalcAdjHits(Hits0, Clusters0, hAdjHits, hAdjHitsADCInt, evt, false);
+    lowe->CalcAdjHits(Hits1, Clusters1, hAdjHits, hAdjHitsADCInt, evt, false);
+    lowe->CalcAdjHits(Hits2, Clusters2, hAdjHits, hAdjHitsADCInt, evt, false);
+    lowe->CalcAdjHits(Hits3, Clusters3, hAdjHits, hAdjHitsADCInt, evt, false);
 
     lcluster << "\n# Clusters per view: ";
     lcluster << "\nInduction Plane 0:\t" << Clusters0.size();
@@ -532,7 +527,7 @@ namespace solar
     std::vector<std::vector<int>> ClNHits = {{}, {}, {}};
     std::vector<std::vector<float>> ClCharge = {{}, {}, {}};
 
-    lowe->MatchClusters(MatchedClusters, AllClusters, ClNHits, ClT, ClCharge, fDebug);
+    lowe->MatchClusters(MatchedClusters, AllClusters, ClNHits, ClT, ClCharge, evt, fDebug);
     std::vector<std::vector<float>> ClY = ClT;
     std::vector<std::vector<float>> ClZ = ClT;
     // Reset all vector entries in ClY and ClZ to -1e6
@@ -882,28 +877,29 @@ namespace solar
   // }
 
   //......................................................
-  void LowEAna::FillClusterHitVectors(std::vector<recob::Hit> Cluster,
-                                      std::vector<int> &TPC,
-                                      std::vector<int> &Channel,
-                                      std::vector<double> &MotherX,
-                                      std::vector<double> &MotherY,
-                                      std::vector<double> &MotherZ,
-                                      std::vector<double> &MotherE,
-                                      std::vector<double> &MotherP,
-                                      std::vector<int> &MotherPDG,
-                                      std::vector<double> &AncestorX,
-                                      std::vector<double> &AncestorY,
-                                      std::vector<double> &AncestorZ,
-                                      std::vector<double> &AncestorE,
-                                      std::vector<double> &AncestorP,
-                                      std::vector<int> &AncestorPDG,
-                                      std::vector<double> &Charge,
-                                      std::vector<double> &Time,
-                                      std::vector<double> &Y,
-                                      std::vector<double> &Z,
-                                      std::vector<double> &Dir,
-                                      detinfo::DetectorClocksData ClockData,
-                                      bool HeavDebug)
+  void LowEAna::FillClusterHitVectors(
+    std::vector<recob::Hit> Cluster,
+    std::vector<int> &TPC,
+    std::vector<int> &Channel,
+    std::vector<double> &MotherX,
+    std::vector<double> &MotherY,
+    std::vector<double> &MotherZ,
+    std::vector<double> &MotherE,
+    std::vector<double> &MotherP,
+    std::vector<int> &MotherPDG,
+    std::vector<double> &AncestorX,
+    std::vector<double> &AncestorY,
+    std::vector<double> &AncestorZ,
+    std::vector<double> &AncestorE,
+    std::vector<double> &AncestorP,
+    std::vector<int> &AncestorPDG,
+    std::vector<double> &Charge,
+    std::vector<double> &Time,
+    std::vector<double> &Y,
+    std::vector<double> &Z,
+    std::vector<double> &Dir,
+    detinfo::DetectorClocksData ClockData,
+    bool HeavDebug)
   /*
    */
   {
@@ -969,146 +965,6 @@ namespace solar
       float dzds = Direction.Z();
       Dir.push_back(dzds / dyds);
     }
-  }
-
-  std::vector<std::vector<std::vector<recob::Hit>>> LowEAna::MatchClusters(
-      std::vector<std::vector<std::vector<recob::Hit>>> Clusters,
-      std::vector<std::vector<int>> &ClNHits,
-      std::vector<std::vector<float>> &ClT,
-      std::vector<std::vector<float>> &ClCharge,
-      bool HeavDebug)
-  {
-    mf::LogDebug lmatch("match");
-    std::string lmatchstr = "";
-    lowe->FillClusterVariables(Clusters, ClNHits, ClT, ClCharge, HeavDebug);
-    std::vector<std::vector<std::vector<recob::Hit>>> MatchedClusters = {{}, {}, {}};
-    std::vector<std::vector<int>> MatchedClNHits = {{}, {}, {}};
-    std::vector<std::vector<float>> MatchedClT = {{}, {}, {}};
-    std::vector<std::vector<float>> MatchedClCharge = {{}, {}, {}};
-
-    // --- Declare our variables to fill
-    int MatchInd0Idx = -1, MatchInd1Idx = -1;
-    double Ind0ClustdT = fClusterAlgoTime, Ind1ClustdT = fClusterAlgoTime;
-    bool MatchInd0 = false, MatchInd1 = false;
-
-    for (size_t ii = 0; ii < Clusters[2].size(); ii++)
-    {
-      if (Clusters[2][ii].empty())
-      {
-        continue;
-      }
-      // Reset variables for next match
-      lmatch << "\nMatching cluster " << ii;
-      MatchInd0 = false;
-      MatchInd1 = false;
-      Ind0ClustdT = fClusterAlgoTime;
-      Ind1ClustdT = fClusterAlgoTime;
-
-      if (Clusters[0].empty())
-      {
-        continue;
-      }
-      for (int jj = 0; jj < int(Clusters[0].size()); jj++)
-      {
-        if (ClNHits[0][jj] < (1 - fClusterMatchNHit) * ClNHits[2][ii] || ClNHits[0][jj] > (1 + fClusterMatchNHit) * ClNHits[2][ii])
-        {
-          continue;
-        } // Cut on number of hits of Ind0 cluster
-        if (ClCharge[0][jj] < (1 - fClusterMatchCharge) * ClCharge[2][ii] || ClCharge[0][jj] > (1 + fClusterMatchCharge) * ClCharge[2][ii])
-        {
-          continue;
-        } // Cut on charge of Ind0 cluster
-        if (abs(ClT[2][ii] - ClT[0][jj]) < fClusterAlgoTime && abs(fClusterInd0MatchTime - abs(ClT[2][ii] - ClT[0][jj])) < abs(fClusterInd0MatchTime - Ind0ClustdT))
-        {
-          Ind0ClustdT = abs(ClT[2][ii] - ClT[0][jj]);
-          MatchInd0 = true;
-          MatchInd0Idx = jj;
-          lmatch << "Matched Ind0 cluster " << jj;
-        }
-      }
-      if (Clusters[1].empty())
-      {
-        continue;
-      }
-      for (int zz = 0; zz < int(Clusters[1].size()); zz++)
-      {
-        if (ClNHits[1][zz] < (1 - fClusterMatchNHit) * ClNHits[2][ii] || ClNHits[1][zz] > (1 + fClusterMatchNHit) * ClNHits[2][ii])
-        {
-          continue;
-        } // Cut on number of hits of Ind1 cluster
-        if (ClCharge[1][zz] < (1 - fClusterMatchCharge) * ClCharge[2][ii] || ClCharge[1][zz] > (1 + fClusterMatchCharge) * ClCharge[2][ii])
-        {
-          continue;
-        } // Cut on charge of Ind1 cluster
-        if (abs(ClT[2][ii] - ClT[1][zz]) < fClusterAlgoTime && abs(fClusterInd1MatchTime - abs(ClT[2][ii] - ClT[1][zz])) < abs(fClusterInd1MatchTime - Ind1ClustdT))
-        {
-          Ind1ClustdT = abs(ClT[2][ii] - ClT[1][zz]);
-          MatchInd1 = true;
-          MatchInd1Idx = zz;
-          lmatch << "Matched Ind1 cluster " << zz;
-        }
-      } // Loop over ind1 clusters
-      // Fill matched clusters according to the matching criteria
-      if (MatchInd0 && MatchInd1)
-      {
-        MatchedClusters[0].push_back(Clusters[0][MatchInd0Idx]);
-        MatchedClNHits[0].push_back(ClNHits[0][MatchInd0Idx]);
-        MatchedClT[0].push_back(ClT[0][MatchInd0Idx]);
-        MatchedClCharge[0].push_back(ClCharge[0][MatchInd0Idx]);
-
-        MatchedClusters[1].push_back(Clusters[1][MatchInd1Idx]);
-        MatchedClNHits[1].push_back(ClNHits[1][MatchInd1Idx]);
-        MatchedClT[1].push_back(ClT[1][MatchInd1Idx]);
-        MatchedClCharge[1].push_back(ClCharge[1][MatchInd1Idx]);
-
-        MatchedClusters[2].push_back(Clusters[2][ii]);
-        MatchedClNHits[2].push_back(ClNHits[2][ii]);
-        MatchedClT[2].push_back(ClT[2][ii]);
-        MatchedClCharge[2].push_back(ClCharge[2][ii]);
-      }
-      else if (MatchInd0 && !MatchInd1)
-      {
-        MatchedClusters[0].push_back(Clusters[0][MatchInd0Idx]);
-        MatchedClNHits[0].push_back(ClNHits[0][MatchInd0Idx]);
-        MatchedClT[0].push_back(ClT[0][MatchInd0Idx]);
-        MatchedClCharge[0].push_back(ClCharge[0][MatchInd0Idx]);
-
-        MatchedClusters[2].push_back(Clusters[2][ii]);
-        MatchedClNHits[2].push_back(ClNHits[2][ii]);
-        MatchedClT[2].push_back(ClT[2][ii]);
-        MatchedClCharge[2].push_back(ClCharge[2][ii]);
-        // Fill missing cluster with empty vector
-        MatchedClusters[1].push_back({});
-        MatchedClNHits[1].push_back(0);
-        MatchedClT[1].push_back(0);
-        MatchedClCharge[1].push_back(0);
-      }
-      else if (!MatchInd0 && MatchInd1)
-      {
-        MatchedClusters[1].push_back(Clusters[1][MatchInd1Idx]);
-        MatchedClNHits[1].push_back(ClNHits[1][MatchInd1Idx]);
-        MatchedClT[1].push_back(ClT[1][MatchInd1Idx]);
-        MatchedClCharge[1].push_back(ClCharge[1][MatchInd1Idx]);
-
-        MatchedClusters[2].push_back(Clusters[2][ii]);
-        MatchedClNHits[2].push_back(ClNHits[2][ii]);
-        MatchedClT[2].push_back(ClT[2][ii]);
-        MatchedClCharge[2].push_back(ClCharge[2][ii]);
-        // Fill missing cluster with empty vector
-        MatchedClusters[0].push_back({});
-        MatchedClNHits[0].push_back(0);
-        MatchedClT[0].push_back(0);
-        MatchedClCharge[0].push_back(0);
-      }
-    }
-    ClNHits = MatchedClNHits;
-    ClT = MatchedClT;
-    ClCharge = MatchedClCharge;
-
-    lmatch << "\n# Matched Clusters:\t" << MatchedClusters[0].size();
-    lmatch << lmatchstr;
-
-    return MatchedClusters;
   }
 
   //......................................................

@@ -56,6 +56,7 @@
 #include "dunecore/ProducerUtils/ProducerUtils.h"
 #include "dunereco/LowEUtils/LowEUtils.h"
 
+using namespace lowe;
 using namespace producer;
 
 namespace solar
@@ -72,7 +73,7 @@ namespace solar
     void analyze(art::Event const &evt) override;
     void reconfigure(fhicl::ParameterSet const &p);
     void beginJob() override;
-
+    void endJob() override;
   private:
     // --- Some of our own functions.
     void ResetVariables();
@@ -81,23 +82,24 @@ namespace solar
     std::string fHitLabel, fTrackLabel, fOpHitLabel, fOpFlashLabel, fGEANTLabel;
 
     // --- Input settings imported from the fcl
-    std::string fSignalLabel, fGeometry;
-    int fDetectorSizeY, fDetectorSizeZ, fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut;
-    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fClusterMatchNHit, fClusterAlgoTime;
     std::vector<std::string> fLabels, fBackgroundLabels;
-    float fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
+    std::string fSignalLabel, fClusterLabel, fSolarClusterLabel, fClusterChargeVariable, fOpHitTimeVariable, fAdjOpFlashMinPEAttenuate;
+    int fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut, fAdjOpFlashMinPEAttenuationStrength;
+    float fMaxSignalK; 
+    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fAdjOpFlashMinPEAttenuation, fClusterMatchNHit, fClusterAlgoTime;
+    float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld, fXACathodeX, fXAMembraneY, fXAStartCapZ, fXAFinalCapZ;
+    bool fOpFlashAlgoHitDuplicates;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
-    bool fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
-    bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveTrackInfo;
+    bool fGenerateSolarCluster, fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
+    bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveAdjOpFlashInfo, fSaveTrackInfo;
     bool fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
-    bool fTestLatestFeatures;
-    // bool fOpFlashAlgoCentroid;
-
+    bool fOpFlashTime2us; // If true, the OpFlash time is in ticks, and we convert it to microseconds.
+    std::vector<bool> SelectedEvents; // List of events that pass the selection. 0 = not selected, 1 = selected.
     // --- Our TTrees, and its associated variables.
     TTree *fConfigTree;
     TTree *fMCTruthTree;
     TTree *fSolarNuAnaTree;
-    std::string TNuInteraction;
+    std::string sInteraction;
     std::vector<std::map<int, simb::MCParticle>> GeneratorParticles = {};
     int Event, Flag, MNHit, MGen, MTPC, MInd0TPC, MInd1TPC, MInd0NHits, MInd1NHits, MMainID, MMainPDG, MMainParentPDG, TrackNum, OpHitNum, OpFlashNum, MTrackNPoints, MAdjClNum, MSignalAdjClNum, SignalParticlePDG;
     float SignalParticleE, SignalParticleP, SignalParticleK, SignalParticleX, SignalParticleY, SignalParticleZ, SignalParticleTime, MTime, MCharge, MMaxCharge, MInd0Charge, MInd1Charge, MInd0MaxCharge, MInd1MaxCharge;
@@ -125,18 +127,16 @@ namespace solar
     bool MFlashCorrect;
 
     // --- Maps to hold the geo::TPCID object for each TPCid
-    std::map<unsigned int, geo::TPCID> TPCIDMap; // Key is the TPC index, value is the TPCID object
+    std::map<unsigned int, geo::TPCID> TPCIDMap;    // Key is the TPC index, value is the TPCID object
     std::map<unsigned int, float> TPCIDdriftLength; // Key is the TPC index, value is the drift length in cm
-    std::map<unsigned int, float> TPCIDdriftTime; // Key is the TPC index, value is the drift time in us
+    std::map<unsigned int, float> TPCIDdriftTime;   // Key is the TPC index, value is the drift time in us
 
     // --- Histograms to fill about collection plane hits
     float MainElectronEndPointX;
+    TH2F *hDriftTime;
     TH2F *hXTruth;
     TH2F *hYTruth;
     TH2F *hZTruth;
-    TH1I *hAdjHits;
-    TH1F *hAdjHitsADCInt;
-    TH2F *hDriftTime;
 
     // --- Declare our services
     geo::WireReadoutGeom const &wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
@@ -146,7 +146,7 @@ namespace solar
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     std::unique_ptr<producer::ProducerUtils> producer;
     std::unique_ptr<solar::AdjOpHitsUtils> adjophits;
-    std::unique_ptr<solar::LowEUtils> lowe;
+    std::unique_ptr<lowe::LowEUtils> lowe;
   };
 #endif
 
@@ -155,7 +155,7 @@ namespace solar
       : EDAnalyzer(p),
         producer(new producer::ProducerUtils(p)),
         adjophits(new solar::AdjOpHitsUtils(p)),
-        lowe(new solar::LowEUtils(p))
+        lowe(new lowe::LowEUtils(p))
   {
     this->reconfigure(p);
   }
@@ -163,54 +163,66 @@ namespace solar
   //......................................................
   void SolarNuAna::reconfigure(fhicl::ParameterSet const &p)
   {
-    fSignalLabel = p.get<std::string>("SignalLabel");
-    fBackgroundLabels = p.get<std::vector<std::string>>("BackgroundLabelVector");
-    fHitLabel = p.get<std::string>("HitLabel");
-    fOpFlashLabel = p.get<std::string>("OpFlashLabel");
-    fOpHitLabel = p.get<std::string>("OpHitLabel");
-    fTrackLabel = p.get<std::string>("TrackLabel");
-    fGEANTLabel = p.get<std::string>("GEANT4Label");
-    fGeometry = p.get<std::string>("Geometry");
-    fDetectorSizeY = p.get<int>("DetectorSizeY");
-    fDetectorSizeZ = p.get<int>("DetectorSizeZ");
-    fClusterAlgoTime = p.get<float>("ClusterAlgoTime");
+    fSignalLabel = p.get<std::string>("SignalLabel", "marley");
+    fBackgroundLabels = p.get<std::vector<std::string>>("BackgroundLabelVector", {""});
+    fGEANTLabel = p.get<std::string>("GEANT4Label", "largeant");
+    fHitLabel = p.get<std::string>("HitLabel", "hitfd");
+    fClusterLabel = p.get<std::string>("ClusterLabel", "planecluster");
+    fSolarClusterLabel = p.get<std::string>("SolarClusterLabel", "solarcluster");
+    fClusterChargeVariable = p.get<std::string>("ClusterChargeVariable", "Integral");
+    fTrackLabel = p.get<std::string>("TrackLabel", "pmtrack");
+    fOpHitLabel = p.get<std::string>("OpHitLabel", "ophitspe");
+    fOpHitTimeVariable = p.get<std::string>("OpHitTimeVariable", "PeakTime");
+    fOpFlashLabel = p.get<std::string>("OpFlashLabel", "solarflash");
+    fOpFlashTime2us = p.get<bool>("OpFlashTime2us", false);      // If true, the OpFlash time is in ticks, and we convert it to microseconds.
+    fOpFlashTimeOffset = p.get<float>("OpFlashTimeOffset", 0.0); // Time offset to be applied to the OpFlash time (in us if fOpFlashTime2us is true, in ticks otherwise)
+    fMaxSignalK = p.get<float>("MaxSignalK", 30.0); // Maximum kinetic energy in [MeV] of the particle considered as signal
+    fClusterAlgoTime = p.get<float>("ClusterAlgoTime", 12.5);    // Time window (in us) to look for hits to be clustered together
     fClusterAlgoAdjChannel = p.get<int>("ClusterAlgoAdjChannel");
-    fClusterMatchNHit = p.get<float>("ClusterMatchNHit");
-    fClusterMatchCharge = p.get<float>("ClusterMatchCharge");
-    fClusterMatchTime = p.get<float>("ClusterMatchTime");
-    fClusterInd0MatchTime = p.get<float>("ClusterInd0MatchTime");
-    fClusterInd1MatchTime = p.get<float>("ClusterInd1MatchTime");
-    fClusterPreselectionSignal = p.get<bool>("ClusterPreselectionSignal");
-    fClusterPreselectionPrimary = p.get<bool>("ClusterPreselectionPrimary");
-    fClusterPreselectionNHits = p.get<int>("ClusterPreselectionNHits");
-    fClusterPreselectionTrack = p.get<bool>("ClusterPreselectionTrack");
-    fClusterPreselectionFlashMatch = p.get<bool>("ClusterPreselectionFlashMatch");
-    fGenerateAdjCluster = p.get<bool>("GenerateAdjCluster");
-    fAdjClusterRad = p.get<float>("AdjClusterRad");
-    fMinClusterCharge = p.get<float>("MinClusterCharge");
-    fGenerateAdjOpFlash = p.get<bool>("GenerateAdjOpFlash");
-    fOpFlashAlgoMinTime = p.get<double>("OpFlashAlgoMinTime");
-    fOpFlashAlgoMaxTime = p.get<double>("OpFlashAlgoMaxTime");
+    fGenerateSolarCluster = p.get<bool>("GenerateSolarCluster",true);
+    fClusterMatchNHit = p.get<float>("ClusterMatchNHit", 2.0);
+    fClusterMatchCharge = p.get<float>("ClusterMatchCharge", 0.6);
+    fClusterMatchTime = p.get<float>("ClusterMatchTime", 10.0);
+    fClusterInd0MatchTime = p.get<float>("ClusterInd0MatchTime", 0);
+    fClusterInd1MatchTime = p.get<float>("ClusterInd1MatchTime", 0);
+    fClusterPreselectionSignal = p.get<bool>("ClusterPreselectionSignal", true);
+    fClusterPreselectionPrimary = p.get<bool>("ClusterPreselectionPrimary", true);
+    fClusterPreselectionNHits = p.get<int>("ClusterPreselectionNHits", 0);
+    fClusterPreselectionTrack = p.get<bool>("ClusterPreselectionTrack", false);
+    fClusterPreselectionFlashMatch = p.get<bool>("ClusterPreselectionFlashMatch", false);
+    fGenerateAdjCluster = p.get<bool>("GenerateAdjCluster", true);
+    fAdjClusterRad = p.get<float>("AdjClusterRad", 100.0);
+    fMinClusterCharge = p.get<float>("MinClusterCharge", 0.0);
+    fGenerateAdjOpFlash = p.get<bool>("GenerateAdjOpFlash", false);
+    fXACathodeX = p.get<float>("XACathodeX");
+    fXAMembraneY = p.get<float>("XAMembraneY");
+    fXAStartCapZ = p.get<float>("XAStartCapZ");
+    fXAFinalCapZ = p.get<float>("XAFinalCapZ");
+    fOpFlashAlgoMinTime = p.get<double>("OpFlashAlgoMinTime", 0.010); // 10 ns [0.6 tick]
+    fOpFlashAlgoMaxTime = p.get<double>("OpFlashAlgoMaxTime", 0.016); // 16 ns [1 tick]
     fOpFlashAlgoRad = p.get<double>("OpFlashAlgoRad");
     fOpFlashAlgoPE = p.get<float>("OpFlashAlgoPE");
     fOpFlashAlgoTriggerPE = p.get<float>("OpFlashAlgoTriggerPE");
     fOpFlashAlgoHotVertexThld = p.get<float>("OpFlashAlgoHotVertexThld");
+    fOpFlashAlgoHitDuplicates = p.get<bool>("OpFlashAlgoHitDuplicates");
     fAdjOpFlashMembraneProjection = p.get<bool>("AdjOpFlashMembraneProjection");
     fAdjOpFlashEndCapProjection = p.get<bool>("AdjOpFlashEndCapProjection");
-    // fOpFlashAlgoCentroid = p.get<bool>("OpFlashAlgoCentroid");
-    fAdjOpFlashX = p.get<float>("AdjOpFlashX");
-    fAdjOpFlashY = p.get<float>("AdjOpFlashY");
-    fAdjOpFlashZ = p.get<float>("AdjOpFlashZ");
+    fAdjOpFlashX = p.get<float>("AdjOpFlashX", 100.0);
+    fAdjOpFlashY = p.get<float>("AdjOpFlashY", 100.0);
+    fAdjOpFlashZ = p.get<float>("AdjOpFlashZ", 100.0);
     fAdjOpFlashMaxPERatioCut = p.get<float>("AdjOpFlashMaxPERatioCut");
     fAdjOpFlashMinPECut = p.get<float>("AdjOpFlashMinPECut");
+    fAdjOpFlashMinPEAttenuate = p.get<std::string>("AdjOpFlashMinPEAttenuate");
+    fAdjOpFlashMinPEAttenuation = p.get<float>("AdjOpFlashMinPEAttenuation", 0.9);
+    fAdjOpFlashMinPEAttenuationStrength = p.get<float>("AdjOpFlashMinPEAttenuationStrength", 4);
     fAdjOpFlashMinNHitCut = p.get<int>("AdjOpFlashMinNHitCut");
     fFlashMatchByResidual = p.get<bool>("FlashMatchByResidual");
     fSaveSignalDaughters = p.get<bool>("SaveSignalDaughters");
     fSaveSignalEDep = p.get<bool>("SaveSignalEDep");
     fSaveSignalOpHits = p.get<bool>("SaveSignalOpHits");
     fSaveOpFlashInfo = p.get<bool>("SaveOpFlashInfo");
+    fSaveAdjOpFlashInfo = p.get<bool>("SaveAdjOpFlashInfo");
     fSaveTrackInfo = p.get<bool>("SaveTrackInfo");
-    fTestLatestFeatures = p.get<bool>("TestLatestFeatures");
     // Generate the list of labels to be used in the analysis
     fLabels.push_back(fSignalLabel);
     for (auto const &label : fBackgroundLabels)
@@ -229,16 +241,20 @@ namespace solar
     fSolarNuAnaTree = tfs->make<TTree>("SolarNuAnaTree", "Solar Ana Tree");
 
     // Larsoft Config info.
+    fConfigTree->Branch("SignalLabel", &fSignalLabel);
+    fConfigTree->Branch("MaxSignalK", &fMaxSignalK);
     fConfigTree->Branch("GEANT4Label", &fGEANTLabel);
     fConfigTree->Branch("HitLabel", &fHitLabel);
+    fConfigTree->Branch("ClusterLabel", &fClusterLabel);
+    fConfigTree->Branch("SolarClusterLabel", &fSolarClusterLabel);
     fConfigTree->Branch("TrackLabel", &fTrackLabel);
     fConfigTree->Branch("OpHitLabel", &fOpHitLabel);
     fConfigTree->Branch("OpFlashLabel", &fOpFlashLabel);
-    fConfigTree->Branch("Geometry", &fGeometry);
-    fConfigTree->Branch("DetectorSizeY", &fDetectorSizeY);
-    fConfigTree->Branch("DetectorSizeZ", &fDetectorSizeZ);
+    fConfigTree->Branch("OpFlashTime2us", &fOpFlashTime2us);
+    fConfigTree->Branch("OpFlashTimeOffset", &fOpFlashTimeOffset);
     fConfigTree->Branch("ClusterAlgoTime", &fClusterAlgoTime);
     fConfigTree->Branch("ClusterAlgoAdjChannel", &fClusterAlgoAdjChannel);
+    fConfigTree->Branch("GenerateSolarCluster", &fGenerateSolarCluster);
     fConfigTree->Branch("ClusterMatchNHit", &fClusterMatchNHit);
     fConfigTree->Branch("ClusterMatchCharge", &fClusterMatchCharge);
     fConfigTree->Branch("ClusterMatchTime", &fClusterMatchTime);
@@ -252,34 +268,42 @@ namespace solar
     fConfigTree->Branch("AdjClusterRad", &fAdjClusterRad);
     fConfigTree->Branch("MinClusterCharge", &fMinClusterCharge);
     fConfigTree->Branch("GenerateAdjOpFlash", &fGenerateAdjOpFlash);
+    fConfigTree->Branch("XACathodeX", &fXACathodeX);
+    fConfigTree->Branch("XAMembraneY", &fXAMembraneY);
+    fConfigTree->Branch("XAStartCapZ", &fXAStartCapZ);
+    fConfigTree->Branch("XAFinalCapZ", &fXAFinalCapZ);
     fConfigTree->Branch("OpFlashAlgoMinTime", &fOpFlashAlgoMinTime);
     fConfigTree->Branch("OpFlashAlgoMaxTime", &fOpFlashAlgoMaxTime);
     fConfigTree->Branch("OpFlashAlgoRad", &fOpFlashAlgoRad);
     fConfigTree->Branch("OpFlashAlgoPE", &fOpFlashAlgoPE);
     fConfigTree->Branch("OpFlashAlgoTriggerPE", &fOpFlashAlgoTriggerPE);
     fConfigTree->Branch("OpFlashAlgoHotVertexThld", &fOpFlashAlgoHotVertexThld);
+    fConfigTree->Branch("OpFlashAlgoHitDuplicates", &fOpFlashAlgoHitDuplicates);
     fConfigTree->Branch("AdjOpFlashMembraneProjection", &fAdjOpFlashMembraneProjection);
     fConfigTree->Branch("AdjOpFlashEndCapProjection", &fAdjOpFlashEndCapProjection);
-    // fConfigTree->Branch("OpFlashAlgoCentroid", &fOpFlashAlgoCentroid);
     fConfigTree->Branch("AdjOpFlashX", &fAdjOpFlashX);
     fConfigTree->Branch("AdjOpFlashY", &fAdjOpFlashY);
     fConfigTree->Branch("AdjOpFlashZ", &fAdjOpFlashZ);
     fConfigTree->Branch("AdjOpFlashMaxPERatioCut", &fAdjOpFlashMaxPERatioCut);
     fConfigTree->Branch("AdjOpFlashMinPECut", &fAdjOpFlashMinPECut);
+    fConfigTree->Branch("AdjOpFlashMinPEAttenuate", &fAdjOpFlashMinPEAttenuate);
+    fConfigTree->Branch("AdjOpFlashMinPEAttenuation", &fAdjOpFlashMinPEAttenuation);
+    fConfigTree->Branch("AdjOpFlashMinPEAttenuationStrength", &fAdjOpFlashMinPEAttenuationStrength);
     fConfigTree->Branch("AdjOpFlashMinNHitCut", &fAdjOpFlashMinNHitCut);
     fConfigTree->Branch("FlashMatchByResidual", &fFlashMatchByResidual);
     fConfigTree->Branch("SaveSignalDaughters", &fSaveSignalDaughters);
     fConfigTree->Branch("SaveSignalEDep", &fSaveSignalEDep);
     fConfigTree->Branch("SaveSignalOpHits", &fSaveSignalOpHits);
     fConfigTree->Branch("SaveOpFlashInfo", &fSaveOpFlashInfo);
+    fConfigTree->Branch("SaveAdjOpFlashInfo", &fSaveAdjOpFlashInfo);
     fConfigTree->Branch("SaveTrackInfo", &fSaveTrackInfo);
-    fConfigTree->Branch("TestLatestFeatures", &fTestLatestFeatures);
+    fConfigTree->Branch("SelectedEvents", &SelectedEvents);
 
     // MC Truth info.
     fMCTruthTree->Branch("Event", &Event, "Event/I");                                        // Event number
     fMCTruthTree->Branch("Flag", &Flag, "Flag/I");                                           // Flag used to match truth with reco tree entries
     fMCTruthTree->Branch("TruthPart", &TPart);                                               // Number particles per generator
-    fMCTruthTree->Branch("Interaction", &TNuInteraction);                                    // True signal interaction process
+    fMCTruthTree->Branch("Interaction", &sInteraction);                                      // True signal interaction process
     fMCTruthTree->Branch("SignalParticleE", &SignalParticleE, "SignalParticleE/F");          // True signal energy [MeV]
     fMCTruthTree->Branch("SignalParticleP", &SignalParticleP, "SignalParticleP/F");          // True signal momentum [MeV]
     fMCTruthTree->Branch("SignalParticleK", &SignalParticleK, "SignalParticleK/F");          // True signal K.E. [MeV]
@@ -290,11 +314,12 @@ namespace solar
     fMCTruthTree->Branch("SignalParticleTime", &SignalParticleTime, "SignalParticleTime/F"); // True signal time [tick]
     fMCTruthTree->Branch("OpHitNum", &OpHitNum, "OpHitNum/I");                               // Number of OpHits
     fMCTruthTree->Branch("OpFlashNum", &OpFlashNum, "OpFlashNum/I");                         // Number of OpFlashes
-    fMCTruthTree->Branch("HitNum", &HitNum);                                                 // Number of hits in each TPC plane
-    fMCTruthTree->Branch("ClusterNum", &ClusterNum);                                         // Number of clusters in each TPC plane
+    fMCTruthTree->Branch("HitNum", &HitNum, "HitNum/I");                                     // Number of hits in each TPC plane
+    fMCTruthTree->Branch("ClusterNum", &ClusterNum, "ClusterNum/I");                         // Number of clusters in each TPC plane
     fMCTruthTree->Branch("TrackNum", &TrackNum, "TrackNum/I");                               // Number of PMTracks
+    
     if (fSaveSignalDaughters)
-    { // Save Signal Daughters. (Only makes sense for marley)
+    { // Save Signal Daughters.
       fMCTruthTree->Branch("TSignalPDG", &SignalPDGList);         // PDG of Signal marticles
       fMCTruthTree->Branch("TSignalE", &SignalEList);             // Energy of Signal particles [MeV]
       fMCTruthTree->Branch("TSignalP", &SignalPList);             // Energy of Signal momentum [MeV]
@@ -311,7 +336,7 @@ namespace solar
       fMCTruthTree->Branch("TSignalMother", &SignalMotherList);   // TrackID of Signal mother
     }
     if (fSaveSignalEDep)
-    {
+    { // Save Energy deposited by Signal particles. (Can be very heavy for any production)
       fMCTruthTree->Branch("TSignalPDGDepList", &SignalPDGDepList);           // PDG for Energy deposited of Signal particles
       fMCTruthTree->Branch("TSignalEDepList", &SignalEDepList);               // Energy deposited of Signal particles [MeV]
       fMCTruthTree->Branch("TSignalXDepList", &SignalXDepList);               // X deposited of Signal particles [cm]
@@ -351,7 +376,7 @@ namespace solar
     fSolarNuAnaTree->Branch("Event", &Event, "Event/I");                                        // Event number
     fSolarNuAnaTree->Branch("Flag", &Flag, "Flag/I");                                           // Flag used to match truth with reco tree entries
     fSolarNuAnaTree->Branch("TruthPart", &TPart);                                               // Number particles per generator
-    fSolarNuAnaTree->Branch("Interaction", &TNuInteraction);                                    // True signal interaction process
+    fSolarNuAnaTree->Branch("Interaction", &sInteraction);                                      // True signal interaction process
     fSolarNuAnaTree->Branch("SignalParticleE", &SignalParticleE, "SignalParticleE/F");          // True signal energy [MeV]
     fSolarNuAnaTree->Branch("SignalParticleP", &SignalParticleP, "SignalParticleP/F");          // True signal momentum [MeV]
     fSolarNuAnaTree->Branch("SignalParticleK", &SignalParticleK, "SignalParticleK/F");          // True signal K.E. [MeV]
@@ -360,6 +385,7 @@ namespace solar
     fSolarNuAnaTree->Branch("SignalParticleZ", &SignalParticleZ, "SignalParticleZ/F");          // True signal Z [cm]
     fSolarNuAnaTree->Branch("SignalParticlePDG", &SignalParticlePDG, "SignalParticlePDG/I");    // True signal PDG
     fSolarNuAnaTree->Branch("SignalParticleTime", &SignalParticleTime, "SignalParticleTime/F"); // True signal Time [tick]
+    
     if (fSaveSignalDaughters)
     { // Save Signal Daughters. (Only makes sense for marley)
       fSolarNuAnaTree->Branch("TSignalPDG", &SignalPDGList);         // PDG of Signal particles
@@ -459,7 +485,7 @@ namespace solar
     fSolarNuAnaTree->Branch("AdjClEndZ", &MAdjClEndZ);                   // Adj. clusters' end Z [cm]
 
     // Adj. Flash info.
-    if (fSaveOpFlashInfo)
+    if (fSaveAdjOpFlashInfo)
     {
       fSolarNuAnaTree->Branch("AdjOpFlashR", &MAdjFlashR);               // Adj. flash' reco distance [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashPE", &MAdjFlashPE);             // Adj. flash' tot #PE [ADC*ticks]
@@ -494,15 +520,13 @@ namespace solar
 
     fConfigTree->AddFriend(fSolarNuAnaTree);
     fMCTruthTree->AddFriend(fSolarNuAnaTree);
-    fConfigTree->Fill();
+    SelectedEvents.clear();
 
     // --- Our Histograms...
     hDriftTime = tfs->make<TH2F>("hDriftTime", "hDriftTime", 100, -400., 400., 100, 0., 10000.);
     hXTruth = tfs->make<TH2F>("hXTruth", "Missmatch in X distance; Distance [cm]; True X position [cm]", 100, -600, 600, 100, -600, 600);
     hYTruth = tfs->make<TH2F>("hYTruth", "Missmatch in Y distance; Distance [cm]; True Y position [cm]", 100, -600, 600, 100, -600, 600);
     hZTruth = tfs->make<TH2F>("hZTruth", "Missmatch in Z distance; Distance [cm]; True Z position [cm]", 100, -600, 600, 100, 0, 1600);
-    hAdjHits = tfs->make<TH1I>("hAdjHits", "Number of adjacent collection plane hits; Number of adjacent collection plane hits; Number of events", 21, -0.5, 20.5);
-    hAdjHitsADCInt = tfs->make<TH1F>("hAdjHitsADCInt", "Total summed ADC Integrals for clusters; Total summed ADC Integrals for clusters; Number of events", 1000, 0, 10000);
   } // BeginJob
 
   //......................................................
@@ -511,69 +535,91 @@ namespace solar
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //------------------------------------------------------------- Prepare everything for new event ----------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
+    std::string fGeometry = "";
+    std::string geoName = geom->DetectorName();
     std::vector<std::set<int>> trackids = {};
     std::map<int, simb::MCParticle> ThisGeneratorParts;
     std::vector<recob::Hit> Ind0Hits, Ind1Hits, ColHits, GhostHits;
     std::vector<std::vector<recob::Hit>> Clusters0, Clusters1, Clusters2, Clusters3;
-
     // --- We want to reset all of our previous run and TTree variables ---
     ResetVariables();
     ThisGeneratorParts.clear();
     Event = evt.event();
+    Flag = rand() % 10000000000;
+    bool SelectedEvent = false;
+    // Initialize the services we need
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
     auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-    Flag = rand() % 10000000000;
+    // Get the drift properties of the detector
     geo::CryostatID c(0);
-    
     const geo::CryostatGeo& cryostat = geom->Cryostat(c);
-
+    const geo::TPCGeo &tpcg = cryostat.TPC(0);
+    float driftLength = 0.;
+    float driftTime = 0.;
+    // Get size of the fiducial LAr volume
+    const double fidVolX = cryostat.BoundingBox().MaxX() - cryostat.BoundingBox().MinX();
+    const double fidVolY = cryostat.BoundingBox().MaxY() - cryostat.BoundingBox().MinY();
+    const double fidVolZ = cryostat.BoundingBox().MaxZ() - cryostat.BoundingBox().MinZ();
+    // Determine geometry type and calculate drift length and time
+    if (geoName.find("dune10kt") != std::string::npos) {
+        driftLength = tpcg.DriftDistance();
+        driftTime = driftLength / detProp.DriftVelocity(); // in us
+        fGeometry = "HD";
+    }
+    else if(geoName.find("dunevd10kt") != std::string::npos) {
+        driftLength = tpcg.DriftDistance();
+        driftTime = driftLength / detProp.DriftVelocity();
+        fGeometry = "VD";
+    }
+    else {
+        throw cet::exception("SolarNuAna") << "Geometry " << geoName << " not supported. Only dune10kt and dunevd10kt are supported.\n";
+    }
     // Loop over all TPCs in the cryostat and fill the map
     std::string sTPCMap = "";
     unsigned int maxTPC = 0;
     for (auto const& tpcid : geom->Iterate<geo::TPCID>()) {
-      if (tpcid.isValid) {
-        // Fill the TPC map with the TPC ID
-        const double driftLength = cryostat.TPC(tpcid).DriftDistance();
-        const double driftTime = driftLength / art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData).DriftVelocity();
+      if (tpcid.isValid) { // Fill the TPC map with the TPC ID
         TPCIDMap[tpcid.TPC] = tpcid;
-        TPCIDdriftLength[tpcid.TPC] = driftLength;
-        TPCIDdriftTime[tpcid.TPC] = driftTime;
-        if (tpcid.TPC > maxTPC) {
-          maxTPC = tpcid.TPC; // Keep track of the maximum TPC ID
+        TPCIDdriftLength[tpcid.TPC] = cryostat.TPC(tpcid).DriftDistance();
+        TPCIDdriftTime[tpcid.TPC] = driftLength / detProp.DriftVelocity();
+        if (tpcid.TPC > maxTPC) { // Keep track of the maximum TPC ID
+          maxTPC = tpcid.TPC; 
         }
         sTPCMap += "Found TPC ID: " + std::to_string(tpcid.TPC) + " in Cryostat: " + std::to_string(c.Cryostat) + 
-                   " with Drift Length: " + ProducerUtils::str(driftLength) + 
-                   " cm and Drift Time: " + ProducerUtils::str(driftTime) + " us\n";
+                   " with Drift Length: " + ProducerUtils::str(TPCIDdriftLength[tpcid.TPC]) + 
+                   " cm and Drift Time: " + ProducerUtils::str(TPCIDdriftTime[tpcid.TPC]) + " us\n";
       }
     }
     // Add extra TPCID entry -1 for all clusters that are not associated with a TPC
     TPCIDMap[-1] = geo::TPCID(); // Invalid TPC ID
-    // Set the drift length and time for the invalid TPC ID to the first valid TPC ID
     TPCIDdriftLength[-1] = TPCIDdriftLength.begin()->second; // Use the first valid TPC's drift length
     TPCIDdriftTime[-1] = TPCIDdriftTime.begin()->second;     // Use the first valid TPC's drift time
     producer->PrintInColor(sTPCMap, ProducerUtils::GetColor("yellow"), "Debug");
 
-
-
     std::string sHead = "";
-    sHead = sHead + "\n#########################################";
-    sHead = sHead + "\nEvent: " + ProducerUtils::str(Event) + " Flag: " + ProducerUtils::str(Flag);
-    sHead = sHead + "\nTPC Map: " + ProducerUtils::str(TPCIDMap.size()) + " TPCs found";
-    sHead = sHead + "\nTPC Frequency in [MHz]: " + ProducerUtils::str(clockData.TPCClock().Frequency());
-    sHead = sHead + "\nTPC Tick in [us]: " + ProducerUtils::str(clockData.TPCClock().TickPeriod());
-    sHead = sHead + "\nTPC DriftLength in [cm]: " + ProducerUtils::str(TPCIDdriftLength[0]);
-    sHead = sHead + "\nTPC DriftTime in [us]: " + ProducerUtils::str(TPCIDdriftTime[0]);
-    sHead = sHead + "\n#########################################";
+    sHead = sHead + "\n###################################################";
+    sHead = sHead + "\nEvent:\t\t\t" + ProducerUtils::str(Event);
+    sHead = sHead + "\nFlag:\t\t\t" + ProducerUtils::str(Flag);
+    sHead = sHead + "\nGeometry:\t\t" + geoName + " (" + fGeometry + ")";
+    sHead = sHead + "\nSignal Label:\t\t" + fLabels[0];
+    sHead = sHead + "\nPDS Frequency in [MHz]:\t" + ProducerUtils::str(clockData.OpticalClock().Frequency());
+    sHead = sHead + "\nPDS Tick in [us]:\t" + ProducerUtils::str(clockData.OpticalClock().TickPeriod(), 3);
+    sHead = sHead + "\nTPC Frequency in [MHz]:\t" + ProducerUtils::str(clockData.TPCClock().Frequency());
+    sHead = sHead + "\nTPC Tick in [us]:\t" + ProducerUtils::str(clockData.TPCClock().TickPeriod());
+    sHead = sHead + "\nTPC Map:\t\t" + ProducerUtils::str(TPCIDMap.size()-1) + " TPCs";
+    sHead = sHead + "\nTPC DriftLength in [cm]:" + ProducerUtils::str(driftLength);
+    sHead = sHead + "\nTPC DriftTime in [us]:\t" + ProducerUtils::str(driftTime);
+    sHead = sHead + "\nFiducial Volume in [cm]:" + ProducerUtils::str(fidVolX) + ", " + ProducerUtils::str(fidVolY) + ", " + ProducerUtils::str(fidVolZ);
+    sHead = sHead + "\n###################################################";
     producer->PrintInColor(sHead, ProducerUtils::GetColor("magenta"));
 
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //----------------------------------------------------------------- Create maps for ID tracking -----------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     // --- Fill MC Truth IDs to tracking vectors. Get a list of all of my particles in one chunk. ---
-    const sim::ParticleList &PartList = pi_serv->ParticleList();
     std::string sMcTruth = "";
+    const sim::ParticleList &PartList = pi_serv->ParticleList();
     sMcTruth = sMcTruth + "\nThere are a total of " + ProducerUtils::str(int(PartList.size())) + " Particles in the event\n";
-
     // Loop over all signal+bkg handles and collect track IDs
     for (size_t i = 0; i < fLabels.size(); i++)
     {
@@ -582,22 +628,14 @@ namespace solar
       art::Handle<std::vector<simb::MCTruth>> ThisHandle;
       evt.getByLabel(fLabels[i], ThisHandle);
 
-      if (ThisHandle)
-      {
+      if (ThisHandle) {
         auto ThisValidHanlde = evt.getValidHandle<std::vector<simb::MCTruth>>(fLabels[i]); // Get generator handles
         art::FindManyP<simb::MCParticle> Assn(ThisValidHanlde, evt, fGEANTLabel);          // Assign labels to MCPArticles
-        producer->FillMyMaps(GeneratorParticles[i], Assn, ThisValidHanlde);                          // Fill empty list with previously assigned particles
-        if (GeneratorParticles[i].size() < 1000)
-        {
-          sMcTruth = sMcTruth + "\n# of particles " + ProducerUtils::str(int(GeneratorParticles[i].size())) + "\tfrom gen " + ProducerUtils::str(int(i) + 1) + " " + fLabels[i];
-        }
-        else
-        {
-          sMcTruth = sMcTruth + "\n# of particles " + ProducerUtils::str(int(GeneratorParticles[i].size())) + "\tfrom gen " + ProducerUtils::str(int(i) + 1) + " " + fLabels[i];
-        }
+        producer->FillMyMaps(GeneratorParticles[i], Assn, ThisValidHanlde);                // Fill empty list with previously assigned particles
+
+        sMcTruth = sMcTruth + "\n# of particles " + ProducerUtils::str(int(GeneratorParticles[i].size())) + "\tfrom gen " + ProducerUtils::str(int(i) + 1) + " " + fLabels[i];
         TPart.push_back(GeneratorParticles[i].size());
-        if (GeneratorParticles[i].size() > 0)
-        {
+        if (GeneratorParticles[i].size() > 0) {
           for (std::map<int, simb::MCParticle>::iterator iter = GeneratorParticles[i].begin(); iter != GeneratorParticles[i].end(); iter++)
           {
             std::set<int> ThisGeneratorIDs = {};
@@ -605,42 +643,45 @@ namespace solar
             trackids[i].insert(iter->first);
           }
         }
-        else
-        {
+        else {
           std::set<int> ThisGeneratorIDs = {};
           trackids.push_back(ThisGeneratorIDs);
         }
       }
-      else
-      {
+      else {
         sMcTruth = sMcTruth + "\n# of particles " + ProducerUtils::str(int(GeneratorParticles[i].size())) + "\tfrom gen " + ProducerUtils::str(int(i) + 1) + " " + fLabels[i] + " *not generated!";
         TPart.push_back(0);
         std::set<int> ThisGeneratorIDs = {};
         trackids.push_back(ThisGeneratorIDs);
       }
     }
+
     producer->PrintInColor(sMcTruth, ProducerUtils::GetColor("bright_red"));
 
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //----------------------------------------------------------------- Some MC Truth information -------------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
-    std::set<int> SignalTrackIDs;                                    // Signal TrackIDs to be used in OpFlash matching
-    std::vector<std::vector<int>> ClPartTrackIDs = {{}, {}, {}, {}}; // Track IDs corresponding to each kind of MCTruth particle  {11,22,2112,else}
+    std::set<int> SignalPrimaryTrackIDs, SignalTrackIDs;                // Signal TrackIDs to be used in OpFlash matching 
+    std::map<int, int> SignalPDGMap, SignalMotherMap, SignalPrimaryMap; // Count of different PDGs in the event
+    std::map<int, float> SignalEMap, SignalPMap, SignalKMap, SignalStartXMap, SignalStartYMap, SignalStartZMap, SignalFinalXMap, SignalFinalYMap, SignalFinalZMap, SignalMaxEDepMap, SignalMaxEDepXMap, SignalMaxEDepYMap, SignalMaxEDepZMap, SignalTimeMap;
+    std::vector<std::vector<int>> ClPartTrackIDs = {{}, {}, {}, {}};    // Track IDs corresponding to each kind of MCTruth particle  {11,22,2112,else}
     art::Handle<std::vector<simb::MCTruth>> ThisHandle;
+    std::string sSignalParticle = "";
     std::string sSignalTruth = "";
+
     evt.getByLabel(fLabels[0], ThisHandle);
-    if (ThisHandle)
-    {
+    if (ThisHandle) {
       auto Signal = evt.getValidHandle<std::vector<simb::MCTruth>>(fLabels[0]); // Get handle for SIGNAL MCTruths
       // --- Loop over all neutrinos in the event ---
       for (auto const &SignalTruth : *Signal)
       {
         int NSignalParticles = SignalTruth.NParticles();
         sSignalTruth = sSignalTruth + "\nNumber of Signal Particles: " + ProducerUtils::str(NSignalParticles);
-        if (fLabels[0] == "marley")
-        {
+        
+        if (fLabels[0] == "marley") {
+          sSignalParticle = "Neutrino";
           const simb::MCNeutrino &nue = SignalTruth.GetNeutrino();
-          TNuInteraction = ProducerUtils::str(nue.InteractionType());
+          sInteraction = ProducerUtils::str(nue.InteractionType());
           SignalParticleE = 1e3 * nue.Nu().E();
           SignalParticleP = 1e3 * nue.Nu().P();
           SignalParticleK = 1e3 * nue.Nu().E() - 1e3 * nue.Nu().Mass();
@@ -649,98 +690,115 @@ namespace solar
           SignalParticleZ = nue.Nu().Vz();
           SignalParticlePDG = nue.Nu().PdgCode();
           SignalParticleTime = nue.Nu().T();
-          sSignalTruth = sSignalTruth + "\nNeutrino Interaction: " + TNuInteraction;
+          sSignalTruth = sSignalTruth + "\nNeutrino Interaction: " + sInteraction;
           sSignalTruth = sSignalTruth + "\nNeutrino Energy: " + ProducerUtils::str(SignalParticleE) + " MeV";
           sSignalTruth = sSignalTruth + "\nPosition (" + ProducerUtils::str(SignalParticleX) + ", " + ProducerUtils::str(SignalParticleY) + ", " + ProducerUtils::str(SignalParticleZ) + ") cm";
         }
-        if (fLabels[0] == "generator")
-        {
+
+        else if (fLabels[0] == "generator") {
+          sInteraction = "Background";
           sSignalTruth = sSignalTruth + "\nFound generator label: " + fLabels[0] + ". Using single generator config.\n";
-          if (NSignalParticles > 1)
-          {
-            sSignalTruth = sSignalTruth + "\n[WARNING] Multiple particles found in the Signal MCTruth. Using the first one.\n";
+          
+          if (NSignalParticles > 1) {
+            sSignalTruth = sSignalTruth + "\n[WARNING] Multiple particles found in the Signal MCTruth.\n";
           }
-          const simb::MCParticle &SignalParticle = SignalTruth.GetParticle(0);
-          SignalParticleE = 1e3 * SignalParticle.E();
-          SignalParticleP = 1e3 * SignalParticle.P();
-          SignalParticleK = 1e3 * SignalParticle.E() - 1e3 * SignalParticle.Mass();
-          SignalParticleX = SignalParticle.Vx();
-          SignalParticleY = SignalParticle.Vy();
-          SignalParticleZ = SignalParticle.Vz();
-          SignalParticlePDG = SignalParticle.PdgCode();
-          SignalParticleTime = SignalParticle.T();
-          std::string sSignalParticle = "";
-          if (abs(SignalParticle.PdgCode()) == 12)
+
+          for (int i = 0; i < NSignalParticles; i++)
           {
-            sSignalParticle = "Neutrino";
+            const simb::MCParticle &SignalParticle = SignalTruth.GetParticle(i);
+            SignalParticleE = 1e3 * SignalParticle.E();
+            SignalParticleP = 1e3 * SignalParticle.P();
+            SignalParticleK = 1e3 * SignalParticle.E() - 1e3 * SignalParticle.Mass();
+            SignalParticleX = SignalParticle.Vx();
+            SignalParticleY = SignalParticle.Vy();
+            SignalParticleZ = SignalParticle.Vz();
+            SignalParticlePDG = SignalParticle.PdgCode();
+            SignalParticleTime = SignalParticle.T();
+            
+            if (abs(SignalParticle.PdgCode()) == 12) {
+              sSignalParticle = "Neutrino";
+            }
+            else if (abs(SignalParticle.PdgCode()) == 11) {
+              sSignalParticle = "Electron";
+            }
+            else if (abs(SignalParticle.PdgCode()) == 22) {
+              sSignalParticle = "Photon";
+            }
+            else if (abs(SignalParticle.PdgCode()) == 2112) {
+              sSignalParticle = "Neutron";
+            }
+            else {
+              sSignalParticle = "Other";
+            }
+
+            sSignalTruth = sSignalTruth + sSignalParticle + " Energy: " + ProducerUtils::str(SignalParticleK) + " MeV\n"; 
+            sSignalTruth += "\t- Strat Position: (" + ProducerUtils::str(SignalParticleX) + ", " + ProducerUtils::str(SignalParticleY) + ", " + ProducerUtils::str(SignalParticleZ) + ") cm\n";
+            sSignalTruth += "\t- Final Position: (" + ProducerUtils::str(SignalParticle.EndX()) + ", " + ProducerUtils::str(SignalParticle.EndY()) + ", " + ProducerUtils::str(SignalParticle.EndZ()) + ") cm\n";
           }
-          else if (abs(SignalParticle.PdgCode()) == 11)
-          {
-            sSignalParticle = "Electron";
-          }
-          else if (abs(SignalParticle.PdgCode()) == 22)
-          {
-            sSignalParticle = "Photon";
-          }
-          else if (abs(SignalParticle.PdgCode()) == 2112)
-          {
-            sSignalParticle = "Neutron";
-          }
-          else
-          {
-            sSignalParticle = "Other";
-          }
-          TNuInteraction = "Single " + sSignalParticle;
-          sSignalTruth = sSignalTruth + "\n" +  sSignalParticle + " Energy: " + ProducerUtils::str(SignalParticleE) + " MeV";
-          sSignalTruth = sSignalTruth + "\nPosition (" + ProducerUtils::str(SignalParticleX) + ", " + ProducerUtils::str(SignalParticleY) + ", " + ProducerUtils::str(SignalParticleZ) + ") cm\n";
+        }
+        else {
+          sSignalTruth = sSignalTruth + "\n[WARNING] Unknown generator label: " + fLabels[0] + ". No truth information saved.\n";
+          sInteraction = "Unknown";
         }
       }
       art::FindManyP<simb::MCParticle> SignalAssn(Signal, evt, fGEANTLabel);
-      sSignalTruth = sSignalTruth + "\nGen.\tPdgCode\t\tEnergy\t\tEndPosition\t\tMother";
-      sSignalTruth = sSignalTruth + "\n------------------------------------------------------------------------";
+      sSignalTruth = sSignalTruth + "\nGen.\tPdgCode\t\tEnergy\t\tEndPosition\t\tTrackID\tMotherID";
+      sSignalTruth = sSignalTruth + "\n--------------------------------------------------------------------------------";
 
       for (size_t i = 0; i < SignalAssn.size(); i++)
       {
         auto SignalParticles = SignalAssn.at(i);
         for (auto SignalParticle = SignalParticles.begin(); SignalParticle != SignalParticles.end(); SignalParticle++)
         {
-          if (fSaveSignalDaughters)
-          {
-            SignalPDGList.push_back((*SignalParticle)->PdgCode());
-            SignalEList.push_back(1e3 * (*SignalParticle)->E());
-            SignalPList.push_back(1e3 * (*SignalParticle)->P());
-            SignalKList.push_back(1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass());
-            SignalTimeList.push_back((*SignalParticle)->T());
-            SignalEndXList.push_back((*SignalParticle)->EndX());
-            SignalEndYList.push_back((*SignalParticle)->EndY());
-            SignalEndZList.push_back((*SignalParticle)->EndZ());
-            SignalIDList.push_back((*SignalParticle)->TrackId());
-            SignalMotherList.push_back((*SignalParticle)->Mother());
+          SignalPDGList.push_back((*SignalParticle)->PdgCode());
+          SignalEList.push_back(1e3 * (*SignalParticle)->E());
+          SignalPList.push_back(1e3 * (*SignalParticle)->P());
+          SignalKList.push_back(1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass());
+          SignalTimeList.push_back((*SignalParticle)->T());
+          SignalEndXList.push_back((*SignalParticle)->EndX());
+          SignalEndYList.push_back((*SignalParticle)->EndY());
+          SignalEndZList.push_back((*SignalParticle)->EndZ());
+          SignalIDList.push_back((*SignalParticle)->TrackId());
+          SignalMotherList.push_back((*SignalParticle)->Mother());
+          SignalMotherMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->Mother();
+          
+          if ((*SignalParticle)->Mother() == 0) {
+            SignalPrimaryTrackIDs.insert((*SignalParticle)->TrackId());
+            SignalPDGMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->PdgCode();
+            SignalStartXMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->Vx();
+            SignalStartYMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->Vy();
+            SignalStartZMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->Vz();
+            SignalFinalXMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->EndX();
+            SignalFinalYMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->EndY();
+            SignalFinalZMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->EndZ();
+            SignalEMap[(*SignalParticle)->TrackId()] = 1e3 * (*SignalParticle)->E();
+            SignalPMap[(*SignalParticle)->TrackId()] = 1e3 * (*SignalParticle)->P();
+            SignalKMap[(*SignalParticle)->TrackId()] = 1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass();
+            SignalTimeMap[(*SignalParticle)->TrackId()] = (*SignalParticle)->T();
           }
-          std::map<int, float> SignalMaxEDepMap, SignalMaxEDepXMap, SignalMaxEDepYMap, SignalMaxEDepZMap;
+
           std::vector<const sim::IDE *> ides = bt_serv->TrackIdToSimIDEs_Ps((*SignalParticle)->TrackId());
           for (auto const &ide : ides)
           {
-            if (ide->numElectrons < 1 || ide->energy < 1e-6 || abs(ide->x) > TPCIDdriftLength[0] || abs(ide->y) > fDetectorSizeY || abs(ide->z) > fDetectorSizeZ)
-            {
+            if (ide->numElectrons < 1 || ide->energy < 1e-6 || abs(ide->x) > TPCIDdriftLength[0] || abs(ide->y) > fidVolY/2 || abs(ide->z) > fidVolZ) {
               continue;
             } 
-            if (ProducerUtils::InMyMap((*SignalParticle)->TrackId(), SignalMaxEDepMap) == false)
-            {
+
+            if (ProducerUtils::InMyMap((*SignalParticle)->TrackId(), SignalMaxEDepMap) == false) {
               SignalMaxEDepMap[(*SignalParticle)->TrackId()] = ide->energy;
               SignalMaxEDepXMap[(*SignalParticle)->TrackId()] = ide->x;
               SignalMaxEDepYMap[(*SignalParticle)->TrackId()] = ide->y;
               SignalMaxEDepZMap[(*SignalParticle)->TrackId()] = ide->z;
             }
-            if (ide->energy > SignalMaxEDepMap[(*SignalParticle)->TrackId()])
-            {
+            
+            if (ide->energy > SignalMaxEDepMap[(*SignalParticle)->TrackId()]) {
               SignalMaxEDepMap[(*SignalParticle)->TrackId()] = ide->energy;
               SignalMaxEDepXMap[(*SignalParticle)->TrackId()] = ide->x;
               SignalMaxEDepYMap[(*SignalParticle)->TrackId()] = ide->y;
               SignalMaxEDepZMap[(*SignalParticle)->TrackId()] = ide->z;
             }
-            if (abs((*SignalParticle)->PdgCode()) == 11 || abs((*SignalParticle)->PdgCode()) == 22 || abs((*SignalParticle)->PdgCode()) == 2112)
-            {
+
+            if (abs((*SignalParticle)->PdgCode()) == 11 || abs((*SignalParticle)->PdgCode()) == 22 || abs((*SignalParticle)->PdgCode()) == 2112) {
               SignalIDDepList.push_back((*SignalParticle)->TrackId());
               SignalEDepList.push_back(ide->energy);
               SignalPDGDepList.push_back((*SignalParticle)->PdgCode());
@@ -749,67 +807,88 @@ namespace solar
               SignalZDepList.push_back(ide->z);
               SignalElectronDepList.push_back(ide->numElectrons);
             }
-          } 
+          }
+          // Keep track of all signal track IDs for later
+          SignalTrackIDs.emplace((*SignalParticle)->TrackId());
           SignalMaxEDepList.push_back(SignalMaxEDepMap[(*SignalParticle)->TrackId()]);
           SignalMaxEDepXList.push_back(SignalMaxEDepXMap[(*SignalParticle)->TrackId()]);
           SignalMaxEDepYList.push_back(SignalMaxEDepYMap[(*SignalParticle)->TrackId()]);
           SignalMaxEDepZList.push_back(SignalMaxEDepZMap[(*SignalParticle)->TrackId()]);
-          SignalTrackIDs.emplace((*SignalParticle)->TrackId());
-
-          if ((*SignalParticle)->PdgCode() < 1000000)
-          {
-            sSignalTruth = sSignalTruth + "\n" + fLabels[0] + "\t" + ProducerUtils::str((*SignalParticle)->PdgCode()) + "\t\t" + ProducerUtils::str(1e3 * (*SignalParticle)->E()) + "\t (" + ProducerUtils::str((*SignalParticle)->EndX()) + ", " + ProducerUtils::str((*SignalParticle)->EndY()) + ", " + ProducerUtils::str((*SignalParticle)->EndZ()) + ")\t" + ProducerUtils::str((*SignalParticle)->Mother());
+          std::string sLabel = "";
+          // Special case for marley and generator labels
+          if (fLabels[0] == "marley") {
+            sLabel = "marley";
           }
-          else
-          {
-            sSignalTruth = sSignalTruth + "\n" + fLabels[0] + "\t" + ProducerUtils::str((*SignalParticle)->PdgCode()) + "\t" + ProducerUtils::str(1e3 * (*SignalParticle)->E()) + " (" + ProducerUtils::str((*SignalParticle)->EndX()) + ", " + ProducerUtils::str((*SignalParticle)->EndY()) + ", " + ProducerUtils::str((*SignalParticle)->EndZ()) + ")\t" + ProducerUtils::str((*SignalParticle)->Mother());
+          else if (fLabels[0] == "generator") {
+            sLabel = "single";
           }
-
-          if ((*SignalParticle)->PdgCode() == 11) // Electrons
-          {
+          else {
+            sLabel = fLabels[0];
+          }
+          // Print differently some information for better alignment
+          if ((*SignalParticle)->PdgCode() < 1000000) {
+            sSignalTruth = sSignalTruth + "\n" + sLabel + "\t" + ProducerUtils::str((*SignalParticle)->PdgCode()) + "\t\t" + ProducerUtils::str(1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass()) + "\t(" + ProducerUtils::str((*SignalParticle)->Vx()) + ", " + ProducerUtils::str((*SignalParticle)->Vy()) + ", " + ProducerUtils::str((*SignalParticle)->Vz()) + ")\t" + ProducerUtils::str((*SignalParticle)->TrackId()) + "\t" + ProducerUtils::str((*SignalParticle)->Mother());
+          }
+          else {
+            sSignalTruth = sSignalTruth + "\n" + sLabel + "\t" + ProducerUtils::str((*SignalParticle)->PdgCode()) + "\t" + ProducerUtils::str(1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass()) + "\t(" + ProducerUtils::str((*SignalParticle)->Vx()) + ", " + ProducerUtils::str((*SignalParticle)->Vy()) + ", " + ProducerUtils::str((*SignalParticle)->Vz()) + ")\t" + ProducerUtils::str((*SignalParticle)->TrackId()) + "\t" + ProducerUtils::str((*SignalParticle)->Mother());
+          }
+          // Save track IDs of certain particles for cluster association
+          if ((*SignalParticle)->PdgCode() == 11) {
             const TLorentzVector &MainElectronEndPoint = (*SignalParticle)->EndPosition();
             MainElectronEndPointX = MainElectronEndPoint.X();
             ClPartTrackIDs[0].push_back((*SignalParticle)->TrackId());
-            mf::LogDebug("SolarNuAna") << "\nMC Electron truth position x = " << MainElectronEndPoint.X() << ", y = " << MainElectronEndPoint.Y() << ", z = " << MainElectronEndPoint.Z();
-            mf::LogDebug("SolarNuAna") << "Initial KE " << 1e3 * (*SignalParticle)->E() - 1e3 * (*SignalParticle)->Mass();
           }
-          if ((*SignalParticle)->PdgCode() == 22) // Gammas
-          {
+          else if ((*SignalParticle)->PdgCode() == 22) {
             ClPartTrackIDs[1].push_back((*SignalParticle)->TrackId());
           }
-          if ((*SignalParticle)->PdgCode() == 2112) // Neutrons
-          {
+          else if ((*SignalParticle)->PdgCode() == 2112) {
             ClPartTrackIDs[2].push_back((*SignalParticle)->TrackId());
           }
-          if ((*SignalParticle)->PdgCode() != 11 && (*SignalParticle)->PdgCode() != 22 && (*SignalParticle)->PdgCode() != 2112) // Others
-          {
+          else {
             ClPartTrackIDs[3].push_back((*SignalParticle)->TrackId());
           }
         }
       }
     }
-    else
-    {
+    
+    else {
       mf::LogWarning("SolarNuAna") << "No SIGNAL MCTruths found.";
+      sSignalTruth = sSignalTruth + "\nNo SIGNAL MCTruths found.\n";
     }
+
     sSignalTruth += "\nSignal Track IDs: ";
+    // Backtrace each SignalParticle until find a trackID that is in the SignalPrimaryTrackIDs set (i.e. primary generated particles)
     for (auto const &SignalTrackID : SignalTrackIDs)
     {
+      int MotherID = SignalMotherMap[SignalTrackID];
       sSignalTruth += ProducerUtils::str(SignalTrackID) + "; ";
+      while (MotherID != 0 && SignalPrimaryTrackIDs.find(MotherID) == SignalPrimaryTrackIDs.end()) { MotherID = SignalMotherMap[MotherID]; }
+
+      if (MotherID != 0) {
+        SignalPrimaryMap[SignalTrackID] = MotherID;
+      }
+      else {
+        SignalPrimaryMap[SignalTrackID] = SignalTrackID; // If no mother found, assign itself as primary
+      }
     }
     producer->PrintInColor(sSignalTruth, ProducerUtils::GetColor("yellow"));
-
+    if (SignalParticleK < fMaxSignalK) {
+      producer->PrintInColor("\nKinetic energy of signal particle is below threshold of " + ProducerUtils::str(fMaxSignalK) + " MeV. Selecting event.\n", ProducerUtils::GetColor("yellow"));
+      SelectedEvent = true; // Skip event if signal particle kinetic energy is above threshold
+    }
+    else {
+      producer->PrintInColor("\nKinetic energy of signal particle is above threshold of " + ProducerUtils::str(fMaxSignalK) + " MeV. Skipping event.\n", ProducerUtils::GetColor("red"), "Warning");
+    }
+    if (SelectedEvent) {
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //---------------------------------------------------------------------- PMTrack Analysis -----------------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     art::Handle<std::vector<recob::Track>> TrackHandle;
     std::vector<art::Ptr<recob::Track>> TrackList;
-    if (evt.getByLabel(fTrackLabel, TrackHandle))
-    {
+    if (evt.getByLabel(fTrackLabel, TrackHandle)) {
       art::fill_ptr_vector(TrackList, TrackHandle);
     }
     TrackNum = int(TrackList.size());
-
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     //------------------------------------------------------------------- Optical Flash Analysis --------------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -819,26 +898,26 @@ namespace solar
     art::Handle<std::vector<recob::OpHit>> OpHitHandle;
     std::vector<std::vector<art::Ptr<recob::OpHit>>> OpHitVec;
     std::vector<std::vector<int>> OpHitIdx;
-    if (evt.getByLabel(fOpHitLabel, OpHitHandle))
-    {
+    if (evt.getByLabel(fOpHitLabel, OpHitHandle)) {
       art::fill_ptr_vector(OpHitList, OpHitHandle);
     }
+    // Grab assns with OpHits to get match to neutrino purity
     OpHitNum = int(OpHitList.size());
-    if (fGenerateAdjOpFlash)
-    {
+    if (fGenerateAdjOpFlash) {
       fOpFlashLabel = "solarflash";
       std::vector<AdjOpHitsUtils::FlashInfo> FlashVec;
-      adjophits->CalcAdjOpHits(OpHitList, OpHitVec, OpHitIdx);
+      adjophits->CalcAdjOpHits(OpHitList, OpHitVec, OpHitIdx, evt);
       adjophits->MakeFlashVector(FlashVec, OpHitVec, evt);
       OpFlashNum = int(FlashVec.size());
+      
       for (int i = 0; i < int(FlashVec.size()); i++)
       {
         AdjOpHitsUtils::FlashInfo TheFlash = FlashVec[i];
         double ThisOpFlashPur = 0;
         OpFlashPlane.push_back(TheFlash.Plane);
         OpFlashNHits.push_back(TheFlash.NHit);
-        OpFlashTime.push_back(TheFlash.Time * clockData.TPCClock().TickPeriod()); // Convert to microseconds
-        OpFlashDeltaT.push_back(TheFlash.TimeWidth);
+        OpFlashTime.push_back(TheFlash.Time - fOpFlashTimeOffset); // Convert to microseconds happens in AdjOpHits
+        OpFlashDeltaT.push_back(TheFlash.TimeWidth); // Convert to microseconds
         OpFlashPE.push_back(TheFlash.PE);
         OpFlashMaxPE.push_back(TheFlash.MaxPE);
         OpFlashFast.push_back(TheFlash.FastToTotal);
@@ -855,24 +934,24 @@ namespace solar
           for (auto const &ThisOpHitTrackId : ThisOpHitTrackIds)
           {
             if (SignalTrackIDs.find(ThisOpHitTrackId) != SignalTrackIDs.end())
-            {
               ThisOphitPurity += 1;
-            }
           }
           // Check if ThisOpHitTrackIds is empty
           if (ThisOpHitTrackIds.size() == 0)
-          {
             ThisOphitPurity = 0;
-          }
           else
-          {
             ThisOphitPurity /= int(ThisOpHitTrackIds.size());
-          }
+
           ThisOpFlashPur += ThisOphitPurity * OpHit.PE();
           auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
           SOpHitPur.push_back(ThisOphitPurity);
           SOpHitChannel.push_back(OpHit.OpChannel());
-          SOpHitTime.push_back(OpHit.PeakTime());
+
+          if (fOpHitTimeVariable == "StartTime")
+            SOpHitTime.push_back(OpHit.StartTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+          else // Default to PeakTime
+            SOpHitTime.push_back(OpHit.PeakTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+
           SOpHitPE.push_back(OpHit.PE());
           SOpHitX.push_back(OpHitXYZ.X());
           SOpHitY.push_back(OpHitXYZ.Y());
@@ -882,17 +961,12 @@ namespace solar
         }
         // Check if OpHitVec[i] is empty
         if (OpHitVec[i].size() == 0)
-        {
           ThisOpFlashPur = 0;
-        }
         else
-        {
           ThisOpFlashPur /= TheFlash.PE;
-        }
+
         OpFlashPur.push_back(ThisOpFlashPur);
-        if (abs(TheFlash.Time) < 3)
-        {
-          mf::LogDebug("SolarNuAna") << "Signal OpFlash PE (fast/ratio/tot/STD) " << TheFlash.FastToTotal << "/" << TheFlash.MaxPE / TheFlash.PE << "/" << TheFlash.PE << "/" << TheFlash.STD << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time;
+        if (ThisOpFlashPur > 0) {
           sOpFlashTruth += "OpFlash PE " + ProducerUtils::str(TheFlash.PE) + " with purity " + ProducerUtils::str(ThisOpFlashPur) + " time " + ProducerUtils::str(TheFlash.Time) + " plane " + ProducerUtils::str(TheFlash.Plane) + "\n";
           sOpFlashTruth += " - Vertex (" + ProducerUtils::str(TheFlash.X) + ", " + ProducerUtils::str(TheFlash.Y) + ", " + ProducerUtils::str(TheFlash.Z) + ")\n";
           sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + ProducerUtils::str(TheFlash.MaxPE / TheFlash.PE) + " <= " + ProducerUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
@@ -900,25 +974,23 @@ namespace solar
         }
       }
     }
-    else
-    {
+    else {
       std::vector<art::Ptr<recob::OpFlash>> OpFlashList;
       art::Handle<std::vector<recob::OpFlash>> FlashHandle;
-      if (evt.getByLabel(fOpFlashLabel, FlashHandle))
-      {
+      
+      if (evt.getByLabel(fOpFlashLabel, FlashHandle)){
         art::fill_ptr_vector(OpFlashList, FlashHandle);
       }
-      OpFlashNum = int(OpFlashList.size());
       // Grab assns with OpHits to get match to neutrino purity
+      OpFlashNum = int(OpFlashList.size());
       art::FindManyP<recob::OpHit> OpAssns(OpFlashList, evt, fOpFlashLabel);
-
       // Loop over OpFlashList and assign OpHits to each flash
       for (int i = 0; i < int(OpFlashList.size()); i++)
       {
         recob::OpFlash TheFlash = *OpFlashList[i];
         std::vector<art::Ptr<recob::OpHit>> MatchedHits = OpAssns.at(i);
         int NMatchedHits = MatchedHits.size();
-        double FlashStdDev = 0.0, TotalFlashPE = 0, MaxOpHitPE = 0, FlashTime = 0;
+        double FlashStdDev = 0.0, TotalFlashPE = 0, MaxOpHitPE = 0;
         std::vector<float> varXY, varYZ, varXZ;
         varXY = varYZ = varXZ = {};
 
@@ -929,84 +1001,79 @@ namespace solar
           mf::LogDebug("SolarNuAna") << "Assigning OpHit to Flash";
           const std::vector<int> ThisOpHitTrackIds = pbt->OpHitToTrackIds(OpHit);
           float ThisOphitPurity = 0;
+          
           for (auto const &ThisOpHitTrackId : ThisOpHitTrackIds)
           {
-            if (SignalTrackIDs.find(ThisOpHitTrackId) != SignalTrackIDs.end())
-            {
+            if (SignalTrackIDs.find(ThisOpHitTrackId) != SignalTrackIDs.end()) {
               ThisOphitPurity += 1;
             }
           }
+
           auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
           TotalFlashPE += OpHit.PE();
+          
           varXY.push_back(sqrt(pow(TheFlash.XCenter() - OpHitXYZ.X(), 2) +  pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2)) * OpHit.PE());
           varYZ.push_back(sqrt(pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2) +  pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2)) * OpHit.PE());
           varXZ.push_back(sqrt(pow(TheFlash.XCenter() - OpHitXYZ.X(), 2) +  pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2)) * OpHit.PE());
-          FlashTime += OpHit.PeakTime() * OpHit.PE();
           SOpHitPur.push_back(ThisOphitPurity / int(ThisOpHitTrackIds.size()));
-          if (OpHit.PE() > MaxOpHitPE)
-          {
+          
+          if (OpHit.PE() > MaxOpHitPE) {
             MaxOpHitPE = OpHit.PE();
-          };
-          SOpHitChannel.push_back(OpHit.OpChannel());
-          SOpHitTime.push_back(OpHit.PeakTime());
+          }
+
+          SOpHitFlashID.push_back(i);
           SOpHitPE.push_back(OpHit.PE());
           SOpHitX.push_back(OpHitXYZ.X());
           SOpHitY.push_back(OpHitXYZ.Y());
           SOpHitZ.push_back(OpHitXYZ.Z());
-          SOpHitFlashID.push_back(i);
-          SOpHitPlane.push_back(adjophits->GetOpHitPlane(OpHitPtr));
+          
+          if (fOpHitTimeVariable == "StartTime")
+            SOpHitTime.push_back(OpHit.StartTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+          else // Default to PeakTime
+            SOpHitTime.push_back(OpHit.PeakTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+            
+          SOpHitChannel.push_back(OpHit.OpChannel());
+          SOpHitPlane.push_back(adjophits->GetOpHitPlane(OpHitPtr, 0.1)); // Get plane assignment for the OpHit
         } // End of OpHit loop
 
-        // Check that all OpHits are assigned to the same plane
-        int FlashPlane = -1;
-        for (int j = 0; j < int(SOpHitPlane.size()); j++)
-        {
-          if (SOpHitPlane[j] != SOpHitPlane[0])
-          {
-            FlashPlane = -1;
-            mf::LogError("SolarNuAna") << "OpHits are not assigned to the same plane!";
-          }
-          else
-          {
-            FlashPlane = SOpHitPlane[0];
-          }
-        }
-
         OpHitVec.push_back(MatchedHits);
-        FlashTime = FlashTime / TotalFlashPE;
-        
-        FlashStdDev = adjophits->GetOpFlashPlaneSTD(FlashPlane, varXY, varYZ, varXZ);
-
-        mf::LogDebug("SolarNuAna") << "Evaluating Flash purity";
+        FlashStdDev = adjophits->GetOpFlashPlaneSTD(TheFlash.Frame(), varXY, varYZ, varXZ);
         int TerminalOutput = ProducerUtils::supress_stdout();
         double ThisOpFlashPur = pbt->OpHitCollectionPurity(SignalTrackIDs, MatchedHits);
         ProducerUtils::resume_stdout(TerminalOutput);
-        mf::LogDebug("SolarNuAna") << "PE of this OpFlash " << TotalFlashPE << " OpFlash time " << FlashTime;
 
         // Calculate the flash purity, only for the Signal events
         OpFlashID.push_back(i);
-        OpFlashPlane.push_back(FlashPlane);
+        OpFlashPlane.push_back(TheFlash.Frame());
         OpFlashPur.push_back(ThisOpFlashPur);
         OpFlashMaxPE.push_back(MaxOpHitPE);
         OpFlashSTD.push_back(FlashStdDev);
-        OpFlashTime.push_back(TheFlash.Time() * clockData.TPCClock().TickPeriod()); // Convert to microseconds
         OpFlashX.push_back(TheFlash.XCenter());
         OpFlashY.push_back(TheFlash.YCenter());
         OpFlashZ.push_back(TheFlash.ZCenter());
         OpFlashPE.push_back(TheFlash.TotalPE());
-        OpFlashFast.push_back(TheFlash.FastToTotal());
-        OpFlashDeltaT.push_back(TheFlash.TimeWidth());
         OpFlashNHits.push_back(MatchedHits.size());
-        if (abs(TheFlash.Time()) < 3)
-        {
+        OpFlashFast.push_back(TheFlash.FastToTotal());
+        
+        if (fOpFlashTime2us) {
+          OpFlashTime.push_back(TheFlash.Time() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Expected flash to provide time in ticks, convert to microseconds
+          OpFlashDeltaT.push_back(TheFlash.TimeWidth() * clockData.OpticalClock().TickPeriod()); // Expected flash to provide time width in ticks, convert to microseconds
+        }
+        else {
+          OpFlashTime.push_back(TheFlash.Time()); // Expected flash to provide time in microseconds
+          OpFlashDeltaT.push_back(TheFlash.TimeWidth()); // Expected flash to provide time width in microseconds
+        }
+
+        if (ThisOpFlashPur > 0) {
           mf::LogDebug("SolarNuAna") << "OpFlash PE " << TheFlash.TotalPE() << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time();
-          sOpFlashTruth += "OpFlash PE " + ProducerUtils::str(TheFlash.TotalPE()) + " with purity " + ProducerUtils::str(ThisOpFlashPur) + " time " + ProducerUtils::str(TheFlash.Time()) + " plane " + ProducerUtils::str(FlashPlane) + "\n";
+          sOpFlashTruth += "OpFlash PE " + ProducerUtils::str(TheFlash.TotalPE()) + " with purity " + ProducerUtils::str(ThisOpFlashPur) + " time " + ProducerUtils::str(TheFlash.Time()) + " plane " + ProducerUtils::str(int(TheFlash.Frame())) + "\n";
           sOpFlashTruth += " - Vertex (" + ProducerUtils::str(TheFlash.XCenter()) + ", " + ProducerUtils::str(TheFlash.YCenter()) + ", " + ProducerUtils::str(TheFlash.ZCenter()) + ")\n";
           sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + ProducerUtils::str(MaxOpHitPE / TotalFlashPE) + " <= " + ProducerUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
           sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + ProducerUtils::str(int(NMatchedHits)) + " >= " + ProducerUtils::str(int(TheFlash.PEs().size())) + "\n";
         }
       }
     }
+    sOpFlashTruth = sOpFlashTruth + "\n# of OpFlashes (" + fOpFlashLabel + ") in full geometry: " + ProducerUtils::str(OpFlashNum) + "\n";
     producer->PrintInColor(sOpFlashTruth, ProducerUtils::GetColor("blue"));
 
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -1023,10 +1090,6 @@ namespace solar
       recob::Hit const &ThisHit = RecoHits->at(i);
       // Add to RecoHitsPtr
       RecoHitsPtr.push_back(art::Ptr<recob::Hit>(RecoHits, i));
-      if (ThisHit.PeakTime() < 0)
-        producer->PrintInColor("Negative Hit Time = " + ProducerUtils::str(ThisHit.PeakTime()), ProducerUtils::GetColor("red"));
-      mf::LogDebug("SolarNuAna") << "Hit " << i << " has view " << ThisHit.View() << " and signal type " << ThisHit.SignalType();
-
       if (ThisHit.View() == 0)
       {
         Ind0Hits.push_back(ThisHit);
@@ -1050,22 +1113,26 @@ namespace solar
     //-------------------------------------------------------------- Cluster creation and analysis ------------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     std::string sRecoObjects = "";
-    std::vector<std::vector<art::Ptr<recob::Hit>>> TestClusters;
+    std::vector<std::vector<art::Ptr<recob::Hit>>> ClustersPtr;
+    std::vector<lowe::LowEUtils::RawPerPlaneCluster> PerPlaneClusters;
     std::vector<std::vector<std::vector<recob::Hit>>> AllPlaneClusters;
     std::vector<std::vector<int>> ClustersIdx = {{}, {}, {}};
     std::vector<std::vector<int>> RecoHitIdx;
     // Map to associate the ClusterIdx with the position in the ClVectors
     std::map<int, std::vector<int>> ClIdxMap;
-    
-    if (fTestLatestFeatures)
-    {
-      lowe->CalcAdjHits(RecoHitsPtr, TestClusters, RecoHitIdx);
-      for (int i = 0; i < int(TestClusters.size()); i++)
+
+    if (fGenerateSolarCluster == false) {
+      // Get clusters from event recob::Cluster with label "planecluster"
+      // ...
+    }
+    else {
+      lowe->CalcAdjHits(RecoHitsPtr, ClustersPtr, RecoHitIdx, evt);
+      for (int i = 0; i < int(ClustersPtr.size()); i++)
       {
         std::vector<recob::Hit> ThisHitVector = {}; // Convert pointer to vector
-        for (int j = 0; j < int(TestClusters[i].size()); j++)
+        for (int j = 0; j < int(ClustersPtr[i].size()); j++)
         {
-          ThisHitVector.push_back(*TestClusters[i][j]);
+          ThisHitVector.push_back(*ClustersPtr[i][j]);
         }
         int ThisIdx = RecoHitIdx[i][0];
         if (RecoHitsPtr[ThisIdx]->View() == 0)
@@ -1088,24 +1155,9 @@ namespace solar
           Clusters3.push_back(ThisHitVector);
         }
       }
+      lowe->MakeClusterVector(PerPlaneClusters, ClustersPtr, evt);
+      AllPlaneClusters = {Clusters0, Clusters1, Clusters2};
     }
-    else {
-      // --- Now calculate the clusters ...
-      lowe->CalcAdjHits(Ind0Hits, Clusters0, hAdjHits, hAdjHitsADCInt, false);
-      HitNum.push_back(Ind0Hits.size());
-      ClusterNum.push_back(Clusters0.size());
-      lowe->CalcAdjHits(Ind1Hits, Clusters1, hAdjHits, hAdjHitsADCInt, false);
-      HitNum.push_back(Ind1Hits.size());
-      ClusterNum.push_back(Clusters1.size());
-      lowe->CalcAdjHits(ColHits, Clusters2, hAdjHits, hAdjHitsADCInt, false);
-      HitNum.push_back(ColHits.size());
-      ClusterNum.push_back(Clusters2.size());
-      lowe->CalcAdjHits(GhostHits, Clusters3, hAdjHits, hAdjHitsADCInt, false);
-      HitNum.push_back(GhostHits.size());
-      ClusterNum.push_back(Clusters3.size());
-    }
-    AllPlaneClusters = {Clusters0, Clusters1, Clusters2};
-    fMCTruthTree->Fill();
 
     std::vector<std::vector<std::vector<float>>> ClVecGenPur = {{}, {}, {}};
     std::vector<std::vector<int>> ClMainID = {{}, {}, {}}, ClTPC = {{}, {}, {}}, ClNHits = {{}, {}, {}}, ClGen = {{}, {}, {}};
@@ -1144,8 +1196,6 @@ namespace solar
 
         for (recob::Hit TPCHit : Clusters[i])
         {
-          if (TPCHit.PeakTime() < 0)
-            producer->PrintInColor("Negative Cluster Time = " + ProducerUtils::str(TPCHit.PeakTime()), ProducerUtils::GetColor("red"));
           ncharge += TPCHit.Integral();
           const geo::WireGeo *wire = wireReadout.WirePtr(TPCHit.WireID()); // Wire directions should be the same for all hits of the same view (can be used to check)
           double hitCharge;
@@ -1161,24 +1211,19 @@ namespace solar
           clustX += TPCHit.Integral() * hXYZ.X();
           clustY += TPCHit.Integral() * hXYZ.Y();
           clustZ += TPCHit.Integral() * hXYZ.Z();
-          clustT += TPCHit.Integral() * TPCHit.PeakTime();
+          clustT += TPCHit.Integral() * TPCHit.PeakTime() * clockData.TPCClock().TickPeriod(); // Convert to microseconds
 
-          if (TPCHit.Integral() > maxHit)
-          {
-            // If clusterTPC not in TPCIDMap, set it to -1
-            if (TPCIDMap.find(TPC) == TPCIDMap.end())
-            {
+          if (TPCHit.Integral() > maxHit) { // If clusterTPC not in TPCIDMap, set it to -1
+            if (TPCIDMap.find(TPC) == TPCIDMap.end()) {
               clustTPC = -1;
             }
-            else
-            {
+            else {
               clustTPC = TPC;
             }
             // Look for maxHit inside cluster
             maxHit = TPCHit.Integral();            
           }
-          else
-          {
+          else {
             clustTPC = TPC;
           }
 
@@ -1188,11 +1233,9 @@ namespace solar
 
           for (size_t ideL = 0; ideL < ThisHitIDE.size(); ++ideL)
           {
-            if (ThisHitIDE[ideL].energyFrac > TopEFrac)
-            {
+            if (ThisHitIDE[ideL].energyFrac > TopEFrac) {
               TopEFrac = ThisHitIDE[ideL].energyFrac;
               MainTrID = abs(ThisHitIDE[ideL].trackID);
-              mf::LogDebug("SolarNuAna") << "This TPCHit's IDE is: " << MainTrID;
             }
           }
 
@@ -1200,22 +1243,17 @@ namespace solar
           {
             for (int trck = 0; trck < int(ClPartTrackIDs[frac].size()); ++trck)
             {
-              if (MainTrID == ClPartTrackIDs[frac][trck])
-              {
-                if (frac == 0)
-                {
+              if (MainTrID == ClPartTrackIDs[frac][trck]) {
+                if (frac == 0) {
                   FracE = FracE + TPCHit.Integral();
                 }
-                if (frac == 1)
-                {
+                else if (frac == 1) {
                   FracGa = FracGa + TPCHit.Integral();
                 }
-                if (frac == 2)
-                {
+                else if (frac == 2) {
                   FracNe = FracNe + TPCHit.Integral();
                 }
-                if (frac == 3)
-                {
+                else {
                   FracRest = FracRest + TPCHit.Integral();
                 }
               }
@@ -1224,9 +1262,7 @@ namespace solar
 
           long unsigned int GeneratorType = ProducerUtils::WhichGeneratorType(GeneratorParticles, MainTrID);
           VecGenPur[int(GeneratorType)] = VecGenPur[int(GeneratorType)] + TPCHit.Integral();
-          mf::LogDebug("SolarNuAna") << "\nThis particle type " << GeneratorType << "\nThis cluster's main track ID " << MainTrID;
-          if (SignalTrackIDs.find(MainTrID) != SignalTrackIDs.end())
-          {
+          if (SignalTrackIDs.find(MainTrID) != SignalTrackIDs.end()) {
             hitCharge = TPCHit.Integral();
             Pur = Pur + hitCharge;
           }
@@ -1236,17 +1272,10 @@ namespace solar
         for (size_t genpur = 0; genpur < VecGenPur.size(); genpur++)
         {
           VecGenPur[genpur] = VecGenPur[genpur] / ncharge;
-          if (VecGenPur[genpur] > MainGenPurity)
-          {
+          if (VecGenPur[genpur] > MainGenPurity) {
             MainGenerator = genpur;
             MainGenPurity = VecGenPur[genpur];
           }
-        }
-
-        for (size_t j = 0; j > thisdzdy.size(); j++)
-        {
-          if (thisdzdy[0] != thisdzdy[i])
-            mf::LogWarning("SolarNuAna") << "MISSMATCH IN dzdy FOR CLUSTER " << idx;
         }
 
         dzdy = thisdzdy[0];
@@ -1260,13 +1289,8 @@ namespace solar
         clustZ /= ncharge;
         clustT /= ncharge;
         Pur /= ncharge;
-        mf::LogDebug("SolarNuAna") << "\ndzdy " << dzdy << " for cluster "
-                                   << " (" << clustY << ", " << clustZ << ") with track ID " << MainTrID << " in plane " << idx;
-        if (clustT < 0)
-          producer->PrintInColor("Negative Cluster Time = " + ProducerUtils::str(clustT), ProducerUtils::GetColor("red"));
         
-        if (fTestLatestFeatures)
-          ClIdxMap[ClustersIdx[idx][i]] = {idx, i}; // Map the cluster index to the plane and cluster number
+        ClIdxMap[ClustersIdx[idx][i]] = {idx, i}; // Map the cluster index to the plane and cluster number
         ClNHits[idx].push_back(nhit);
         ClCharge[idx].push_back(ncharge);
         ClMaxCharge[idx].push_back(maxHit);
@@ -1285,59 +1309,65 @@ namespace solar
         Cldzdy[idx].push_back(dzdy);
         ClMainID[idx].push_back(MainTrID);
         ClVecGenPur[idx].push_back(VecGenPur);
-
-        mf::LogDebug("SolarNuAna") << "\nCluster " << i << " in plane " << idx << " has #hits" << nhit << " charge, " << ncharge << " time, " << clustT;
-        mf::LogDebug("SolarNuAna") << " and position (" << clustY << ", " << clustZ << ") with main track ID " << MainTrID << " and purity " << Pur;
       }
     } // Finished first cluster processing
 
     //-------------------------------------------------------------------- Cluster Matching -------------------------------------------------------------------------//
-    std::vector<int> MVecMainID = {};
     std::vector<unsigned int> MVecGen = {};
     std::vector<std::vector<float>> MVecGenFrac = {};
     std::vector<float> MVecFracE = {}, MVecFracGa = {}, MVecFracNe = {}, MVecFracRest = {}, MVecGenPur = {};
-    std::vector<std::vector<int>> MVecNHits = {{}, {}, {}}, MVecTPC = {{}, {}, {}}, MVecChannel = {{}, {}, {}};
-    std::vector<std::vector<float>> MVecPur = {{}, {}, {}}, MVecMaxCharge = {{}, {}, {}}, MVecCharge = {{}, {}, {}}, MVecTime = {{}, {}, {}}, MVecRecoY = {{}, {}, {}}, MVecRecoZ = {{}, {}, {}};
-    std::vector<std::vector<float>> MVecDirDir = {{}, {}, {}}, MatchedClCompleteness = {{}, {}, {}}, MVecDT = {{}, {}, {}};
+    std::vector<std::vector<int>>  MatchedClustersIdx = {{}, {}, {}};
+    std::vector<std::vector<int>> MVecMainID = {{}, {}, {}}, MVecNHits = {{}, {}, {}}, MVecTPC = {{}, {}, {}}, MVecChannel = {{}, {}, {}};
+    std::vector<std::vector<float>> MVecPur = {{}, {}, {}}, MVecMaxCharge = {{}, {}, {}}, MVecCharge = {{}, {}, {}}, MVecTime = {{}, {}, {}}, MVecRecoX = {{}, {}, {}}, MVecRecoY = {{}, {}, {}}, MVecRecoZ = {{}, {}, {}};
+    std::vector<std::vector<float>> MVecDirDir = {{}, {}, {}}, MatchedClCompleteness = {{}, {}, {}}, MVecdT = {{}, {}, {}};
+    std::vector<solar::LowECluster> SolarClusters;
+    std::vector<art::Ptr<solar::LowECluster>> SolarClustersPtr;
     
-    if (fTestLatestFeatures)
-    {
-      std::vector<std::vector<int>>  MatchedClustersIdx = {{}, {}, {}};
-      std::vector<std::vector<std::vector<recob::Hit>>> MatchedClusters = {{}, {}, {}};
-    
+    std::vector<std::vector<std::vector<recob::Hit>>> MatchedClusters = {{}, {}, {}};
+  
+    // If present, grab the SolarClusters from the event
+    if (fGenerateSolarCluster == false) {
+      art::Handle<std::vector<solar::LowECluster>> SolarClusterHandle;
+      evt.getByLabel(fSolarClusterLabel, SolarClusterHandle);
+      if (SolarClusterHandle.isValid()) {
+        for (size_t i = 0; i < SolarClusterHandle->size(); i++) {
+          SolarClustersPtr.push_back(art::Ptr<solar::LowECluster>(SolarClusterHandle, i));
+        }
+      }
+      // Requires further implementation to match the previous "planecluster"
+      // ...
+    }   
+    else {
       std::string SolarClusterInfo = "SolarClusterInfo: ";
       SolarClusterInfo = SolarClusterInfo + "(" + ProducerUtils::str(Clusters0.size()) + "," + ProducerUtils::str(Clusters1.size()) + "," + ProducerUtils::str(Clusters2.size()) + ")";
-      lowe->MatchClusters(SignalTrackIDs, MatchedClustersIdx, MatchedClusters, ClustersIdx, AllPlaneClusters, MVecNHits, MVecChannel, MVecTime, MVecRecoY, MVecRecoZ, MVecDirDir, MVecCharge, MVecPur, MatchedClCompleteness, clockData, true);
-      
-      int MatchedClusterNum = int(MatchedClustersIdx[2].size());
-      SolarClusterInfo = SolarClusterInfo + "\nFound " + ProducerUtils::str(MatchedClusterNum) + " MatchedClusters (from col. plane loop)!";
-      
-      for (int ThisClIdx = 0; ThisClIdx < MatchedClusterNum; ThisClIdx++)
+      lowe->MatchClusters(SignalTrackIDs, MatchedClustersIdx, MatchedClusters, ClustersIdx, AllPlaneClusters, MVecMainID, MVecNHits, MVecTPC, MVecChannel, MVecTime, MVecRecoY, MVecRecoZ, MVecDirDir, MVecCharge, MVecPur, MatchedClCompleteness, clockData, true);
+
+      SolarClusterInfo = SolarClusterInfo + "\nFound " + ProducerUtils::str(int(MatchedClustersIdx[2].size())) + " MatchedClusters (from col. plane loop)!";
+      for (int ThisClIdx = 0; ThisClIdx < int(MatchedClustersIdx[2].size()); ThisClIdx++)
       {
-        MVecTime[2][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
-        for (int plane = 0; plane < 2; plane++) {
-          int RefClIdx = ClIdxMap[MatchedClustersIdx[plane][ThisClIdx]][1]; // Get the cluster index in the plane
-          if (MVecTime[plane][ThisClIdx] > -1e6)
-          {
-            MVecTime[plane][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
-            MVecDT[plane].push_back(abs(MVecTime[2][ThisClIdx] - MVecTime[plane][ThisClIdx]));
-            MVecTPC[plane].push_back(ClTPC[plane][RefClIdx]);
+        // MVecTime[2][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
+        for (int plane = 0; plane < 2; plane++)
+        {
+          if (MVecTime[plane][ThisClIdx] > -1e6) { // There is a matched cluster in this plane
+            int RefClIdx = ClIdxMap[MatchedClustersIdx[plane][ThisClIdx]][1]; // Get the cluster index in the plane 
+            MVecMainID[plane].push_back(ClMainID[plane][RefClIdx]); 
+            MVecdT[plane].push_back(abs(MVecTime[2][ThisClIdx] - MVecTime[plane][ThisClIdx]));
             MVecMaxCharge[plane].push_back(ClMaxCharge[plane][RefClIdx]);
             SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane " + ProducerUtils::str(plane) + " with time " + ProducerUtils::str(MVecTime[plane][ThisClIdx]) + " and charge " + ProducerUtils::str(MVecCharge[plane][ThisClIdx]) + " with TPC " + ProducerUtils::str(MVecTPC[plane][ThisClIdx]);
           }
-          else
-          {
-            MVecDT[plane].push_back(-1e6);
-            MVecTPC[plane].push_back(-1);
+          
+          else { // No matched cluster in this plane, fill with -1
+            MVecMainID[plane].push_back(-1);
+            MVecdT[plane].push_back(-1e6);
             MVecMaxCharge[plane].push_back(-1e6);
             SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane " + ProducerUtils::str(plane) + " with time -1e6 and charge -1e6 with TPC -1";
           }
         }
         int RefClIdx = ClIdxMap[MatchedClustersIdx[2][ThisClIdx]][1]; // Get the plane index of the matched cluster
-        MVecTPC[2].push_back(ClTPC[2][RefClIdx]);
+        MVecMainID[2].push_back(ClMainID[2][RefClIdx]);
+        MVecRecoX[2].push_back(ClT[2][RefClIdx] *driftLength/driftTime); // Convert to microseconds and then to cm
         MVecMaxCharge[2].push_back(ClMaxCharge[2][RefClIdx]);
         MVecGenPur.push_back(ClGenPur[2][RefClIdx]);
-        MVecMainID.push_back(ClMainID[2][RefClIdx]);
         MVecGen.push_back(ClGen[2][RefClIdx]);
         MVecFracE.push_back(ClFracE[2][RefClIdx]);
         MVecFracGa.push_back(ClFracGa[2][RefClIdx]);
@@ -1347,168 +1377,62 @@ namespace solar
         SolarClusterInfo = SolarClusterInfo + "\nMatched Cluster in plane 2 with time " + ProducerUtils::str(MVecTime[2][ThisClIdx]) + " and charge " + ProducerUtils::str(MVecCharge[2][ThisClIdx]) + " with TPC " + ProducerUtils::str(MVecTPC[2][ThisClIdx]);
       }
       producer->PrintInColor(SolarClusterInfo, ProducerUtils::GetColor("yellow"), "Debug");
+
+      for (int i = 0; i < int(MVecNHits[2].size()); i++)
+      {
+        if (fClusterPreselectionSignal && MVecPur[2][i] == 0)
+        {
+          continue;
+        }
+        std::vector<float> clustPos = {MVecRecoX[2][i], MVecRecoY[2][i], MVecRecoZ[2][i]};
+        int clustMainID = MVecMainID[2][i];
+        int clustNHits = MVecNHits[2][i];
+        int clustTPC = MVecTPC[2][i];
+        int clustChannel = MVecChannel[2][i];
+        float clustCharge = MVecCharge[2][i];
+        float clustTime = MVecTime[2][i];
+        float clustPurity = MVecPur[2][i];
+        float clustCompleteness = MatchedClCompleteness[2][i];
+        std::vector<recob::Cluster> clustVector = {}; // Vector of recob::Cluster
+        // Add clusters according to the indices in MatchedClustersIdx
+        for (int plane = 0; plane < 3; plane++)
+        {
+          int clustIdx = ClIdxMap[MatchedClustersIdx[plane][i]][1];
+          if (clustIdx >= 0 && clustIdx < int(AllPlaneClusters[plane].size()))
+          {
+            // Cluster(float start_wire,float sigma_start_wire,float start_tick,float sigma_start_tick,float start_charge,float start_angle,float start_opening,float end_wire,float sigma_end_wire,float end_tick,float sigma_end_tick,float end_charge,float end_angle,float end_opening,float integral,float integral_stddev,float summedADC,float summedADC_stddev,unsigned int n_hits,float multiple_hit_density,float width,ID_t ID,geo::View_t view,geo::PlaneID const& plane,SentryArgument_t sentry = Sentry);
+            recob::Cluster thisCluster(
+              ClY[plane][clustIdx], 0, ClT[plane][clustIdx], 0, 
+              ClCharge[plane][clustIdx], 0, 0, 
+              ClY[plane][clustIdx], 0, ClT[plane][clustIdx], 0, 
+              ClCharge[plane][clustIdx], 0, 0, 
+              ClCharge[plane][clustIdx], 0, 
+              ClCharge[plane][clustIdx], 0,
+              int(AllPlaneClusters[plane][clustIdx].size()), 
+              0,
+              0,
+              clustIdx,
+              geo::View_t(plane), 
+              geo::PlaneID(0, 0, plane), 
+              {} // Assuming default for SentryArgument_t
+            );
+            clustVector.push_back(thisCluster);
+          }
+        }
+
+        solar::LowECluster ThisSolarCluster(clustPos, clustMainID, clustNHits, clustTPC, clustChannel, clustCharge, clustTime, clustPurity, clustCompleteness, clustVector);
+        SolarClusters.push_back(ThisSolarCluster);
+      }    
     }
 
-    else {
-      for (int ii = 0; ii < int(AllPlaneClusters[2].size()); ii++)
-      {
-        bool match = false;
-        // int ind0clustIndex = -1, ind1clustIndex = -1;
-        int ind0clustNHits = 0, ind1clustNHits = 0;
-        int ind0clustTPC = -1, ind1clustTPC = -1;
-        double ind0clustY = -1e6, ind1clustY = -1e6, ind0clustMaxCharge = -1e6, ind1clustMaxCharge = -1e6, ind0clustCharge = -1e6, ind1clustCharge = -1e6;
-        double ind0clustdT = fClusterMatchTime, ind1clustdT = fClusterMatchTime;
-        if (!AllPlaneClusters[2][ii].empty())
-        {
-          if (!AllPlaneClusters[0].empty())
-          {
-            // std::cout << " - Matching cluster " << ii << " with time " << ClT[2][ii] << std::endl;
-            for (int jj = 0; jj < int(AllPlaneClusters[0].size()); jj++)
-            {
-              if (abs(ClNHits[0][jj] - ClNHits[2][ii]) / ClNHits[2][ii] > fClusterMatchNHit || 
-                  abs(ClCharge[0][jj] - ClCharge[2][ii]) / ClCharge[2][ii] > fClusterMatchCharge)
-              {
-                continue;
-              }
-              // std::cout << "    Checking Ind0 cluster with index " << jj << " and time " << ClT[0][jj] << std::endl;
-              if (abs(ClT[2][ii] - ClT[0][jj]) < fClusterMatchTime && abs(fClusterInd0MatchTime - abs(ClT[2][ii] - ClT[0][jj])) < abs(fClusterInd0MatchTime - ind0clustdT))
-              {
-                ind0clustY = ClY[0][jj] + (ClZ[2][ii] - ClZ[0][jj]) / (Cldzdy[0][jj]);
-                ind0clustdT = abs(ClT[2][ii] - ClT[0][jj]);
-                ind0clustNHits = int(AllPlaneClusters[0][jj].size());
-                ind0clustCharge = ClCharge[0][jj];
-                ind0clustMaxCharge = ClMaxCharge[0][jj];
-                ind0clustTPC = ClTPC[0][jj];
-                // ind0clustIndex = jj;
-                if (ind0clustY > -fDetectorSizeY && ind0clustY < fDetectorSizeY)
-                {
-                  match = true;
-                }
-                mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster in plane 0 !!! --- Position x = " << ClX[0][jj] << ", y = " << ClY[0][jj] << ", z = " << ClZ[0][jj];
-                mf::LogDebug("SolarNuAna") << "Reconstructed position y = " << ind0clustY << ", z = " << ClZ[2][ii];
-              }
-            }
-          }
-          if (!AllPlaneClusters[1].empty())
-          {
-            for (int zz = 0; zz < int(AllPlaneClusters[1].size()); zz++)
-            {
-              if (abs(ClNHits[1][zz] - ClNHits[2][ii]) / ClNHits[2][ii] > fClusterMatchNHit || abs(ClCharge[1][zz] - ClCharge[2][ii]) / ClCharge[2][ii] > fClusterMatchCharge)
-              {
-                continue;
-              }
-              // std::cout << "    Checking Ind1 cluster with index " << zz << " and time " << ClT[1][zz] << std::endl;
-              if (abs(ClT[2][ii] - ClT[1][zz]) < fClusterMatchTime && abs(fClusterInd1MatchTime - abs(ClT[2][ii] - ClT[1][zz])) < abs(fClusterInd1MatchTime - ind1clustdT))
-              {
-                ind1clustY = ClY[1][zz] + (ClZ[2][ii] - ClZ[1][zz]) / (Cldzdy[1][zz]);
-                ind1clustdT = abs(ClT[2][ii] - ClT[1][zz]);
-                ind1clustNHits = int(AllPlaneClusters[1][zz].size());
-                ind1clustCharge = ClCharge[1][zz];
-                ind1clustMaxCharge = ClMaxCharge[1][zz];
-                ind1clustTPC = ClTPC[1][zz];
-                // ind1clustIndex = zz;
-                if (ind1clustY > -fDetectorSizeY && ind1clustY < fDetectorSizeY)
-                {
-                  match = true;
-                }
-                mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster in plane 1 !!! --- Position x = " << ClX[1][zz] << ", y = " << ClY[1][zz] << ", z = " << ClZ[1][zz];
-                mf::LogDebug("SolarNuAna") << "Reconstructed position y = " << ind1clustY << ", z = " << ClZ[2][ii];
-              }
-            } // Loop over ind1 clusters
-          }
-        } // Loop over ind clusters
-        else
-        {
-          mf::LogDebug("SolarNuAna") << "Cluster " << ii << " in plane 2 has no hits";
-        }
-
-        //--------------------------------------------------------- Export Matched cluster vectors ------------------------------------------------------------------//
-        if (match == true)
-        {
-          // std::cout << "    ***Matched cluster " << ii << " to Ind0: " << ind0clustIndex << ", Ind1: " << ind1clustIndex << std::endl;
-          // Cluster Charge
-          MVecCharge[0].push_back(ind0clustCharge);
-          MVecCharge[1].push_back(ind1clustCharge);
-          MVecCharge[2].push_back(ClCharge[2][ii]);
-          MVecMaxCharge[0].push_back(ind0clustMaxCharge);
-          MVecMaxCharge[1].push_back(ind1clustMaxCharge);
-          MVecMaxCharge[2].push_back(ClMaxCharge[2][ii]);
-          // Cluster Hits
-          MVecNHits[0].push_back(ind0clustNHits);
-          MVecNHits[1].push_back(ind1clustNHits);
-          MVecNHits[2].push_back(ClNHits[2][ii]);
-          // Cluster TPC
-          MVecTPC[0].push_back(ind0clustTPC);
-          MVecTPC[1].push_back(ind1clustTPC);
-          MVecTPC[2].push_back(ClTPC[2][ii]);
-          // Cluster Time
-          MVecDT[0].push_back(ind0clustdT * clockData.TPCClock().TickPeriod());
-          MVecDT[1].push_back(ind1clustdT * clockData.TPCClock().TickPeriod());
-          MVecTime[0].push_back(ClT[0][ii] * clockData.TPCClock().TickPeriod()); // Convert to us
-          MVecTime[1].push_back(ClT[1][ii] * clockData.TPCClock().TickPeriod()); // Convert to us
-          MVecTime[2].push_back(ClT[2][ii] * clockData.TPCClock().TickPeriod()); // Convert to us
-          // Cluster RecoY
-          MVecRecoY[0].push_back(ind0clustY);
-          MVecRecoY[1].push_back(ind1clustY);
-          // Cluster RecoZ
-          MVecRecoZ[0].push_back(ClZ[0][ii]);
-          MVecRecoZ[1].push_back(ClZ[1][ii]);
-          MVecRecoZ[2].push_back(ClZ[2][ii]);
-          // Cluster Signal Fractions
-          MVecFracE.push_back(ClFracE[2][ii]);
-          MVecFracGa.push_back(ClFracGa[2][ii]);
-          MVecFracNe.push_back(ClFracNe[2][ii]);
-          MVecFracRest.push_back(ClFracRest[2][ii]);
-          // Cluster Signal Purity
-          MVecPur[0].push_back(ClPur[0][ii]);
-          MVecPur[1].push_back(ClPur[1][ii]);
-          MVecPur[2].push_back(ClPur[2][ii]);
-          // Cluster Gen and GenFraction
-          MVecMainID.push_back(ClMainID[2][ii]);
-          MVecGen.push_back(ClGen[2][ii]);
-          MVecGenPur.push_back(ClGenPur[2][ii]);
-          MVecGenFrac.push_back(ClVecGenPur[2][ii]);
-
-          float buffer = 1;
-          if ((ind0clustY > -buffer * fDetectorSizeY && ind0clustY < buffer * fDetectorSizeY) && (ind1clustY > -buffer * fDetectorSizeY && ind1clustY < buffer * fDetectorSizeY))
-          {
-            mf::LogDebug("SolarNuAna") << "BOTH IND RECO INSIDE OF DETECTOR";
-            MVecRecoY[2].push_back((ind0clustY + ind1clustY) / 2);
-          }
-          else if (ind0clustY > -buffer * fDetectorSizeY && ind0clustY < buffer * fDetectorSizeY)
-          {
-            mf::LogDebug("SolarNuAna") << "IND1 OUTSIDE OF DETECTOR";
-            MVecRecoY[2].push_back(ind0clustY);
-          }
-          else if (ind1clustY > -buffer * fDetectorSizeY && ind1clustY < buffer * fDetectorSizeY)
-          {
-            mf::LogDebug("SolarNuAna") << "IND0 OUTSIDE OF DETECTOR";
-            MVecRecoY[2].push_back(ind1clustY);
-          }
-          else
-          {
-            mf::LogDebug("SolarNuAna") << "RECO OUTSIDE OF DETECTOR";
-            MVecRecoY[2].push_back((ind0clustY + ind1clustY) / 2);
-            if (ClGen[2][ii] == 1)
-            {
-              mf::LogWarning("SolarNuAna") << "Signal cluster reconstructed outside of detector volume! RecoY = " << ProducerUtils::str((ind0clustY + ind1clustY) / 2);
-            }
-          }
-
-          // Print in color if the cluster is matched
-          mf::LogDebug("SolarNuAna") << "¡¡¡ Matched cluster !!! ";
-          mf::LogDebug("SolarNuAna") << " - Cluster " << ProducerUtils::str(ClMainID[2][ii]) << " Gen " << ProducerUtils::str(ClGen[2][ii]) << " Purity " << ProducerUtils::str(ClGenPur[2][ii]) << " Hits " << ProducerUtils::str(ClNHits[2][ii]);
-          mf::LogDebug("SolarNuAna") << " - Hits(ind0, ind1, col) " << ProducerUtils::str(ind0clustNHits) << ", " << ProducerUtils::str(ind1clustNHits) << ", " << ProducerUtils::str(ClNHits[2][ii]);
-          mf::LogDebug("SolarNuAna") << " - Positions y(ind0, ind1) = " << ProducerUtils::str(ind0clustY) << ", " << ProducerUtils::str(ind1clustY) << ", z = " << ProducerUtils::str(ClZ[2][ii]) << "\n";
-        } // if (match == true)
-        else
-        {
-          // std::cout << "    No match found for index " << ii << ". Skipping..." << std::endl;
-        }
-      } // Loop over collection plane clusters
-    } // Finished cluster matching
     //-------------------------------------------------------------------- Cluster Tree Export -------------------------------------------------------------------------//
-    // Loop over matched clusters and export to tree if all conditions are satisfied
+    // Need to implement the primary cluster finding based on external algorithm that uses the solar::LowECluster
+    // std::vector<bool> EventCandidateFound = {};
+    // std::vector<std::vector<art::Ptr<solar::LowECluster>>> EventCandidateVector;
+    // std::vector<std::vector<int>> EventCandidateIdx;
+    // lowe->FindPrimaryClusters(SolarClustersPtr, EventCandidateFound, EventCandidateVector, EventCandidateIdx, clockData, evt);
+
+    // For now, loop over matched clusters and export to tree if all conditions are satisfied
     std::string sClustersReco = "\n# ClusterReco: Looping over " + ProducerUtils::str(int(MVecNHits[2].size())) + " matched clusters";
     producer->PrintInColor(sClustersReco, ProducerUtils::GetColor("green"));
     for (int i = 0; i < int(MVecNHits[2].size()); i++)
@@ -1579,32 +1503,21 @@ namespace solar
 
         for (int j = 0; j < int(MVecNHits[2].size()); j++)
         {
-          if (j == i)
-          {
-            continue;
-          }
+          if (j == i) { continue;} // Do not compare the cluster with itself
 
           double ClusterDistance = 0;
           producer->ComputeDistance3D(ClusterDistance, MVecTime[2][i], MVecRecoY[2][i], MVecRecoZ[2][i], MVecTime[2][j], MVecRecoY[2][j], MVecRecoZ[2][j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
-          if (ClusterDistance > fAdjClusterRad)
-          {
-            continue;
-          }
+          if (MVecCharge[2][j] < fMinClusterCharge) { continue; } // Skip clusters that are too small
+          if (MVecTPC[2][j]%2 != MVecTPC[2][i]%2) { continue; } // Skip clusters that are in different sides of the detector
+          if (ClusterDistance > fAdjClusterRad) { continue; } // Skip clusters that are too far
+
           sAdjClusters += "    - Cluster " + ProducerUtils::str(j) + " at distance " + ProducerUtils::str(ClusterDistance) + " with time " + ProducerUtils::str(MVecTime[2][j]) + " and charge " + ProducerUtils::str(MVecCharge[2][j]) + " in TPC " + ProducerUtils::str(MVecTPC[2][j]);
-          if (MVecCharge[2][j] < fMinClusterCharge)
-          {
-            continue;
-          }
           sAdjClusters += " and hits " + ProducerUtils::str(MVecNHits[2][j]) + "\n";
-          if (MVecCharge[2][j] > MVecCharge[2][i])
-          {
-            MPrimary = false;
-          }
+
+          if (MVecCharge[2][j] > MVecCharge[2][i]) { MPrimary = false; }
+          if (MVecGen[i] == MVecGen[j]) { MSignalAdjClNum += 1; }
           MAdjClNum += 1;
-          if (MVecGen[i] == MVecGen[j])
-          {
-            MSignalAdjClNum += 1;
-          }
+          
           // If the cluster is matched, add the information to the vectors
           AdjClusterMatch = true;
           MAdjClTime.push_back(MVecTime[2][j]);
@@ -1623,15 +1536,15 @@ namespace solar
           MAdjClPur.push_back(MVecPur[2][j]);
           MAdjClGen.push_back(MVecGen[j]);
           MAdjClGenPur.push_back(MVecGenPur[j]);
-          MAdjClMainID.push_back(MVecMainID[j]);
+          MAdjClMainID.push_back(MVecMainID[2][j]);
 
           // If mother exists add the mother information
           const simb::MCParticle *MAdjClTruth;
           int TerminalOutput = ProducerUtils::supress_stdout();
-          MAdjClTruth = pi_serv->TrackIdToParticle_P(MVecMainID[j]);
+          MAdjClTruth = pi_serv->TrackIdToParticle_P(MVecMainID[2][j]);
           ProducerUtils::resume_stdout(TerminalOutput);
-          if (MAdjClTruth == 0)
-          {
+          
+          if (MAdjClTruth == 0) {
             MAdjClMainPDG.push_back(0);
             MAdjClMainE.push_back(-1e6);
             MAdjClMainP.push_back(-1e6);
@@ -1643,8 +1556,7 @@ namespace solar
             MAdjClEndY.push_back(-1e6);
             MAdjClEndZ.push_back(-1e6);
           }
-          else
-          {
+          else {
             MAdjClMainPDG.push_back(MAdjClTruth->PdgCode());
             MAdjClMainE.push_back(1e3*MAdjClTruth->E());
             MAdjClMainP.push_back(1e3*MAdjClTruth->P());
@@ -1659,36 +1571,33 @@ namespace solar
         }
 
         sResultColor = "yellow";
-        if (MVecPur[2][i] > 0)
-        {
+        if (MVecPur[2][i] > 0) {
           sResultColor = "green";
         }
-        if (fClusterPreselectionPrimary && !MPrimary)
-        {
-          continue;
-        }
-        if (MPrimary)
-        {
+
+        if (fClusterPreselectionPrimary && !MPrimary) { continue; }
+
+        if (MPrimary) {
           sClusterReco += "*** Matched preselection cluster: " + ProducerUtils::str(i) + "\n";
-          sClusterReco += " - MainTrackID " + ProducerUtils::str(MVecMainID[i]) + "\n";
-          if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1))
-          {
+          sClusterReco += " - MainTrackID " + ProducerUtils::str(MVecMainID[2][i]) + "\n";
+          if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1)) {
             sClusterReco += " - Gen " + ProducerUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1];
           }
-          else
-          {
+          else {
             sClusterReco += " - Gen ?? -> Unknown";
           }
+
           sClusterReco += " TPC " + ProducerUtils::str(MVecTPC[2][i]) + "\n";
-          // sClusterReco += " - Truth X,Y,Z ( " + ProducerUtils::str(MVecMainX[i]) + ", " + ProducerUtils::str(MVecMainY[i]) + ", " + ProducerUtils::str(MVecMainZ[i]) + " )\n";
           sClusterReco += " - Purity " + ProducerUtils::str(MVecGenPur[i]) + " Hits " + ProducerUtils::str(MVecNHits[2][i]) + "\n";
+          sClusterReco += " - Charge " + ProducerUtils::str(MVecCharge[2][i]) + " ( MaxHit " + ProducerUtils::str(MVecMaxCharge[2][i]) + " )\n";
           sClusterReco += " - #AdjCl " + ProducerUtils::str(MAdjClNum) + " ( " + ProducerUtils::str(MSignalAdjClNum) + " signal ):\n";
-          if (AdjClusterMatch) {sClusterReco += sAdjClusters;}
+          
+          if (AdjClusterMatch) { sClusterReco += sAdjClusters; }
           sClusterReco += " - RecoCol  Time,Y,Z ( " + ProducerUtils::str(MVecTime[2][i]) + ", " + ProducerUtils::str(MVecRecoY[2][i]) + ", " + ProducerUtils::str(MVecRecoZ[2][i]) + " )\n";
           sClusterReco += " - RecoInd0 Time,Y,Z ( " + ProducerUtils::str(MVecTime[0][i]) + ", " + ProducerUtils::str(MVecRecoY[0][i]) + ", " + ProducerUtils::str(MVecRecoZ[0][i]) + " )\n";
           sClusterReco += " - RecoInd1 Time,Y,Z ( " + ProducerUtils::str(MVecTime[1][i]) + ", " + ProducerUtils::str(MVecRecoY[1][i]) + ", " + ProducerUtils::str(MVecRecoZ[1][i]) + " )\n";
           
-          if (fSaveTrackInfo){
+          if (fSaveTrackInfo) {
             TVector3 ThisClVertex = {0, MVecRecoY[2][i], MVecRecoZ[2][i]};
             float MaxVertexDistance = 10; // if track is further away from ThisClVertex than
             for (int i = 0; i < TrackNum; i++)
@@ -1697,14 +1606,13 @@ namespace solar
               TVector3 trk_start(0, trk.Start().Y(), trk.Start().Z());
               TVector3 trk_end(0, trk.End().Y(), trk.End().Z());
               // throw away bad tracks
-              if ((trk_start - ThisClVertex).Mag() > MaxVertexDistance && (trk_end - ThisClVertex).Mag() > MaxVertexDistance)
-              {
-                continue;
-              }
+              if ((trk_start - ThisClVertex).Mag() > MaxVertexDistance && (trk_end - ThisClVertex).Mag() > MaxVertexDistance) { continue; }
+
               MTrackNPoints = trk.NPoints();
               MTrackStart = {trk.Start().X(), trk.Start().Y(), trk.Start().Z()};
               MTrackEnd = {trk.End().X(), trk.End().Y(), trk.End().Z()};
               MTrackChi2 = trk.Chi2();
+              
               sClusterReco += "*** Matched pmtrack: \n";
               sClusterReco += " - Track has start ( " + ProducerUtils::str(trk.Start().X()) + ", " + ProducerUtils::str(trk.Start().Y()) + ", " + ProducerUtils::str(trk.Start().Z()) + " )\n";
               sClusterReco += " - Track has end   ( " + ProducerUtils::str(trk.End().X()) + ", " + ProducerUtils::str(trk.End().Y()) + ", " + ProducerUtils::str(trk.End().Z()) + " )\n\n";
@@ -1712,74 +1620,51 @@ namespace solar
             }; // Loop over tracks
           }; // if (fSaveTrackInfo)
         }; // if (MPrimary)
-        if (fClusterPreselectionTrack && !TrackMatch)
-        {
-          continue;
-        }
-
+        
+        if (fClusterPreselectionTrack && !TrackMatch) { continue; }
+        
+        std::string sFlashMatching = "";
         for (int j = 0; j < int(OpFlashPE.size()); j++)
         {
-          float OpFlashR = -1e6;
           // Skip flashes with time outside the cluster time window
-          if ((MVecTime[2][i] - OpFlashTime[j]) < 0 || (MVecTime[2][i] - OpFlashTime[j]) > TPCIDdriftTime[MVecTPC[2][i]])
-          {
-            continue;
-          }
-          
-          // Compute the time distance between the cluster and the flash. Use factor 2 to convert us to TPC tics
+          float OpFlashR = -1e6;
           double MAdjFlashX = 0;
-          
-          // For HD 1x2x6 (only 1 APA) the x coordinate is determined by the TPC number
-          if (fGeometry == "HD" && MVecTPC[2][i]%2 != 0)
-          {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
-          }
-          else if (fGeometry == "HD" && MVecTPC[2][i]%2 == 0)
-          {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
+          if ((MVecTime[2][i] - OpFlashTime[j]) < 0 || (MVecTime[2][i] - OpFlashTime[j]) > TPCIDdriftTime[MVecTPC[2][i]]) { continue; }          
+          producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
+          if (fGeometry == "HD" && MVecTPC[2][i]%2 == 0) {
             MAdjFlashX = -MAdjFlashX;
           }
-          else if (fGeometry == "VD")
-          {
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
-            // Change the x distance to the x coordinate of the VD geometry [-driftLength/2, driftLength/2]
+          if (fGeometry == "VD") {
             MAdjFlashX = TPCIDdriftLength[MVecTPC[2][i]] / 2 - MAdjFlashX;
-          }
-          else
-          {
-            producer->PrintInColor("Unknown geometry " + fGeometry, ProducerUtils::GetColor("red"));
-            producer->ComputeDistanceX(MAdjFlashX, MVecTime[2][i], OpFlashTime[j], TPCIDdriftLength[MVecTPC[2][i]], TPCIDdriftTime[MVecTPC[2][i]]);
           }
 
           // Make an eliptical cut on the flash position based on the clusters plane
-          if (fGeometry == "VD" && OpFlashPlane[j] == 0) // Cathode flashes
-          {
-            if (pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
-            {
+          if (fGeometry == "HD") {
+            OpFlashR = sqrt(pow(MVecRecoY[2][i] - OpFlashY[j], 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2));
+            if (pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1) {
+              sFlashMatching += "Skipping flash " + ProducerUtils::str(j) + " at (X,Y,Z) = (" + ProducerUtils::str(OpFlashX[j]) + "," + ProducerUtils::str(OpFlashY[j]) + "," + ProducerUtils::str(OpFlashZ[j]) + ") outside cut at (X,Y,Z) = (" + ProducerUtils::str(MAdjFlashX) + "," + ProducerUtils::str(MVecRecoY[2][i]) + "," + ProducerUtils::str(MVecRecoZ[2][i]) + ") with R = " + ProducerUtils::str(OpFlashR) + " cm\n";
               continue;
             }
+          }
+          else if (fGeometry == "VD" && OpFlashPlane[j] == 0) { // Cathode flashes
+            if (pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1) { continue; }
             OpFlashR = sqrt(pow(MVecRecoY[2][i] - OpFlashY[j], 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2));
           }
-          else if (fGeometry == "VD" && (OpFlashPlane[j] == 1 || OpFlashPlane[j] == 2)) // Membrane flashes
-          {
-            if (fAdjOpFlashMembraneProjection){
-              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
-                continue;
-              }
+          else if (fGeometry == "VD" && (OpFlashPlane[j] == 1 || OpFlashPlane[j] == 2)) { // Membrane flashes
+            if (fAdjOpFlashMembraneProjection) {
+              if (MVecRecoY[2][i] * OpFlashY[j] < 0) { continue; } // Only consider clusters and flashes on the same side of the detector
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1) { continue; }
             }
-            else{
-              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
-                continue;
-              }
+            else {
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1) { continue; }
             }
             OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2));
           } 
-          else if (fGeometry == "VD" && (OpFlashPlane[j] == 3 || OpFlashPlane[j] == 4)) // End-Cap flashes
-          {
+          else if (fGeometry == "VD" && (OpFlashPlane[j] == 3 || OpFlashPlane[j] == 4)) { // End-Cap flashes
             if (fAdjOpFlashEndCapProjection){
-              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1){
-                continue;
-              }
+              if (MVecRecoZ[2][i] < fidVolZ / 2 && OpFlashPlane[j] == 3) { continue; } // Only consider clusters and flashes on the same half of the volume
+              if (MVecRecoZ[2][i] > fidVolZ / 2 && OpFlashPlane[j] == 4) { continue; } // Only consider clusters and flashes on the same half of the volume
+              if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) > 1){ continue; }
             }
             else{
               if (pow(MAdjFlashX - OpFlashX[j], 2) / pow(fAdjOpFlashX, 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1){
@@ -1788,19 +1673,11 @@ namespace solar
             }
             OpFlashR = sqrt(pow(MAdjFlashX - OpFlashX[j], 2) + pow(MVecRecoY[2][i] - OpFlashY[j], 2));
           }
-          else if (fGeometry == "VD" && OpFlashPlane[j] == -1)
-          {
+          else if (fGeometry == "VD" && OpFlashPlane[j] == -1) {
+            sFlashMatching += "Skipping flash " + ProducerUtils::str(j) + " with unknown plane " + ProducerUtils::str(OpFlashPlane[j]) + "\n";            
             continue;
           }
 
-          if (fGeometry == "HD")
-          {
-            if (pow(MVecRecoY[2][i] - OpFlashY[j], 2) / pow(fAdjOpFlashY, 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2) / pow(fAdjOpFlashZ, 2) > 1)
-            {
-              continue;
-            }
-            OpFlashR = sqrt(pow(MVecRecoY[2][i] - OpFlashY[j], 2) + pow(MVecRecoZ[2][i] - OpFlashZ[j], 2));
-          }
 
           MAdjFlashR.push_back(OpFlashR);
           MAdjFlashPE.push_back(OpFlashPE[j]);
@@ -1817,21 +1694,16 @@ namespace solar
           // Compute the residual between the predicted cluster signal and the flash
           adjophits->FlashMatchResidual(OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]));
           // Print the flash information for debugging
-          std::string sFlashMatching = "Testing flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]);
-          producer->PrintInColor(sFlashMatching, ProducerUtils::GetColor(sResultColor), "Debug");
-          // Make a cut on the flash PE and MaxPE distributions
-          if (OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut || OpFlashPE[j] < fAdjOpFlashMinPECut)
-          {
+          sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + " with residual " + ProducerUtils::str(OpFlashResidual) + "\n";
+          // Make a cut on the flash MaxPE/PE ratio and the number of hits
+          if ( OpFlashNHits[j] < fAdjOpFlashMinNHitCut || OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut ) {
             continue;
           }
-          // Create a cut based on a sigmoid function of the opflash number of hits versus the associated drift time
-          if (OpFlashNHits[j] < fAdjOpFlashMinNHitCut)
-          {
-            continue;
+          if ( lowe->SelectPDSFlashPE(TPCIDdriftTime[MVecTPC[2][i]], MVecCharge[2][i] - OpFlashTime[j], MVecCharge[2][i], OpFlashPE[j]) == false ) {
+              continue; // Skip flashes that don't pass the PE selection
           }
-          // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash
-          if ((fFlashMatchByResidual && OpFlashResidual < MatchedOpFlashResidual) || (!fFlashMatchByResidual && OpFlashPE[j] > MatchedOpFlashPE))
-          {
+          // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
+          if ((fFlashMatchByResidual && OpFlashResidual < MatchedOpFlashResidual) || (!fFlashMatchByResidual && OpFlashPE[j] > MatchedOpFlashPE)) {
             MFlashR = OpFlashR;
             MFlashPE = OpFlashPE[j];
             MFlashFast = OpFlashFast[j];
@@ -1845,7 +1717,7 @@ namespace solar
             MFlashRecoY = OpFlashY[j];
             MFlashRecoZ = OpFlashZ[j];
             MFlashResidual = OpFlashResidual;
-            // Create an output string with the flash information
+            // Create an output string with the flash information.
             sFlashReco = "*** Matched flash: \n - Purity " + ProducerUtils::str(OpFlashPur[j]) +
               " Plane " + ProducerUtils::str(OpFlashPlane[j]) +
               " #Hits " + ProducerUtils::str(OpFlashNHits[j]) +
@@ -1861,16 +1733,32 @@ namespace solar
           }
           MAdjFlashResidual.push_back(OpFlashResidual);
         }
+        
+        producer->PrintInColor(sFlashMatching, ProducerUtils::GetColor(sResultColor), "Debug");
+
+        if (fLabels[0] != "marley") { // If not marley, save the true signal particle information based on the mainID.
+          SignalParticlePDG = SignalPDGMap[SignalPrimaryMap[MVecMainID[2][i]]];
+          SignalParticleE = SignalEMap[SignalPrimaryMap[MVecMainID[2][i]]];
+          SignalParticleP = SignalPMap[SignalPrimaryMap[MVecMainID[2][i]]];
+          SignalParticleK = SignalKMap[SignalPrimaryMap[MVecMainID[2][i]]];
+          SignalParticleX = SignalStartXMap[SignalPrimaryMap[MVecMainID[2][i]]];
+          SignalParticleY = SignalStartYMap[SignalPrimaryMap[MVecMainID[2][i]]];
+          SignalParticleZ = SignalStartZMap[SignalPrimaryMap[MVecMainID[2][i]]];
+          SignalParticleTime = SignalTimeMap[SignalPrimaryMap[MVecMainID[2][i]]];
+        }
+
         sVertexReco += "*** Reconstructed Interaction Vertex: \n";
-        sVertexReco += " - True X,Y,Z ( " + ProducerUtils::str(SignalParticleX) + ", " + ProducerUtils::str(SignalParticleY) + ", " + ProducerUtils::str(SignalParticleZ) + " )" + "\n";
+        sVertexReco += " - True X,Y,Z ( " + ProducerUtils::str(SignalStartXMap[SignalPrimaryMap[MVecMainID[2][i]]]) + ", " + ProducerUtils::str(SignalStartYMap[SignalPrimaryMap[MVecMainID[2][i]]]) + ", " + ProducerUtils::str(SignalStartZMap[SignalPrimaryMap[MVecMainID[2][i]]]) + " )" + "\n";
+        sVertexReco += " - Main X,Y,Z ( " + ProducerUtils::str(SignalFinalXMap[SignalPrimaryMap[MVecMainID[2][i]]]) + ", " + ProducerUtils::str(SignalFinalYMap[SignalPrimaryMap[MVecMainID[2][i]]]) + ", " + ProducerUtils::str(SignalFinalZMap[SignalPrimaryMap[MVecMainID[2][i]]]) + " )" + "\n";
+        sVertexReco += " - EDep X,Y,Z ( " + ProducerUtils::str(SignalMaxEDepXMap[MVecMainID[2][i]]) + ", " + ProducerUtils::str(SignalMaxEDepYMap[MVecMainID[2][i]]) + ", " + ProducerUtils::str(SignalMaxEDepZMap[MVecMainID[2][i]]) + " )" + "\n";
         sVertexReco += " - Reco X,Y,Z ( " + ProducerUtils::str(MatchedOpFlashX) + ", " + ProducerUtils::str(MVecRecoY[2][i]) + ", " + ProducerUtils::str(MVecRecoZ[2][i]) + " )";
         sClusterReco += sFlashReco;
         sClusterReco += sVertexReco;
-        if (fClusterPreselectionFlashMatch && MatchedOpFlashPE < 0)
-        {
+
+        if (fClusterPreselectionFlashMatch && MatchedOpFlashPE < 0) {
           continue;
         } 
-        // Fill the tree with the cluster information and the adjacent clusters and flashes
+        // Fill the tree with the cluster information and the adjacent clusters and flashes.
         MInd0Pur = MVecPur[0][i];
         MInd1Pur = MVecPur[1][i];
         MPur = MVecPur[2][i];
@@ -1878,43 +1766,35 @@ namespace solar
         MGenPur = MVecGenPur[i];
         MGenFrac = MVecGenFrac[i];
         MSignalFrac = {MVecFracE[i], MVecFracGa[i], MVecFracNe[i], MVecFracRest[i]};
-        // Cluster TPC
         MInd0TPC = MVecTPC[0][i];
         MInd1TPC = MVecTPC[1][i];
         MTPC = MVecTPC[2][i];
-        // Cluster Charge
         MInd0Charge = MVecCharge[0][i];
         MInd1Charge = MVecCharge[1][i];
         MCharge = MVecCharge[2][i];
         MInd0MaxCharge = MVecMaxCharge[0][i];
         MInd1MaxCharge = MVecMaxCharge[1][i];
         MMaxCharge = MVecMaxCharge[2][i];
-        // Cluster Hits
         MInd0NHits = MVecNHits[0][i];
         MInd1NHits = MVecNHits[1][i];
         MNHit = MVecNHits[2][i];
-        // Cluster Time
-        MInd0dTime = MVecDT[0][i];
-        MInd1dTime = MVecDT[1][i];
+        MInd0dTime = MVecdT[0][i];
+        MInd1dTime = MVecdT[1][i];
         MTime = MVecTime[2][i];
-        // Cluster RecoX
         MRecX = MatchedOpFlashX;
-        // Cluster RecoY
         MInd0RecoY = MVecRecoY[0][i];
         MInd1RecoY = MVecRecoY[1][i];
         MRecY = MVecRecoY[2][i];
-        // Cluster RecoZ
         MRecZ = MVecRecoZ[2][i];
-        // Cluster MainID
-        MMainID = MVecMainID[i];
-
+        MMainID = MVecMainID[2][i];
         // If mother exists add the mother information
         const simb::MCParticle *MClTruth;
+        
         int TerminalOutput = ProducerUtils::supress_stdout();
-        MClTruth = pi_serv->TrackIdToParticle_P(MVecMainID[i]);
+        MClTruth = pi_serv->TrackIdToParticle_P(MVecMainID[2][i]);
         ProducerUtils::resume_stdout(TerminalOutput);
-        if (MClTruth == 0)
-        {
+        
+        if (MClTruth == 0) {
           MMainVertex = {-1e6, -1e6, -1e6};
           MEndVertex = {-1e6, -1e6, -1e6};
           MMainPDG = 0;
@@ -1922,7 +1802,6 @@ namespace solar
           MMainP = -1e6;
           MMainK = -1e6;
           MMainTime = -1e6;
-
           MMainParentVertex = {-1e6, -1e6, -1e6};
           MMainParentPDG = 0;
           MMainParentE = -1e6;
@@ -1930,12 +1809,10 @@ namespace solar
           MMainParentK = -1e6;
           MMainParentTime = -1e6;
         }
-        else
-        {
-          if (MFlashPur > 0)
-          {
+        else {
+          if (MFlashPur > 0) {
             MFlashCorrect = true;
-          };
+          }
           MMainVertex = {MClTruth->Vx(), MClTruth->Vy(), MClTruth->Vz()};
           MEndVertex = {MClTruth->EndX(), MClTruth->EndY(), MClTruth->EndZ()};
           MMainPDG = MClTruth->PdgCode();
@@ -1943,13 +1820,14 @@ namespace solar
           MMainP = 1e3 * MClTruth->P();
           MMainK = MMainE - 1e3 * MClTruth->Mass();
           MMainTime = MClTruth->T();
-          // If exists add the parent information
+          // If exists add the parent information.
           const simb::MCParticle *MClParentTruth;
+
           int TerminalOutput = ProducerUtils::supress_stdout();
           MClParentTruth = pi_serv->TrackIdToParticle_P(MClTruth->Mother());
           ProducerUtils::resume_stdout(TerminalOutput);
-          if (MClParentTruth == 0)
-          {
+          
+          if (MClParentTruth == 0) {
             MMainParentVertex = {-1e6, -1e6, -1e6};
             MMainParentPDG = 0;
             MMainParentE = -1e6;
@@ -1957,8 +1835,7 @@ namespace solar
             MMainParentK = -1e6;
             MMainParentTime = -1e6;
           }
-          else
-          {
+          else {
             MMainParentVertex = {MClParentTruth->Vx(), MClParentTruth->Vy(), MClParentTruth->Vz()};
             MMainParentPDG = MClParentTruth->PdgCode();
             MMainParentE = 1e3 * MClParentTruth->E();
@@ -1967,26 +1844,33 @@ namespace solar
             MMainParentTime = MClParentTruth->T();
           }
         }
-
-        fSolarNuAnaTree->Fill();
-        hDriftTime->Fill(MainElectronEndPointX, MTime);
-        hXTruth->Fill(MRecX - SignalParticleX, SignalParticleX);
-        hYTruth->Fill(MRecY - SignalParticleY, SignalParticleY);
-        hZTruth->Fill(MRecZ - SignalParticleZ, SignalParticleZ);
+        if (SignalParticleK < fMaxSignalK) {
+          fSolarNuAnaTree->Fill();
+          hDriftTime->Fill(MainElectronEndPointX, MTime);
+          hXTruth->Fill(MRecX - SignalParticleX, SignalParticleX);
+          hYTruth->Fill(MRecY - SignalParticleY, SignalParticleY);
+          hZTruth->Fill(MRecZ - SignalParticleZ, SignalParticleZ);
+        }
       }
-      // Check if the string sClusterReco is not empty and print it in color
-      if (sClusterReco != "")
-      {
-        producer->PrintInColor(sClusterReco, ProducerUtils::GetColor(sResultColor));
-      }
+      // Check if the string sClusterReco is not empty and print it in color.
+      if (sClusterReco != "") { producer->PrintInColor(sClusterReco, ProducerUtils::GetColor(sResultColor)); }
+    } // Loop over clusters
+    if (SignalParticleK < fMaxSignalK) {
+      fMCTruthTree->Fill();
+      SelectedEvents.push_back(1);
     }
+    else {
+      SelectedEvents.push_back(0);
+    }
+    producer->PrintInColor("-----------------------------------------------------------------------------------------\n", ProducerUtils::GetColor("green"));
+    } // SelectedEvent
   }
-
-  // ########################################################################################################################################//
-  // _FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_FUNCTION_TIME!_//
-  // ########################################################################################################################################//
-
-  //......................................................
+  void SolarNuAna::endJob()
+  {
+    producer->PrintInColor("Finished running the SolarNuAna module", ProducerUtils::GetColor("magenta"));
+    fConfigTree->Fill();
+  }
+  //......................................................................................................................//
   // Reset variables for each event
   void SolarNuAna::ResetVariables()
   {
