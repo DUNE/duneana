@@ -151,6 +151,7 @@ namespace opdet {
     Float_t opDetL = 0.0; //! OpDet lenght
     Float_t opDetW = 0.0; //! OpDet width
     Float_t opDetPos[3] = {0.0, 0.0, 0.0}; //! OpDet position
+    std::vector<UInt_t> opChannel; //! OpChannel for one OpDet
 
     //for the analysis tree of the light (gamez)
     bool fMakeLightAnalysisTree;
@@ -302,6 +303,7 @@ namespace opdet {
       fTheOpDetGeoTree->Branch("opDetL", &opDetL); 
       fTheOpDetGeoTree->Branch("opDetW", &opDetW);
       fTheOpDetGeoTree->Branch("opDetPos", &opDetPos, "opDetPos[3]/F");
+      fTheOpDetGeoTree->Branch("opChannel", &opChannel); 
 
       fill_opdet_geo_tree();
     }
@@ -341,8 +343,10 @@ namespace opdet {
   void SimPhotonCounter::fill_opdet_geo_tree() 
   {
     auto const* geom = lar::providerFrom<geo::Geometry>();
+    const geo::WireReadoutGeom *readout = &art::ServiceHandle<geo::WireReadout>()->Get();
     UInt_t nOpDets = geom->NOpDets();
     for (size_t i : util::counter(nOpDets)) {
+      opChannel.clear();
       geo::OpDetGeo const& opDet = geom->OpDetGeoFromOpDet(i);
       auto center = opDet.GetCenter();
       center.GetCoordinates( opDetPos );
@@ -350,6 +354,11 @@ namespace opdet {
       opDetW = opDet.Width();
       opDetL = opDet.Length();
 
+      size_t n_ch = readout->NOpHardwareChannels(i); 
+      opChannel.resize(n_ch, 0); 
+      for (size_t ich = 0; ich < n_ch; ich++) {
+        opChannel.at(ich) = readout->OpChannel(i, ich);  
+      }
       fTheOpDetGeoTree->Fill();
     }
 
