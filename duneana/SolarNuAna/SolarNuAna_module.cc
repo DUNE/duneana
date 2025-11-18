@@ -79,7 +79,7 @@ namespace solar
     void ResetVariables();
 
     // --- Our fcl parameter labels for the modules that made the data products
-    std::string fHitLabel, fTrackLabel, fOpHitLabel, fOpFlashLabel, fGEANTLabel;
+    std::string fHitLabel, fTrackLabel, fOpWaveformLabel, fOpHitLabel, fOpFlashLabel, fGEANTLabel;
 
     // --- Input settings imported from the fcl
     std::vector<std::string> fLabels, fBackgroundLabels;
@@ -88,7 +88,7 @@ namespace solar
     float fMaxSignalK; 
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fAdjOpFlashMinPEAttenuation, fClusterMatchNHit, fClusterAlgoTime;
     float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld, fXACathodeX, fXAMembraneY, fXAStartCapZ, fXAFinalCapZ;
-    bool fOpFlashAlgoHitDuplicates;
+    bool fOpFlashAlgoHitDuplicates, fOpFlashAlgoWeightedTime;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
     bool fGenerateSolarCluster, fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
     bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveAdjOpFlashInfo, fSaveTrackInfo;
@@ -120,10 +120,13 @@ namespace solar
     // --- OpFlash Variables
     std::vector<int> OpFlashID, OpFlashNHits, OpFlashPlane;
     std::vector<float> OpFlashPur, OpFlashPE, OpFlashMaxPE, OpFlashX, OpFlashY, OpFlashZ, OpFlashTime, OpFlashDeltaT, OpFlashSTD, OpFlashFast;
+    std::vector<bool> OpFlashWaveformValid;
+    std::vector<std::vector<int>> OpFlashWaveform;
 
     // --- MatchedFlash Variables
     int MFlashNHits, MFlashPlane;
     float MFlashR, MFlashPE, MFlashMaxPE, MFlashPur, MFlashFast, MFlashTime, MFlashSTD, MFlashRecoX, MFlashRecoY, MFlashRecoZ, MFlashResidual;
+    std::vector<int> MFlashWaveform;
     bool MFlashCorrect;
 
     // --- Maps to hold the geo::TPCID object for each TPCid
@@ -171,6 +174,7 @@ namespace solar
     fSolarClusterLabel = p.get<std::string>("SolarClusterLabel", "solarcluster");
     fClusterChargeVariable = p.get<std::string>("ClusterChargeVariable", "Integral");
     fTrackLabel = p.get<std::string>("TrackLabel", "pmtrack");
+    fOpWaveformLabel = p.get<std::string>("OpWaveformLabel", "opdec");
     fOpHitLabel = p.get<std::string>("OpHitLabel", "ophitspe");
     fOpHitTimeVariable = p.get<std::string>("OpHitTimeVariable", "PeakTime");
     fOpFlashLabel = p.get<std::string>("OpFlashLabel", "solarflash");
@@ -198,8 +202,9 @@ namespace solar
     fXAMembraneY = p.get<float>("XAMembraneY");
     fXAStartCapZ = p.get<float>("XAStartCapZ");
     fXAFinalCapZ = p.get<float>("XAFinalCapZ");
-    fOpFlashAlgoMinTime = p.get<double>("OpFlashAlgoMinTime", 0.010); // 10 ns [0.6 tick]
+    fOpFlashAlgoMinTime = p.get<double>("OpFlashAlgoMinTime", 0.008); // 8 ns [0.5 tick]
     fOpFlashAlgoMaxTime = p.get<double>("OpFlashAlgoMaxTime", 0.016); // 16 ns [1 tick]
+    fOpFlashAlgoWeightedTime = p.get<bool>("OpFlashAlgoWeightedTime");
     fOpFlashAlgoRad = p.get<double>("OpFlashAlgoRad");
     fOpFlashAlgoPE = p.get<float>("OpFlashAlgoPE");
     fOpFlashAlgoTriggerPE = p.get<float>("OpFlashAlgoTriggerPE");
@@ -274,6 +279,7 @@ namespace solar
     fConfigTree->Branch("XAFinalCapZ", &fXAFinalCapZ);
     fConfigTree->Branch("OpFlashAlgoMinTime", &fOpFlashAlgoMinTime);
     fConfigTree->Branch("OpFlashAlgoMaxTime", &fOpFlashAlgoMaxTime);
+    fConfigTree->Branch("OpFlashAlgoWeightedTime", &fOpFlashAlgoWeightedTime);
     fConfigTree->Branch("OpFlashAlgoRad", &fOpFlashAlgoRad);
     fConfigTree->Branch("OpFlashAlgoPE", &fOpFlashAlgoPE);
     fConfigTree->Branch("OpFlashAlgoTriggerPE", &fOpFlashAlgoTriggerPE);
@@ -370,6 +376,8 @@ namespace solar
       fMCTruthTree->Branch("OpFlashNHits", &OpFlashNHits); // OpFlash NHit
       fMCTruthTree->Branch("OpFlashPlane", &OpFlashPlane); // OpFlash Plane
       fMCTruthTree->Branch("OpFlashMaxPE", &OpFlashMaxPE); // OpFlash Max PE
+      fMCTruthTree->Branch("OpFlashWaveform", &OpFlashWaveform); // OpFlash Waveform
+      fMCTruthTree->Branch("OpFlashWaveformValid", &OpFlashWaveformValid); // OpFlash Waveform Valid
     }
 
     // Repeated Truth info.
@@ -487,36 +495,37 @@ namespace solar
     // Adj. Flash info.
     if (fSaveAdjOpFlashInfo)
     {
-      fSolarNuAnaTree->Branch("AdjOpFlashR", &MAdjFlashR);               // Adj. flash' reco distance [cm]
-      fSolarNuAnaTree->Branch("AdjOpFlashPE", &MAdjFlashPE);             // Adj. flash' tot #PE [ADC*ticks]
-      fSolarNuAnaTree->Branch("AdjOpFlashPur", &MAdjFlashPur);           // Adj. flash' purity
-      fSolarNuAnaTree->Branch("AdjOpFlashSTD", &MAdjFlashSTD);           // Adj. flash' STD
-      fSolarNuAnaTree->Branch("AdjOpFlashFast", &MAdjFlashFast);         // Adj. flash' Fast Component
-      fSolarNuAnaTree->Branch("AdjOpFlashTime", &MAdjFlashTime);         // Adj. flash' time [ticks]
-      fSolarNuAnaTree->Branch("AdjOpFlashNHits", &MAdjFlashNHits);       // Adj. flash' #hits
-      fSolarNuAnaTree->Branch("AdjOpFlashPlane", &MAdjFlashPlane);       // Adj. flash' Plane
-      fSolarNuAnaTree->Branch("AdjOpFlashMaxPE", &MAdjFlashMaxPE);       // Adj. flash' max #PE [ADC*ticks]
-      fSolarNuAnaTree->Branch("AdjOpFlashRecoX", &MAdjFlashRecoX);       // Adj. flash' reco X [cm]
-      fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoY);       // Adj. flash' reco Y [cm]
-      fSolarNuAnaTree->Branch("AdjOpFlashRecoZ", &MAdjFlashRecoZ);       // Adj. flash' reco Z [cm]
-      fSolarNuAnaTree->Branch("AdjOpFlashResidual", &MAdjFlashResidual); // Adj. flash' residual wrt. cluster
+      fSolarNuAnaTree->Branch("AdjOpFlashR", &MAdjFlashR);               // Adj. flash reco distance [cm]
+      fSolarNuAnaTree->Branch("AdjOpFlashPE", &MAdjFlashPE);             // Adj. flash tot #PE [ADC*ticks]
+      fSolarNuAnaTree->Branch("AdjOpFlashPur", &MAdjFlashPur);           // Adj. flash purity
+      fSolarNuAnaTree->Branch("AdjOpFlashSTD", &MAdjFlashSTD);           // Adj. flash STD
+      fSolarNuAnaTree->Branch("AdjOpFlashFast", &MAdjFlashFast);         // Adj. flash Fast Component
+      fSolarNuAnaTree->Branch("AdjOpFlashTime", &MAdjFlashTime);         // Adj. flash time [ticks]
+      fSolarNuAnaTree->Branch("AdjOpFlashNHits", &MAdjFlashNHits);       // Adj. flash #hits
+      fSolarNuAnaTree->Branch("AdjOpFlashPlane", &MAdjFlashPlane);       // Adj. flash Plane
+      fSolarNuAnaTree->Branch("AdjOpFlashMaxPE", &MAdjFlashMaxPE);       // Adj. flash max #PE [ADC*ticks]
+      fSolarNuAnaTree->Branch("AdjOpFlashRecoX", &MAdjFlashRecoX);       // Adj. flash reco X [cm]
+      fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoY);       // Adj. flash reco Y [cm]
+      fSolarNuAnaTree->Branch("AdjOpFlashRecoZ", &MAdjFlashRecoZ);       // Adj. flash reco Z [cm]
+      fSolarNuAnaTree->Branch("AdjOpFlashResidual", &MAdjFlashResidual); // Adj. flash residual wrt. cluster
     }
 
     // Matched Flash info.
-    fSolarNuAnaTree->Branch("MatchedOpFlashR", &MFlashR, "MatchedOpFlashR/F");                      // Matched flash' reco distance [cm]
-    fSolarNuAnaTree->Branch("MatchedOpFlashPE", &MFlashPE, "MatchedOpFlashPE/F");                   // Matched flash' tot #PE [ADC*ticks]
-    fSolarNuAnaTree->Branch("MatchedOpFlashPur", &MFlashPur, "MatchedOpFlashPur/F");                // Matched flash' purity
-    fSolarNuAnaTree->Branch("MatchedOpFlashSTD", &MFlashSTD, "MatchedOpFlashSTD/F");                // Matched flash' STD
-    fSolarNuAnaTree->Branch("MatchedOpFlashFast", &MFlashFast, "MatchedOpFlashFast/F");             // Matched flash' Fast Component
-    fSolarNuAnaTree->Branch("MatchedOpFlashTime", &MFlashTime, "MatchedOpFlashTime/F");             // Matched flash' time [ticks]
-    fSolarNuAnaTree->Branch("MatchedOpFlashNHits", &MFlashNHits, "MatchedOpFlashNHits/I");          // Matched flash' #hits
-    fSolarNuAnaTree->Branch("MatchedOpFlashPlane", &MFlashPlane, "MatchedOpFlashPlane/I");          // Matched flash' Plane
-    fSolarNuAnaTree->Branch("MatchedOpFlashMaxPE", &MFlashMaxPE, "MatchedOpFlashMaxPE/F");          // Matched flash' max #PE [ADC*ticks]
-    fSolarNuAnaTree->Branch("MatchedOpFlashRecoX", &MFlashRecoX, "MatchedOpFlashRecoX/F");          // Matched flash' reco X [cm]
-    fSolarNuAnaTree->Branch("MatchedOpFlashRecoY", &MFlashRecoY, "MatchedOpFlashRecoY/F");          // Matched flash' reco Y [cm]
-    fSolarNuAnaTree->Branch("MatchedOpFlashRecoZ", &MFlashRecoZ, "MatchedOpFlashRecoZ/F");          // Matched flash' reco Z [cm]
-    fSolarNuAnaTree->Branch("MatchedOpFlashResidual", &MFlashResidual, "MatchedOpFlashResidual/F"); // Matched flash' residual wrt. cluster
-    fSolarNuAnaTree->Branch("MatchedOpFlashCorrectly", &MFlashCorrect);                             // Matched flash' correctnes (bool)
+    fSolarNuAnaTree->Branch("MatchedOpFlashR", &MFlashR, "MatchedOpFlashR/F");                      // Matched flash reco distance [cm]
+    fSolarNuAnaTree->Branch("MatchedOpFlashPE", &MFlashPE, "MatchedOpFlashPE/F");                   // Matched flash tot #PE [ADC*ticks]
+    fSolarNuAnaTree->Branch("MatchedOpFlashPur", &MFlashPur, "MatchedOpFlashPur/F");                // Matched flash purity
+    fSolarNuAnaTree->Branch("MatchedOpFlashSTD", &MFlashSTD, "MatchedOpFlashSTD/F");                // Matched flash STD
+    fSolarNuAnaTree->Branch("MatchedOpFlashFast", &MFlashFast, "MatchedOpFlashFast/F");             // Matched flash Fast Component
+    fSolarNuAnaTree->Branch("MatchedOpFlashTime", &MFlashTime, "MatchedOpFlashTime/F");             // Matched flash time [ticks]
+    fSolarNuAnaTree->Branch("MatchedOpFlashNHits", &MFlashNHits, "MatchedOpFlashNHits/I");          // Matched flash #hits
+    fSolarNuAnaTree->Branch("MatchedOpFlashPlane", &MFlashPlane, "MatchedOpFlashPlane/I");          // Matched flash Plane
+    fSolarNuAnaTree->Branch("MatchedOpFlashMaxPE", &MFlashMaxPE, "MatchedOpFlashMaxPE/F");          // Matched flash max #PE [ADC*ticks]
+    fSolarNuAnaTree->Branch("MatchedOpFlashRecoX", &MFlashRecoX, "MatchedOpFlashRecoX/F");          // Matched flash reco X [cm]
+    fSolarNuAnaTree->Branch("MatchedOpFlashRecoY", &MFlashRecoY, "MatchedOpFlashRecoY/F");          // Matched flash reco Y [cm]
+    fSolarNuAnaTree->Branch("MatchedOpFlashRecoZ", &MFlashRecoZ, "MatchedOpFlashRecoZ/F");          // Matched flash reco Z [cm]
+    fSolarNuAnaTree->Branch("MatchedOpFlashResidual", &MFlashResidual, "MatchedOpFlashResidual/F"); // Matched flash residual wrt. cluster
+    fSolarNuAnaTree->Branch("MatchedOpFlashWaveform", &MFlashWaveform);                             // Matched flash waveform
+    fSolarNuAnaTree->Branch("MatchedOpFlashCorrectly", &MFlashCorrect);                             // Matched flash correctnes (bool)
 
     fConfigTree->AddFriend(fSolarNuAnaTree);
     fMCTruthTree->AddFriend(fSolarNuAnaTree);
@@ -916,7 +925,10 @@ namespace solar
         double ThisOpFlashPur = 0;
         OpFlashPlane.push_back(TheFlash.Plane);
         OpFlashNHits.push_back(TheFlash.NHit);
-        OpFlashTime.push_back(TheFlash.Time - fOpFlashTimeOffset); // Convert to microseconds happens in AdjOpHits
+        if (fOpFlashAlgoWeightedTime)
+          OpFlashTime.push_back(TheFlash.TimeWeighted - fOpFlashTimeOffset);
+        else
+          OpFlashTime.push_back(TheFlash.Time - fOpFlashTimeOffset);
         OpFlashDeltaT.push_back(TheFlash.TimeWidth); // Convert to microseconds
         OpFlashPE.push_back(TheFlash.PE);
         OpFlashMaxPE.push_back(TheFlash.MaxPE);
@@ -926,6 +938,9 @@ namespace solar
         OpFlashY.push_back(TheFlash.Y);
         OpFlashZ.push_back(TheFlash.Z);
         OpFlashSTD.push_back(TheFlash.STD);
+        OpFlashWaveform.push_back(TheFlash.MainOpWaveform);
+        OpFlashWaveformValid.push_back(TheFlash.MainOpWaveform.size() > 0); 
+        
         for (int j = 0; j < int(OpHitVec[i].size()); j++)
         {
           recob::OpHit OpHit = *OpHitVec[i][j];
@@ -989,6 +1004,11 @@ namespace solar
       {
         recob::OpFlash TheFlash = *OpFlashList[i];
         std::vector<art::Ptr<recob::OpHit>> MatchedHits = OpAssns.at(i);
+        std::vector<std::vector<int>> MatchedWaveforms;
+        std::vector<int> MainWaveform;
+        std::vector<bool> MatchedValidWaveforms;
+        adjophits->GetOpHitSignal(MatchedHits, MatchedWaveforms, MatchedValidWaveforms, evt);
+
         int NMatchedHits = MatchedHits.size();
         double FlashStdDev = 0.0, TotalFlashPE = 0, MaxOpHitPE = 0;
         std::vector<float> varXY, varYZ, varXZ;
@@ -1019,6 +1039,12 @@ namespace solar
           
           if (OpHit.PE() > MaxOpHitPE) {
             MaxOpHitPE = OpHit.PE();
+            if (MatchedValidWaveforms[j]) {
+              MainWaveform = MatchedWaveforms[j];
+            }
+            else {
+              MainWaveform = {};
+            }
           }
 
           SOpHitFlashID.push_back(i);
@@ -1054,6 +1080,8 @@ namespace solar
         OpFlashPE.push_back(TheFlash.TotalPE());
         OpFlashNHits.push_back(MatchedHits.size());
         OpFlashFast.push_back(TheFlash.FastToTotal());
+        OpFlashWaveform.push_back(MainWaveform);
+        OpFlashWaveformValid.push_back(MainWaveform.size() > 0);
         
         if (fOpFlashTime2us) {
           OpFlashTime.push_back(TheFlash.Time() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Expected flash to provide time in ticks, convert to microseconds
@@ -1159,6 +1187,9 @@ namespace solar
       AllPlaneClusters = {Clusters0, Clusters1, Clusters2};
     }
 
+    HitNum = {int(Ind0Hits.size()), int(Ind1Hits.size()), int(ColHits.size())};
+    ClusterNum = {int(Clusters0.size()), int(Clusters1.size()), int(Clusters2.size())};
+    
     std::vector<std::vector<std::vector<float>>> ClVecGenPur = {{}, {}, {}};
     std::vector<std::vector<int>> ClMainID = {{}, {}, {}}, ClTPC = {{}, {}, {}}, ClNHits = {{}, {}, {}}, ClGen = {{}, {}, {}};
     std::vector<std::vector<float>> ClCharge = {{}, {}, {}}, ClMaxCharge = {{}, {}, {}}, ClT = {{}, {}, {}}, ClX = {{}, {}, {}}, ClY = {{}, {}, {}}, ClZ = {{}, {}, {}};
@@ -1716,6 +1747,7 @@ namespace solar
             MFlashRecoX = OpFlashX[j];
             MFlashRecoY = OpFlashY[j];
             MFlashRecoZ = OpFlashZ[j];
+            MFlashWaveform = OpFlashWaveform[j];
             MFlashResidual = OpFlashResidual;
             // Create an output string with the flash information.
             sFlashReco = "*** Matched flash: \n - Purity " + ProducerUtils::str(OpFlashPur[j]) +
@@ -1726,7 +1758,8 @@ namespace solar
               " - Time " + ProducerUtils::str(OpFlashTime[j]) +
               " Fast " + ProducerUtils::str(OpFlashFast[j]) +
               " Residual " + ProducerUtils::str(OpFlashResidual) + "\n" +
-              " - Reco Time,Y,Z ( " + ProducerUtils::str(MFlashTime) + ", " + ProducerUtils::str(OpFlashY[j]) + ", " + ProducerUtils::str(OpFlashZ[j]) + " )" + "\n";
+              " - Reco Time,Y,Z ( " + ProducerUtils::str(MFlashTime) + ", " + ProducerUtils::str(OpFlashY[j]) + ", " + ProducerUtils::str(OpFlashZ[j]) + " )" + "\n" +
+              " - Found valid waveform: " + ProducerUtils::str(OpFlashWaveform[j].size() > 0) + "\n"; 
             MatchedOpFlashX = MAdjFlashX;
             MatchedOpFlashResidual = OpFlashResidual;
             MatchedOpFlashPE = MFlashPE;
@@ -1892,6 +1925,7 @@ namespace solar
     MFlashRecoY = -1e6;
     MFlashRecoZ = -1e6;
     MFlashResidual = -1e6;
+    MFlashWaveform = {};
     MFlashCorrect = false;
     SignalParticleE = 0;
     SignalParticleP = 0;
@@ -1905,6 +1939,8 @@ namespace solar
     OpFlashID.clear();
     OpFlashPE.clear();
     OpFlashSTD.clear();
+    OpFlashWaveform.clear();
+    OpFlashWaveformValid.clear();
     OpFlashFast.clear();
     OpFlashMaxPE.clear();
     OpFlashX.clear();
