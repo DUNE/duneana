@@ -34,5 +34,6 @@ physics:
   ana: [calibana]
   end_paths:     [ana]
 }
-physics.analyzers.calibana.IsPDHD:   true
+physics.analyzers.calibanar1.IsPD:        true
+physics.analyzers.calibanar1.IsHD:        true
 physics.analyzers.calibana.Verbose:  true

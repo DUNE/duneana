@@ -52,31 +52,36 @@ physics.analyzers:
 
 physics.filters: {}
 
-physics.analyzers.calibanar1.IsPDHD:        true
+physics.analyzers.calibanar1.IsPD:        true
+physics.analyzers.calibanar1.IsHD:        true
 physics.analyzers.calibanar1.Verbose:       true
 physics.analyzers.calibanar1.TrackAnalysis: true
 physics.analyzers.calibanar1.RadiusInt:     1
 physics.analyzers.calibanar1.RadiusExt:     10
 
-physics.analyzers.calibanar2.IsPDHD:        true
+physics.analyzers.calibanar1.IsPD:        true
+physics.analyzers.calibanar1.IsHD:        true
 physics.analyzers.calibanar2.Verbose:       true
 physics.analyzers.calibanar2.TrackAnalysis: false
 physics.analyzers.calibanar2.RadiusInt:     2
 physics.analyzers.calibanar2.RadiusExt:     10
 
-physics.analyzers.calibanar3.IsPDHD:        true
+physics.analyzers.calibanar1.IsPD:        true
+physics.analyzers.calibanar1.IsHD:        true
 physics.analyzers.calibanar3.Verbose:       true
 physics.analyzers.calibanar3.TrackAnalysis: false
 physics.analyzers.calibanar3.RadiusInt:     3
 physics.analyzers.calibanar3.RadiusExt:     10
 
-physics.analyzers.calibanar4.IsPDHD:        true
+physics.analyzers.calibanar1.IsPD:        true
+physics.analyzers.calibanar1.IsHD:        true
 physics.analyzers.calibanar4.Verbose:       true
 physics.analyzers.calibanar4.TrackAnalysis: false
 physics.analyzers.calibanar4.RadiusInt:     4
 physics.analyzers.calibanar4.RadiusExt:     10
 
-physics.analyzers.calibanar5.IsPDHD:        true
+physics.analyzers.calibanar1.IsPD:        true
+physics.analyzers.calibanar1.IsHD:        true
 physics.analyzers.calibanar5.Verbose:       true
 physics.analyzers.calibanar5.TrackAnalysis: false
 physics.analyzers.calibanar5.RadiusInt:     5
