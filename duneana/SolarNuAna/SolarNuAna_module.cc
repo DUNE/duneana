@@ -203,8 +203,8 @@ namespace solar
     fXAMembraneY = p.get<float>("XAMembraneY");
     fXAStartCapZ = p.get<float>("XAStartCapZ");
     fXAFinalCapZ = p.get<float>("XAFinalCapZ");
-    fOpFlashAlgoMinTime = p.get<double>("OpFlashAlgoMinTime", 0.008); // 8 ns [0.5 tick]
-    fOpFlashAlgoMaxTime = p.get<double>("OpFlashAlgoMaxTime", 0.016); // 16 ns [1 tick]
+    fOpFlashAlgoMinTime = p.get<double>("OpFlashAlgoMinTime", 0.32); //  [20 PDS tick]
+    fOpFlashAlgoMaxTime = p.get<double>("OpFlashAlgoMaxTime", 0.96); //  [60 PDS tick]
     fOpFlashAlgoWeightedTime = p.get<bool>("OpFlashAlgoWeightedTime");
     fOpFlashAlgoRad = p.get<double>("OpFlashAlgoRad");
     fOpFlashAlgoPE = p.get<float>("OpFlashAlgoPE");
