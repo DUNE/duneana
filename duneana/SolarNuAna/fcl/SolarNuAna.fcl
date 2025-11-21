@@ -14,6 +14,7 @@ BEGIN_PROLOG
     TrackLabel:        "pmtracktc"    # The label for the process which ran the PMTrack
     OpHitLabel:        "ophitspe"     # The label for the process which ran the OpHit
     OpFlashLabel:      "solarflash"   # The label for the process which ran the OpFlash
+    OpHitTime2us:       false         # If true, the OpHit time is in [ticks] and will be converted to [us].
     OpFlashTime2us:     false         # If true, the OpFlash time is in [ticks] and will be converted to [us]. For other producers than "solarflash".
     OpFlashTimeOffset:  18.1          # Time offset to be applied to the OpFlash time in [us] units.
 
@@ -54,10 +55,10 @@ BEGIN_PROLOG
 
     GenerateAdjOpFlash:         true         # Generate OpFlashes.
     OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
-    OpFlashAlgoMinTime:         0.008        # Negative time window to look for adj. OpHits in [us] units.
-    OpFlashAlgoMaxTime:         0.016        # Positive time window to look for adj. OpHits in [us] units.
-    OpFlashAlgoWeightedTime:    false        # If true, use weighted time for OpFlash time calculation, otherwise use flash trigger time.
-    OpFlashAlgoRad:             300          # Distance to look for adj. OpHits in [cm] units.
+    OpFlashAlgoMinTime:         0.32         # Negative time window to look for adj. OpHits in [us] units.
+    OpFlashAlgoMaxTime:         0.96         # Positive time window to look for adj. OpHits in [us] units.
+    OpFlashAlgoWeightedTime:    true         # If true, use weighted time for OpFlash time calculation, otherwise use flash trigger time.
+    OpFlashAlgoRad:             600          # Distance to look for adj. OpHits in [cm] units.
     OpFlashAlgoPE:              0.0          # PE threshold to look for adj. OpHits.
     OpFlashAlgoTriggerPE:       0.0          # PE threshold to trigger an OpFlash.
     OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
@@ -115,8 +116,8 @@ BEGIN_PROLOG
   solar_nu_ana_vd.XAMembraneY:           743.302
   solar_nu_ana_vd.XAFinalCapZ:           2188.38
   solar_nu_ana_vd.XAStartCapZ:          -96.5
-  solar_nu_ana_vd.OpFlashAlgoMinTime:    0.03
-  solar_nu_ana_vd.OpFlashAlgoMaxTime:    0.06
+  solar_nu_ana_vd.OpFlashAlgoMinTime:    0.96
+  solar_nu_ana_vd.OpFlashAlgoMaxTime:    3.20
   solar_nu_ana_vd.OpFlashAlgoRad:        600.
   solar_nu_ana_vd.AdjOpFlashMinPELightMap: [
     ["Amplitude", [1.7578e-7, -4.9589e-4, 1.2519e0]],

@@ -93,7 +93,7 @@ namespace solar
     bool fGenerateSolarCluster, fGenerateAdjCluster, fGenerateAdjOpFlash, fFlashMatchByResidual;
     bool fSaveSignalDaughters, fSaveSignalEDep, fSaveSignalOpHits, fSaveOpFlashInfo, fSaveAdjOpFlashInfo, fSaveTrackInfo;
     bool fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
-    bool fOpFlashTime2us; // If true, the OpFlash time is in ticks, and we convert it to microseconds.
+    bool fOpHitTime2us, fOpFlashTime2us; // If true, the OpHit / OpFlash time is in ticks, and we convert it to microseconds.
     std::vector<bool> SelectedEvents; // List of events that pass the selection. 0 = not selected, 1 = selected.
     // --- Our TTrees, and its associated variables.
     TTree *fConfigTree;
@@ -178,10 +178,11 @@ namespace solar
     fOpHitLabel = p.get<std::string>("OpHitLabel", "ophitspe");
     fOpHitTimeVariable = p.get<std::string>("OpHitTimeVariable", "PeakTime");
     fOpFlashLabel = p.get<std::string>("OpFlashLabel", "solarflash");
-    fOpFlashTime2us = p.get<bool>("OpFlashTime2us", false);      // If true, the OpFlash time is in ticks, and we convert it to microseconds.
-    fOpFlashTimeOffset = p.get<float>("OpFlashTimeOffset", 0.0); // Time offset to be applied to the OpFlash time (in us if fOpFlashTime2us is true, in ticks otherwise)
-    fMaxSignalK = p.get<float>("MaxSignalK", 30.0); // Maximum kinetic energy in [MeV] of the particle considered as signal
-    fClusterAlgoTime = p.get<float>("ClusterAlgoTime", 12.5);    // Time window (in us) to look for hits to be clustered together
+    fOpHitTime2us = p.get<bool>("OpHitTime2us", false);           // If true, the OpHit time is in ticks, and we convert it to microseconds.
+    fOpFlashTime2us = p.get<bool>("OpFlashTime2us", false);       // If true, the OpFlash time is in ticks, and we convert it to microseconds.
+    fOpFlashTimeOffset = p.get<float>("OpFlashTimeOffset", 0.0);  // Time offset to be applied to the OpFlash time (in us if fOpFlashTime2us is true, in ticks otherwise)
+    fMaxSignalK = p.get<float>("MaxSignalK", 30.0);               // Maximum kinetic energy in [MeV] of the particle considered as signal
+    fClusterAlgoTime = p.get<float>("ClusterAlgoTime", 12.5);     // Time window (in us) to look for hits to be clustered together
     fClusterAlgoAdjChannel = p.get<int>("ClusterAlgoAdjChannel");
     fGenerateSolarCluster = p.get<bool>("GenerateSolarCluster",true);
     fClusterMatchNHit = p.get<float>("ClusterMatchNHit", 2.0);
@@ -255,6 +256,7 @@ namespace solar
     fConfigTree->Branch("TrackLabel", &fTrackLabel);
     fConfigTree->Branch("OpHitLabel", &fOpHitLabel);
     fConfigTree->Branch("OpFlashLabel", &fOpFlashLabel);
+    fConfigTree->Branch("OpHitTime2us", &fOpHitTime2us);
     fConfigTree->Branch("OpFlashTime2us", &fOpFlashTime2us);
     fConfigTree->Branch("OpFlashTimeOffset", &fOpFlashTimeOffset);
     fConfigTree->Branch("ClusterAlgoTime", &fClusterAlgoTime);
@@ -905,6 +907,8 @@ namespace solar
     //------------------------------------------------------------------- Optical Flash Analysis --------------------------------------------------------------------//
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
     // Find OpHits and OpFlashes associated with the event
+    float MinOpHitTime = 1e6, MinOpFlashTime = 1e6;
+    float MaxOpHitTime = -1e6, MaxOpFlashTime = -1e6;
     std::string sOpFlashTruth = "";
     std::vector<art::Ptr<recob::OpHit>> OpHitList;
     art::Handle<std::vector<recob::OpHit>> OpHitHandle;
@@ -921,18 +925,21 @@ namespace solar
       adjophits->CalcAdjOpHits(OpHitList, OpHitVec, OpHitIdx, evt);
       adjophits->MakeFlashVector(FlashVec, OpHitVec, evt);
       OpFlashNum = int(FlashVec.size());
-      
       for (int i = 0; i < int(FlashVec.size()); i++)
       {
         AdjOpHitsUtils::FlashInfo TheFlash = FlashVec[i];
         double ThisOpFlashPur = 0;
+        float ThisOpFlashTime = -1e6; 
+        
+        if (fOpFlashAlgoWeightedTime)
+          ThisOpFlashTime = TheFlash.TimeWeighted - fOpFlashTimeOffset;
+        else
+          ThisOpFlashTime = TheFlash.MainOpHitTime - fOpFlashTimeOffset;
+        
         OpHitAmplitude.push_back(TheFlash.MainOpHitAmplitude);
         OpFlashPlane.push_back(TheFlash.Plane);
         OpFlashNHits.push_back(TheFlash.NHit);
-        if (fOpFlashAlgoWeightedTime)
-          OpFlashTime.push_back(TheFlash.TimeWeighted - fOpFlashTimeOffset);
-        else
-          OpFlashTime.push_back(TheFlash.MainOpHitTime - fOpFlashTimeOffset);
+        OpFlashTime.push_back(ThisOpFlashTime);
         OpFlashDeltaT.push_back(TheFlash.TimeWidth); // Convert to microseconds
         OpFlashPE.push_back(TheFlash.PE);
         OpFlashMaxPE.push_back(TheFlash.MainOpHitPE);
@@ -949,35 +956,47 @@ namespace solar
         for (int j = 0; j < int(OpHitVec[i].size()); j++)
         {
           recob::OpHit OpHit = *OpHitVec[i][j];
+
           const std::vector<int> ThisOpHitTrackIds = pbt->OpHitToTrackIds(OpHit);
-          float ThisOphitPurity = 0;
+          float ThisOpHitTime = -1e6;
+          float ThisOpHitPurity = 0;
           for (auto const &ThisOpHitTrackId : ThisOpHitTrackIds)
           {
             if (SignalTrackIDs.find(ThisOpHitTrackId) != SignalTrackIDs.end())
-              ThisOphitPurity += 1;
+              ThisOpHitPurity += 1;
           }
           // Check if ThisOpHitTrackIds is empty
           if (ThisOpHitTrackIds.size() == 0)
-            ThisOphitPurity = 0;
+            ThisOpHitPurity = 0;
           else
-            ThisOphitPurity /= int(ThisOpHitTrackIds.size());
+            ThisOpHitPurity /= int(ThisOpHitTrackIds.size());
 
-          ThisOpFlashPur += ThisOphitPurity * OpHit.PE();
+          ThisOpFlashPur += ThisOpHitPurity * OpHit.PE();
           auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
-          SOpHitPur.push_back(ThisOphitPurity);
+          SOpHitPur.push_back(ThisOpHitPurity);
           SOpHitChannel.push_back(OpHit.OpChannel());
 
           if (fOpHitTimeVariable == "StartTime")
-            SOpHitTime.push_back(OpHit.StartTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+            ThisOpHitTime = OpHit.StartTime(); // Convert to microseconds
+            // SOpHitTime.push_back(OpHit.StartTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
           else // Default to PeakTime
-            SOpHitTime.push_back(OpHit.PeakTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
-
+            ThisOpHitTime = OpHit.PeakTime(); // Convert to microseconds
+            // SOpHitTime.push_back(OpHit.PeakTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+          if (fOpHitTime2us)
+            ThisOpHitTime *= clockData.OpticalClock().TickPeriod(); // Convert to microseconds
+          
+          ThisOpHitTime -= fOpFlashTimeOffset;
+          SOpHitTime.push_back(ThisOpHitTime);
           SOpHitPE.push_back(OpHit.PE());
           SOpHitX.push_back(OpHitXYZ.X());
           SOpHitY.push_back(OpHitXYZ.Y());
           SOpHitZ.push_back(OpHitXYZ.Z());
           SOpHitFlashID.push_back(i);
           SOpHitPlane.push_back(TheFlash.Plane);
+          if (ThisOpHitTime < MinOpHitTime)
+            MinOpHitTime = ThisOpHitTime;
+          if (ThisOpHitTime > MaxOpHitTime)
+            MaxOpHitTime = ThisOpHitTime;
         }
         // Check if OpHitVec[i] is empty
         if (OpHitVec[i].size() == 0)
@@ -986,8 +1005,13 @@ namespace solar
           ThisOpFlashPur /= TheFlash.PE;
 
         OpFlashPur.push_back(ThisOpFlashPur);
+        if (ThisOpFlashTime < MinOpFlashTime)
+          MinOpFlashTime = ThisOpFlashTime;
+        if (ThisOpFlashTime > MaxOpFlashTime)
+          MaxOpFlashTime = ThisOpFlashTime;
+
         if (ThisOpFlashPur > 0) {
-          sOpFlashTruth += "OpFlash PE " + ProducerUtils::str(TheFlash.PE) + " with purity " + ProducerUtils::str(ThisOpFlashPur) + " time " + ProducerUtils::str(TheFlash.MainOpHitTime) + " plane " + ProducerUtils::str(TheFlash.Plane) + "\n";
+          sOpFlashTruth += "OpFlash PE " + ProducerUtils::str(TheFlash.PE) + " with purity " + ProducerUtils::str(ThisOpFlashPur) + " time " + ProducerUtils::str(ThisOpFlashTime) + " plane " + ProducerUtils::str(TheFlash.Plane) + "\n";
           sOpFlashTruth += " - Vertex (" + ProducerUtils::str(TheFlash.X) + ", " + ProducerUtils::str(TheFlash.Y) + ", " + ProducerUtils::str(TheFlash.Z) + ")\n";
           sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + ProducerUtils::str(TheFlash.MainOpHitPE / TheFlash.PE) + " <= " + ProducerUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
           sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + ProducerUtils::str(int(OpHitVec[i].size())) + " >= " + ProducerUtils::str(TheFlash.NHit) + "\n";
@@ -995,6 +1019,12 @@ namespace solar
       }
     }
     else {
+      float MainWaveformTime = -1e6;
+      bool MainWaveformValid = false;
+      std::vector<int> MainWaveform;
+      std::vector<bool> MatchedValidWaveforms;
+      std::vector<float> MatchedWaveformTimes;
+      std::vector<std::vector<int>> MatchedWaveforms;
       std::vector<art::Ptr<recob::OpFlash>> OpFlashList;
       art::Handle<std::vector<recob::OpFlash>> FlashHandle;
       
@@ -1008,13 +1038,8 @@ namespace solar
       for (int i = 0; i < int(OpFlashList.size()); i++)
       {
         recob::OpFlash TheFlash = *OpFlashList[i];
+
         std::vector<art::Ptr<recob::OpHit>> MatchedHits = OpAssns.at(i);
-        std::vector<std::vector<int>> MatchedWaveforms;
-        std::vector<float> MatchedWaveformTimes;
-        std::vector<bool> MatchedValidWaveforms;
-        std::vector<int> MainWaveform;
-        float MainWaveformTime = -1e6;
-        bool MainWaveformValid = false;
         adjophits->GetOpHitSignal(MatchedHits, MatchedWaveforms, MatchedWaveformTimes, MatchedValidWaveforms, evt);
 
         int NMatchedHits = MatchedHits.size();
@@ -1028,12 +1053,13 @@ namespace solar
           art::Ptr<recob::OpHit> OpHitPtr = MatchedHits[j];
           mf::LogDebug("SolarNuAna") << "Assigning OpHit to Flash";
           const std::vector<int> ThisOpHitTrackIds = pbt->OpHitToTrackIds(OpHit);
-          float ThisOphitPurity = 0;
+          float ThisOpHitPurity = 0;
+          float ThisOpHitTime = -1e6;
           
           for (auto const &ThisOpHitTrackId : ThisOpHitTrackIds)
           {
             if (SignalTrackIDs.find(ThisOpHitTrackId) != SignalTrackIDs.end()) {
-              ThisOphitPurity += 1;
+              ThisOpHitPurity += 1;
             }
           }
 
@@ -1043,7 +1069,7 @@ namespace solar
           varXY.push_back(sqrt(pow(TheFlash.XCenter() - OpHitXYZ.X(), 2) +  pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2)) * OpHit.PE());
           varYZ.push_back(sqrt(pow(TheFlash.YCenter() - OpHitXYZ.Y(), 2) +  pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2)) * OpHit.PE());
           varXZ.push_back(sqrt(pow(TheFlash.XCenter() - OpHitXYZ.X(), 2) +  pow(TheFlash.ZCenter() - OpHitXYZ.Z(), 2)) * OpHit.PE());
-          SOpHitPur.push_back(ThisOphitPurity / int(ThisOpHitTrackIds.size()));
+          SOpHitPur.push_back(ThisOpHitPurity / int(ThisOpHitTrackIds.size()));
           
           if (OpHit.PE() > MaxOpHitPE) {
             MaxOpHitPE = OpHit.PE();
@@ -1066,12 +1092,22 @@ namespace solar
           SOpHitZ.push_back(OpHitXYZ.Z());
           
           if (fOpHitTimeVariable == "StartTime")
-            SOpHitTime.push_back(OpHit.StartTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+            ThisOpHitTime = OpHit.StartTime(); // Convert to microseconds
+            // SOpHitTime.push_back(OpHit.StartTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
           else // Default to PeakTime
-            SOpHitTime.push_back(OpHit.PeakTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
-            
+            ThisOpHitTime = OpHit.PeakTime(); // Convert to microseconds
+            // SOpHitTime.push_back(OpHit.PeakTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+          if (fOpHitTime2us)
+            ThisOpHitTime *= clockData.OpticalClock().TickPeriod(); // Convert to microseconds
+          
+          ThisOpHitTime -= fOpFlashTimeOffset;
           SOpHitChannel.push_back(OpHit.OpChannel());
           SOpHitPlane.push_back(adjophits->GetOpHitPlane(OpHitPtr, 0.1)); // Get plane assignment for the OpHit
+
+          if (ThisOpHitTime < MinOpHitTime)
+            MinOpHitTime = ThisOpHitTime;
+          if (ThisOpHitTime > MaxOpHitTime)
+            MaxOpHitTime = ThisOpHitTime;
         } // End of OpHit loop
 
         OpHitVec.push_back(MatchedHits);
@@ -1101,9 +1137,14 @@ namespace solar
           OpFlashDeltaT.push_back(TheFlash.TimeWidth() * clockData.OpticalClock().TickPeriod()); // Expected flash to provide time width in ticks, convert to microseconds
         }
         else {
-          OpFlashTime.push_back(TheFlash.Time()); // Expected flash to provide time in microseconds
+          OpFlashTime.push_back(TheFlash.Time() - fOpFlashTimeOffset); // Expected flash to provide time in microseconds
           OpFlashDeltaT.push_back(TheFlash.TimeWidth()); // Expected flash to provide time width in microseconds
         }
+
+        if (TheFlash.Time() < MinOpFlashTime)
+          MinOpFlashTime = TheFlash.Time();
+        if (TheFlash.Time() > MaxOpFlashTime)
+          MaxOpFlashTime = TheFlash.Time();
 
         if (ThisOpFlashPur > 0) {
           mf::LogDebug("SolarNuAna") << "OpFlash PE " << TheFlash.TotalPE() << " with purity " << ThisOpFlashPur << " time " << TheFlash.Time();
@@ -1114,7 +1155,8 @@ namespace solar
         }
       }
     }
-    sOpFlashTruth = sOpFlashTruth + "\n# of OpFlashes (" + fOpFlashLabel + ") in full geometry: " + ProducerUtils::str(OpFlashNum) + "\n";
+    sOpFlashTruth = sOpFlashTruth + "\n# of OpHits (" + fOpHitLabel + "): " + ProducerUtils::str(OpHitNum) + " for times between " + ProducerUtils::str(MinOpHitTime) + " us and " + ProducerUtils::str(MaxOpHitTime) + " us.\n";
+    sOpFlashTruth = sOpFlashTruth + "# of OpFlashes (" + fOpFlashLabel + "): " + ProducerUtils::str(OpFlashNum) + " for times between " + ProducerUtils::str(MinOpFlashTime) + " us and " + ProducerUtils::str(MaxOpFlashTime) + " us.\n";
     producer->PrintInColor(sOpFlashTruth, ProducerUtils::GetColor("blue"));
 
     //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -1389,7 +1431,6 @@ namespace solar
       SolarClusterInfo = SolarClusterInfo + "\nFound " + ProducerUtils::str(int(MatchedClustersIdx[2].size())) + " MatchedClusters (from col. plane loop)!";
       for (int ThisClIdx = 0; ThisClIdx < int(MatchedClustersIdx[2].size()); ThisClIdx++)
       {
-        // MVecTime[2][ThisClIdx] *= clockData.TPCClock().TickPeriod(); // Convert to microseconds
         for (int plane = 0; plane < 2; plane++)
         {
           if (MVecTime[plane][ThisClIdx] > -1e6) { // There is a matched cluster in this plane
@@ -1622,7 +1663,7 @@ namespace solar
         if (fClusterPreselectionPrimary && !MPrimary) { continue; }
 
         if (MPrimary) {
-          sClusterReco += "*** Matched preselection cluster: " + ProducerUtils::str(i) + "\n";
+          sClusterReco += "*** Matched preselection cluster: " + ProducerUtils::str(i) + " from " + ProducerUtils::str(int(MVecNHits[2].size())) + "\n";
           sClusterReco += " - MainTrackID " + ProducerUtils::str(MVecMainID[2][i]) + "\n";
           if (MVecGen[i] > 0 && int(MVecGen[i]) < (int(fLabels.size()) + 1)) {
             sClusterReco += " - Gen " + ProducerUtils::str(int(MVecGen[i])) + " -> " + fLabels[MVecGen[i] - 1];
@@ -1743,7 +1784,7 @@ namespace solar
           if ( OpFlashNHits[j] < fAdjOpFlashMinNHitCut || OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut ) {
             continue;
           }
-          if ( lowe->SelectPDSFlashPE(TPCIDdriftTime[MVecTPC[2][i]], MVecCharge[2][i] - OpFlashTime[j], MVecCharge[2][i], OpFlashPE[j]) == false ) {
+          if ( lowe->SelectPDSFlashPE(TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i] - OpFlashTime[j], MVecCharge[2][i], OpFlashPE[j]) == false ) {
               continue; // Skip flashes that don't pass the PE selection
           }
           // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
@@ -1766,13 +1807,14 @@ namespace solar
             MFlashWaveformTime = OpFlashWaveformTime[j];
             MFlashResidual = OpFlashResidual;
             // Create an output string with the flash information.
-            sFlashReco = "*** Matched flash: \n - Purity " + ProducerUtils::str(OpFlashPur[j]) +
+            sFlashReco = "*** Matched flash: " + ProducerUtils::str(j) + " from " + ProducerUtils::str(int(OpFlashPE.size())) + "\n" +
+              " - Purity " + ProducerUtils::str(100*OpFlashPur[j]) + " %" +
               " Plane " + ProducerUtils::str(OpFlashPlane[j]) +
               " #Hits " + ProducerUtils::str(OpFlashNHits[j]) +
               " PE " + ProducerUtils::str(OpFlashPE[j]) +
               " MainOpHitPE " + ProducerUtils::str(OpFlashMaxPE[j]) + "\n" +
-              " - Time " + ProducerUtils::str(OpFlashTime[j]) +
-              " Fast " + ProducerUtils::str(OpFlashFast[j]) +
+              " - Time " + ProducerUtils::str(OpFlashTime[j]) + " (us)" +
+              " Fast " + ProducerUtils::str(100*OpFlashFast[j]) + " %" +
               " Residual " + ProducerUtils::str(OpFlashResidual) + "\n" +
               " - Reco Time,Y,Z ( " + ProducerUtils::str(MFlashTime) + ", " + ProducerUtils::str(OpFlashY[j]) + ", " + ProducerUtils::str(OpFlashZ[j]) + " )" + "\n" +
               " - Found valid waveform: " + ProducerUtils::str(MFlashWaveformValid) + "\n"; 
