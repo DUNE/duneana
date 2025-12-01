@@ -21,6 +21,7 @@ atmoAnalysis:
    PFPLabel:                   "pandora"
    MCTruthLabel:	             "generator"
    G4Label:                    "largeant"
+   OPFlashLabel:               "opflash"
 }
 
 END_PROLOG

@@ -26,6 +26,7 @@
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/OpFlash.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/ArtDataHelper/TrackUtils.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -80,6 +81,7 @@ private:
 
   TTree *fTree;
   TTree *fTreePrimaries;
+  TTree *fTreePDS;
 
   unsigned int fEventID;
   unsigned int fRunID;
@@ -155,6 +157,18 @@ private:
   bool fPrimaryContained;
   std::string fPrimaryEndProcess;
 
+  //Variables for the PDS tree
+  double fTime;
+  double fTimeWidth;
+  int fFrame;
+  double fTotalPE;
+  double fXCenter;
+  double fYCenter;
+  double fZCenter;
+  double fXWidth;
+  double fYWidth;
+  double fZWidth;
+
   std::string fMCTruthLabel;
   std::string fG4Label;
   std::string fPandoraNuVertexModuleLabel;
@@ -173,6 +187,7 @@ private:
   std::string fSpacePointLabel;
   std::string fSpacePointLabelPandora;
   std::string fPFPLabel;
+  std::string fOpFlashLabel;
 
   const geo::Geometry* fGeom;
   void clearValues();
@@ -209,6 +224,7 @@ dune::atmoAnalysis::atmoAnalysis(fhicl::ParameterSet const& p)
   fPFPLabel = p.get<std::string>("PFPLabel");
   fSpacePointLabel = p.get<std::string>("SpacePointLabel");
   fSpacePointLabelPandora = p.get<std::string>("SpacePointLabelPandora");
+  fOpFlashLabel = p.get<std::string>("OPFlashLabel");
   fGeom    = &*art::ServiceHandle<geo::Geometry>();
   fActiveBounds = getActiveBounds();
 } 
@@ -436,6 +452,32 @@ void dune::atmoAnalysis::analyze(art::Event const& evt)
       }
 
     }
+
+  //PDS info
+  art::Handle<std::vector<recob::OpFlash>> opflashHandle = evt.getHandle<std::vector<recob::OpFlash>>(fOpFlashLabel);
+  if(!opflashHandle.failedToGet()){
+    for(const recob::OpFlash &flash : *opflashHandle){
+      fTime = flash.Time();
+      fTimeWidth = flash.TimeWidth();
+      fFrame = flash.Frame();
+      fTotalPE = flash.TotalPE();
+      if(flash.hasXCenter()){
+        fXCenter = flash.XCenter();
+      }
+      else{
+        fXCenter = -999;
+      }
+      fYCenter = flash.YCenter();
+      fZCenter = flash.ZCenter();
+      fXWidth = flash.XWidth();
+      fYWidth = flash.YWidth();
+      fZWidth = flash.ZWidth();
+      fTreePDS->Fill();
+    }
+  }
+  else{
+    mf::LogWarning("CAFMaker") << "No OpFlash found with label '" << fOpFlashLabel << "'";
+  }
 
   fTree->Fill();
 }
@@ -673,6 +715,22 @@ void dune::atmoAnalysis::beginJob()
   fTreePrimaries->Branch("VisibleE", &fPrimaryVisibleE);
   fTreePrimaries->Branch("IsContained", &fPrimaryContained);
   fTreePrimaries->Branch("EndProcess", &fPrimaryEndProcess);
+
+  fTreePDS = tfs->make<TTree>("pds","PDS Output Tree");
+  fTreePDS->Branch("eventID",&fEventID,"eventID/i");
+  fTreePDS->Branch("runID",&fRunID,"runID/i");
+  fTreePDS->Branch("subrunID",&fSubRunID,"subrunID/i");
+  fTreePDS->Branch("Time", &fTime);
+  fTreePDS->Branch("TimeWidth", &fTimeWidth);
+  fTreePDS->Branch("Frame", &fFrame);
+  fTreePDS->Branch("TotalPE", &fTotalPE);
+  fTreePDS->Branch("XCenter", &fXCenter);
+  fTreePDS->Branch("YCenter", &fYCenter);
+  fTreePDS->Branch("ZCenter", &fZCenter);
+  fTreePDS->Branch("XWidth", &fXWidth);
+  fTreePDS->Branch("YWidth", &fYWidth);
+  fTreePDS->Branch("ZWidth", &fZWidth);
+
 }
 void dune::atmoAnalysis::endJob()
 {
