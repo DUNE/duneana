@@ -10,11 +10,7 @@ BEGIN_PROLOG
     # Vector with generator labels for the background processes included in the event 
     ParticleLabelVector: []
 
-    Geometry:                   "HD"
-    DetectorSizeY:              600          # 1 TPC Y length in [cm].
-    DetectorSizeZ:              1400         # 1 TPC Z length in [cm].
-
-    MCParticleMinKE:            4.0          # Minimum kinetic energy for MCParticles to be considered.
+    MCParticleMinKE:             0          # Minimum kinetic energy for MCParticles to be considered.
     MCParticlePDG:              -1           # PDG code for the MCParticles to be considered (default is all).
   }
 
@@ -24,14 +20,13 @@ BEGIN_PROLOG
   solar_nu_ana_hd_lateralAPA: @local::solar_nu_ana_hd
   solar_nu_ana_hd_lateralAPA.ParticleLabelVector: @local::generator_dune10kt_1x2x6_lateralAPA
   
-  solar_nu_ana_vd: @local::solar_nu_ana_hd
-  solar_nu_ana_vd.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
+  solar_nu_ana_vd_1x8x14: @local::solar_nu_ana_hd
+  solar_nu_ana_vd_1x8x14.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
 
-  solar_nu_ana_vd.Geometry:            "VD"
-  solar_nu_ana_vd.DetectorSizeY:       680 
-  solar_nu_ana_vd.DetectorSizeZ:       2100
+  solar_nu_ana_vd_1x8x14_optimistic: @local::solar_nu_ana_vd_1x8x14
+  solar_nu_ana_vd_1x8x14_optimistic.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_optimistic
 
-  solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd
+  solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd_1x8x14
   solar_nu_ana_vd_1x8x6.ParticleLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
 
 END_PROLOG

@@ -246,9 +246,10 @@ defaultqual	e26
 #
 product          version
 cetmodules	 v3_24_01	-	only_for_build
-dunereco         v10_10_06d00
-duneopdet        v10_10_06d00
+dunereco         v10_14_01d00
+duneopdet        v10_14_01d00
 duneanaobj       v03_11_00
+systematicstools v01_04_04
 end_product_list
 ####################################
 
@@ -303,11 +304,11 @@ end_product_list
 #   case it is optional.
 #
 
-qualifier      dunereco   duneopdet  duneanaobj   notes
-c14:debug      c14:debug  c14:debug  c14:debug  
-c14:prof       c14:prof   c14:prof   c14:prof   
-e26:debug      e26:debug  e26:debug  e26:debug  
-e26:prof       e26:prof   e26:prof   e26:prof   
+qualifier      dunereco   duneopdet  duneanaobj systematicstools   notes
+c14:debug      c14:debug  c14:debug  c14:debug  c14:debug
+c14:prof       c14:prof   c14:prof   c14:prof   c14:prof
+e26:debug      e26:debug  e26:debug  e26:debug  e26:debug
+e26:prof       e26:prof   e26:prof   e26:prof   e26:prof
 end_qualifier_list
 ####################################
 
