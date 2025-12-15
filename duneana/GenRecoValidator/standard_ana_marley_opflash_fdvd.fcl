@@ -11,12 +11,12 @@ services:
 {
   @table::services
   @table::dunefdvd_1x8x14_3view_services
-  TFileService: { fileName: "marley_opflash_hist.root" }
-    TimeTracker:       {}
-    RandomNumberGenerator: {}
-    MemoryTracker:         { } # default is one
-    @table::dunefdvd_simulation_services
-    message:      @local::dune_message_services_prod
+  TFileService: { fileName: "marley_opflash_vd_hist.root" }
+  TimeTracker:       {}
+  RandomNumberGenerator: {}
+  MemoryTracker:         { } # default is one
+  @table::dunefdvd_simulation_services
+  message:      @local::dune_message_services_prod
 }
 
 services.Geometry: @local::dunevd10kt_1x8x14_3view_30deg_geo
