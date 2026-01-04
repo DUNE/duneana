@@ -1,3 +1,4 @@
+#include "LightMapData.fcl"
 #include "generator_labels.fcl"
 #include "SolarOpFlash.fcl"
 
@@ -26,14 +27,14 @@ BEGIN_PROLOG
     BackgroundLabelVector: []
 
     #====================================================================================#
-    ClusterChargeVariable:      "Integral"   # Charge variable to use for cluster matching: "Integral" or "SummedADC".
-    OpHitTimeVariable:          "PeakTime"  # Time variable to use for OpHit selection: "PeakTime" or "StartTime".
-    XACathodeX:                 0            # X position of the VD cathode XAs in [cm].
-    XAMembraneY:                0            # Y position of the VD membrane XAs in [cm].
-    XAFinalCapZ:                0            # Z position of the VD final cap XAs in [cm].
-    XAStartCapZ:                0            # Z position of the VD start cap XAs in [cm].
+    ClusterChargeVariable:     "Integral"    # Charge variable to use for cluster matching: "Integral" or "SummedADC".
+    OpHitTimeVariable:         "PeakTime"    # Time variable to use for OpHit selection: "PeakTime" or "StartTime".
+    XACathodeX:                  0           # X position of the VD cathode XAs in [cm].
+    XAMembraneY:                 0           # Y position of the VD membrane XAs in [cm].
+    XAFinalCapZ:                 0           # Z position of the VD final cap XAs in [cm].
+    XAStartCapZ:                 0           # Z position of the VD start cap XAs in [cm].
     ClusterAlgoTime:            12.5         # Time window to look for plane clusters in [us] units.
-    ClusterAlgoAdjChannel:      3            # Number of adjacent channels to look for plane clusters.
+    ClusterAlgoAdjChannel:       3           # Number of adjacent channels to look for plane clusters.
     
     GenerateSolarCluster:       true         # Generate SolarClusters from here defined matching cireteria
     ClusterMatchNHit:           2            # NHit fraction to match clusters. abs(NHitsCol - NHitsInd) / NHitsCol < ClusterMatchNHit.
@@ -55,8 +56,8 @@ BEGIN_PROLOG
 
     GenerateAdjOpFlash:         true         # Generate OpFlashes.
     OpFlashAlgoNHit:            0            # Min number of hits to consider a flash. Change to 3 for bkg run to avoid huge output.
-    OpFlashAlgoMinTime:         0.32         # Negative time window to look for adj. OpHits in [us] units.
-    OpFlashAlgoMaxTime:         0.96         # Positive time window to look for adj. OpHits in [us] units.
+    OpFlashAlgoMinTime:         0.16         # Negative time window to look for adj. OpHits in [us] units.
+    OpFlashAlgoMaxTime:         0.32         # Positive time window to look for adj. OpHits in [us] units.
     OpFlashAlgoWeightedTime:    true         # If true, use weighted time for OpFlash time calculation, otherwise use flash trigger time.
     OpFlashAlgoRad:             600          # Distance to look for adj. OpHits in [cm] units.
     OpFlashAlgoPE:              0.0          # PE threshold to look for adj. OpHits.
@@ -64,32 +65,34 @@ BEGIN_PROLOG
     OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
     OpFlashAlgoHitDuplicates:   true         # If true, allow hits to be used in multiple flashes.
 
-    AdjOpFlashX:                  140.        # X distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashY:                  140.        # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashZ:                  140.        # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
-    AdjOpFlashMinNHitCut:         0           # Cut on the minimum number of OpHits in the OpFlash.
-    AdjOpFlashMembraneProjection: true        # If true, the OpFlash matching is projected on the membrane planes for VD.
-    AdjOpFlashEndCapProjection:   false       # If true, the OpFlash matching is projected on the end cap planes for VD.
-    AdjOpFlashMaxPERatioCut:      1.00        # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
-    AdjOpFlashMinPECut:           0.0         # Cut on the minimum OpHit PE.
-    AdjOpFlashMinPEAttenuation:   1.0         # Asymptotic growth attenuation on the minimum PE cut after a full drift length.
-    AdjOpFlashMinPEAttenuate:    "flat"       # Type of attenuation to apply to the minimum PE cut: "linear" or "asymptotic".
-    AdjOpFlashMinPEAttenuationStrength: 10    # For "asymptotic" attenuation. Strength expressed as powers of 10.
-    AdjOpFlashMinPELightMap: [
-      ["Amplitude", [-1.1011e-7, 5.0670e-4, 1.6480e0]],
-      ["Attenuation", [1.7061e-7, -7.2303e-4, 1.0623e0]],
-      ["Correction", [3.1135e-7, -1.3050e-3, 7.6113e-1]]
-    ]   # Quadratic fit parameters for attenuation correction based in logarithm light map.
-    FlashMatchByResidual:         false       # Match flashes by residual. Alternative is to match by MaxFlashPE.
+    AdjOpFlashX:                  140.       # X distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashY:                  140.       # Y distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashZ:                  140.       # Z distance to search for adj. OpFlashes reconstructed in [cm] units.
+    AdjOpFlashMinNHitCut:           0        # Cut on the minimum number of OpHits in the OpFlash.
+    AdjOpFlashMembraneProjection: true       # If true, the OpFlash matching is projected on the membrane planes for VD.
+    AdjOpFlashEndCapProjection:   true       # If true, the OpFlash matching is projected on the end cap planes for VD.
+    AdjOpFlashMaxPERatioCut:        1.0      # Cut on the maximum OpHit PE contribution to the total OpFlash PE.
+    AdjOpFlashMinPECut:             0.0      # Cut on the minimum OpHit PE.
+    AdjOpFlashMaxPECut:             1e9      # Cut on the maximum OpHit PE.
+    AdjOpFlashMinPEAttenuation:     0.0      # Asymptotic growth attenuation on the minimum PE cut after a full drift length.
+    AdjOpFlashMaxPEAttenuation:     0.0      # Asymptotic growth attenuation on the maximum PE cut after a full drift length.
+    AdjOpFlashMinPEAttenuate:    "flat"      # Type of attenuation to apply to the minimum PE cut: "linear" or "asymptotic".
+    AdjOpFlashMaxPEAttenuate:    "flat"      # Type of attenuation to apply to the maximum PE cut: "linear" or "asymptotic".
+    AdjOpFlashMinPEAttenuationStrength: 0    # For "asymptotic" attenuation. Strength expressed as powers of 10.
+    AdjOpFlashMaxPEAttenuationStrength: 0    # For "asymptotic" attenuation. Strength expressed as powers of 10.
+    AdjOpFlashMinPELightMap: @local::light_map_data_dune10kt_1x2x6_AdjOpFlashMinPELightMap
+    AdjOpFlashMaxPELightMap: @local::light_map_data_dune10kt_1x2x6_AdjOpFlashMaxPELightMap
+    AdjOpFlashPELightMap:    @local::light_map_data_dune10kt_1x2x6_AdjOpFlashPELightMap
+    FlashMatchBy:                "maximum"   # Match flashes by residual. Alternative is to match by MaxFlashPE.
 
     SaveSignalDaughters:        false        # Save the daughters of the signal particles.
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.
     SaveOpFlashInfo:            false        # Save the AdjOpFlash information for each preselection cluster.
-    SaveAdjOpFlashInfo:         true         # Save the AdjOpFlash information for each preselection cluster.
+    SaveAdjOpFlashInfo:          true        # Save the AdjOpFlash information for each preselection cluster.
     SaveTrackInfo:              false        # Save the MatchedTrack information for each preselection cluster.
 
-    TestLatestFeatures:         true         # If true, the latest features are used.
+    TestLatestFeatures:          true        # If true, the latest features are used.
   }
 
   legacy_solar_nu_ana_hd_v2: @local::solar_nu_ana_hd
@@ -105,25 +108,23 @@ BEGIN_PROLOG
   solar_nu_ana_hd_lateralAPA.BackgroundLabelVector: @local::generator_dune10kt_1x2x6_lateralAPA
   
   solar_nu_ana_vd: @local::solar_nu_ana_hd_centralAPA
-  solar_nu_ana_vd.HitLabel:              "gaushit"
-  solar_nu_ana_vd.OpWaveformLabel:       "opdigi10ppm"
-  solar_nu_ana_vd.OpHitLabel:            "ophit10ppm"
-  solar_nu_ana_vd.OpFlashLabel:          "solarflash"
-  solar_nu_ana_vd.OpFlashTimeOffset:       0
-  solar_nu_ana_vd.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg
-  solar_nu_ana_vd.OpHitTimeVariable:    "StartTime"
-  solar_nu_ana_vd.XACathodeX:           -327.5
-  solar_nu_ana_vd.XAMembraneY:           743.302
-  solar_nu_ana_vd.XAFinalCapZ:           2188.38
-  solar_nu_ana_vd.XAStartCapZ:          -96.5
-  solar_nu_ana_vd.OpFlashAlgoMinTime:    0.96
-  solar_nu_ana_vd.OpFlashAlgoMaxTime:    3.20
-  solar_nu_ana_vd.OpFlashAlgoRad:        600.
-  solar_nu_ana_vd.AdjOpFlashMinPELightMap: [
-    ["Amplitude", [1.7578e-7, -4.9589e-4, 1.2519e0]],
-    ["Attenuation", [4.9682e-7, -2.5242e-3, 1.2541e0]],
-    ["Correction", [1.0516e-7, -1.1637e-3, 1.5118e0]]
-  ]
+  solar_nu_ana_vd.HitLabel:                "gaushit"
+  solar_nu_ana_vd.OpWaveformLabel:         "opdigi10ppm"
+  solar_nu_ana_vd.OpHitLabel:              "ophit10ppm"
+  solar_nu_ana_vd.OpFlashLabel:            "solarflash"
+  solar_nu_ana_vd.OpFlashTimeOffset:          0.0
+  solar_nu_ana_vd.BackgroundLabelVector:   @local::generator_dunevd10kt_1x8x14_3view_30deg
+  solar_nu_ana_vd.OpHitTimeVariable:       "StartTime"
+  solar_nu_ana_vd.XACathodeX:              -327.5
+  solar_nu_ana_vd.XAMembraneY:              743.302
+  solar_nu_ana_vd.XAFinalCapZ:             2188.38
+  solar_nu_ana_vd.XAStartCapZ:             -96.5
+  solar_nu_ana_vd.OpFlashAlgoMinTime:       1.00
+  solar_nu_ana_vd.OpFlashAlgoMaxTime:       1.60
+  solar_nu_ana_vd.OpFlashAlgoRad:           600.0
+  solar_nu_ana_vd.AdjOpFlashMinPELightMap: @local::light_map_data_dunevd10kt_1x8x14_3view_30deg_AdjOpFlashMinPELightMap
+  solar_nu_ana_vd.AdjOpFlashMaxPELightMap: @local::light_map_data_dunevd10kt_1x8x14_3view_30deg_AdjOpFlashMaxPELightMap
+  solar_nu_ana_vd.AdjOpFlashPELightMap:    @local::light_map_data_dunevd10kt_1x8x14_3view_30deg_AdjOpFlashPELightMap
 
   solar_nu_ana_vd_1x8x14_optimistic: @local::solar_nu_ana_vd
   solar_nu_ana_vd_1x8x14_optimistic.BackgroundLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_optimistic
