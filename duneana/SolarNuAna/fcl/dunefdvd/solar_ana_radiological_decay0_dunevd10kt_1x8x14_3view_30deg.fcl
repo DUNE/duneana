@@ -4,4 +4,7 @@
 
 #include "solar_ana_dunevd10kt_1x8x14_3view_30deg.fcl"
 
+physics.analyzers.solarnuana.AdjOpFlashMinPEAttenuate: "light_map"
+physics.analyzers.solarnuana.FlashMatchBy: "light_map"
+
 services.TFileService.fileName: "solar_ana_dunevd10kt_1x8x14_3view_30deg_nominal_hist.root"
