@@ -746,7 +746,7 @@ namespace solar
             }
 
             sSignalTruth = sSignalTruth + sSignalParticle + " Energy: " + ProducerUtils::str(SignalParticleK) + " MeV\n"; 
-            sSignalTruth += "\t- Strat Position: (" + ProducerUtils::str(SignalParticleX) + ", " + ProducerUtils::str(SignalParticleY) + ", " + ProducerUtils::str(SignalParticleZ) + ") cm\n";
+            sSignalTruth += "\t- Start Position: (" + ProducerUtils::str(SignalParticleX) + ", " + ProducerUtils::str(SignalParticleY) + ", " + ProducerUtils::str(SignalParticleZ) + ") cm\n";
             sSignalTruth += "\t- Final Position: (" + ProducerUtils::str(SignalParticle.EndX()) + ", " + ProducerUtils::str(SignalParticle.EndY()) + ", " + ProducerUtils::str(SignalParticle.EndZ()) + ") cm\n";
           }
         }
