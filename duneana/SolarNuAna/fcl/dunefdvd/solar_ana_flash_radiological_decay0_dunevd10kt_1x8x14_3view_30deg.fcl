@@ -6,7 +6,10 @@
 physics.analyzers.solarnuana.GenerateAdjOpFlash: true
 physics.analyzers.solarnuana.SaveOpFlashInfo:    true
 physics.analyzers.solarnuana.SaveAdjOpFlashInfo: true
+physics.analyzers.solarnuana.OpFlashAlgoPE: 1.5
+physics.analyzers.solarnuana.OpFlashAlgoTriggerPE: 1.5
 physics.analyzers.solarnuana.AdjOpFlashMembraneProjection: false
+physics.analyzers.solarnuana.AdjOpFlashEndCapProjection: false
 physics.analyzers.solarnuana.AdjOpFlashMinNHitCut: 6
 physics.analyzers.solarnuana.AdjOpFlashX: 100.
 physics.analyzers.solarnuana.AdjOpFlashY: 100.
