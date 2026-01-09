@@ -84,7 +84,7 @@ namespace solar
     // --- Input settings imported from the fcl
     std::vector<std::string> fLabels, fBackgroundLabels;
     std::string fSignalLabel, fClusterLabel, fSolarClusterLabel, fClusterChargeVariable, fOpHitTimeVariable, fAdjOpFlashMinPEAttenuate, fAdjOpFlashMaxPEAttenuate, fFlashMatchBy;
-    int fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut, fAdjOpFlashMinPEAttenuationStrength, fAdjOpFlashMaxPEAttenuationStrength;
+    int fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut, fAdjOpFlashMinPEAttenuationStrength, fAdjOpFlashMaxPEAttenuationStrength, fFlashMatchByPELightMapExponent;
     float fMaxSignalK; 
     float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fAdjOpFlashMaxPECut, fAdjOpFlashMinPEAttenuation, fAdjOpFlashMaxPEAttenuation, fClusterMatchNHit, fClusterAlgoTime;
     float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld, fXACathodeX, fXAMembraneY, fXAStartCapZ, fXAFinalCapZ;
@@ -226,7 +226,8 @@ namespace solar
     fAdjOpFlashMaxPEAttenuation = p.get<float>("AdjOpFlashMaxPEAttenuation", 0.0);
     fAdjOpFlashMinPEAttenuationStrength = p.get<float>("AdjOpFlashMinPEAttenuationStrength", 0);
     fAdjOpFlashMaxPEAttenuationStrength = p.get<float>("AdjOpFlashMaxPEAttenuationStrength", 0);
-    fFlashMatchBy = p.get<std::string>("FlashMatchBy");
+    fFlashMatchBy = p.get<std::string>("FlashMatchBy", "maximum");
+    fFlashMatchByPELightMapExponent = p.get<float>("FlashMatchByPELightMapExponent", 1);
     fSaveSignalDaughters = p.get<bool>("SaveSignalDaughters");
     fSaveSignalEDep = p.get<bool>("SaveSignalEDep");
     fSaveSignalOpHits = p.get<bool>("SaveSignalOpHits");
@@ -307,6 +308,7 @@ namespace solar
     fConfigTree->Branch("AdjOpFlashMinPEAttenuationStrength", &fAdjOpFlashMinPEAttenuationStrength);
     fConfigTree->Branch("AdjOpFlashMaxPEAttenuationStrength", &fAdjOpFlashMaxPEAttenuationStrength);
     fConfigTree->Branch("FlashMatchBy", &fFlashMatchBy);
+    fConfigTree->Branch("FlashMatchByPELightMapExponent", &fFlashMatchByPELightMapExponent);
     fConfigTree->Branch("SaveSignalDaughters", &fSaveSignalDaughters);
     fConfigTree->Branch("SaveSignalEDep", &fSaveSignalEDep);
     fConfigTree->Branch("SaveSignalOpHits", &fSaveSignalOpHits);
@@ -534,7 +536,7 @@ namespace solar
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoX", &MFlashRecoX, "MatchedOpFlashRecoX/F");          // Matched flash reco X [cm]
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoY", &MFlashRecoY, "MatchedOpFlashRecoY/F");          // Matched flash reco Y [cm]
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoZ", &MFlashRecoZ, "MatchedOpFlashRecoZ/F");          // Matched flash reco Z [cm]
-    fSolarNuAnaTree->Branch("MatchedOpFlashResidual", &MFlashResidual, "MatchedOpFlashResidual/F"); // Matched flash residual wrt. cluster
+    // fSolarNuAnaTree->Branch("MatchedOpFlashResidual", &MFlashResidual, "MatchedOpFlashResidual/F"); // Matched flash residual wrt. cluster
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveform", &MFlashWaveform);                             // Matched flash waveform
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveformTime", &MFlashWaveformTime);                     // Matched flash waveform time [us]
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveformValid", &MFlashWaveformValid);                   // Matched flash waveform valid
@@ -548,7 +550,7 @@ namespace solar
     hDriftTime = tfs->make<TH2F>("hDriftTime", "hDriftTime", 100, -400., 400., 100, 0., 10000.);
     hXTruth = tfs->make<TH2F>("hXTruth", "Missmatch in X distance; Distance [cm]; True X position [cm]", 100, -600, 600, 100, -600, 600);
     hYTruth = tfs->make<TH2F>("hYTruth", "Missmatch in Y distance; Distance [cm]; True Y position [cm]", 100, -600, 600, 100, -600, 600);
-    hZTruth = tfs->make<TH2F>("hZTruth", "Missmatch in Z distance; Distance [cm]; True Z position [cm]", 100, -600, 600, 100, 0, 1600);
+    hZTruth = tfs->make<TH2F>("hZTruth", "Missmatch in Z distance; Distance [cm]; True Z position [cm]", 100, -600, 600, 100, 0, 2100);
   } // BeginJob
 
   //......................................................
@@ -1543,7 +1545,7 @@ namespace solar
       std::string sAdjClusters = "";
       float OpFlashResidual = 0;
       float MatchedOpFlashPE = -1e6;
-      float MatchedOpFlashResidual = 1e6;
+      // float MatchedOpFlashResidual = 1e6;
       float MatchedOpFlashX = -1e6;
 
       if (MVecNHits[2][i] > fClusterPreselectionNHits)
@@ -1717,6 +1719,7 @@ namespace solar
         if (fClusterPreselectionTrack && !TrackMatch) { continue; }
         
         std::string sFlashMatching = "";
+        bool IsFirstFlash = true;
         for (int j = 0; j < int(OpFlashPE.size()); j++)
         {
           // Skip flashes with time outside the cluster time window
@@ -1797,45 +1800,44 @@ namespace solar
           
           if ( lowe->SelectPDSFlashPE(TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i] - OpFlashTime[j], MVecCharge[2][i], OpFlashPE[j]) ) {
             // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
-            if (fFlashMatchBy == "residual" && OpFlashResidual > MatchedOpFlashResidual) {
-              continue;
+            if ( lowe->SelectPDSFlash(IsFirstFlash, TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i], MVecCharge[2][i], MFlashTime, MFlashPE, OpFlashTime[j], OpFlashPE[j]) ) {
+              IsFirstFlash = false;
+              float a, b, c;
+              lowe->GetLightMapParameters("med", MVecCharge[2][i], a, b, c);
+              double RefPE = pow(10, a - a * b * (MVecTime[2][i] - OpFlashTime[j]) / TPCIDdriftTime[MVecTPC[2][i]] + c * pow((MVecTime[2][i] - OpFlashTime[j]) / TPCIDdriftTime[MVecTPC[2][i]], 2));
+              MOpHitAmplitude = OpHitAmplitude[j];
+              MFlashR = OpFlashR;
+              MFlashPE = OpFlashPE[j];
+              MFlashFast = OpFlashFast[j];
+              MFlashNHits = OpFlashNHits[j];
+              MFlashPlane = OpFlashPlane[j];
+              MFlashMaxPE = OpFlashMaxPE[j];
+              MFlashPur = OpFlashPur[j];
+              MFlashSTD = OpFlashSTD[j];
+              MFlashTime = OpFlashTime[j];
+              MFlashRecoX = OpFlashX[j];
+              MFlashRecoY = OpFlashY[j];
+              MFlashRecoZ = OpFlashZ[j];
+              MFlashWaveform = OpFlashWaveform[j];
+              MFlashWaveformValid = OpFlashWaveformValid[j];
+              MFlashWaveformTime = OpFlashWaveformTime[j];
+              MFlashResidual = OpFlashResidual;
+              // Create an output string with the flash information.
+              sFlashReco = "*** Matched flash: " + ProducerUtils::str(j) + " from " + ProducerUtils::str(int(OpFlashPE.size())) + "\n" +
+                " - Purity " + ProducerUtils::str(100*OpFlashPur[j]) + " %" +
+                " Plane " + ProducerUtils::str(OpFlashPlane[j]) +
+                " #Hits " + ProducerUtils::str(OpFlashNHits[j]) + "\n" +
+                " - MainOpHitPE " + ProducerUtils::str(OpFlashMaxPE[j]) + " (PE); " +
+                " TotalPE " + ProducerUtils::str(OpFlashPE[j]) + " vs expected " + ProducerUtils::str(RefPE) + " (PE)\n" +
+                " - Time " + ProducerUtils::str(OpFlashTime[j]) + " (us)" +
+                " Fast " + ProducerUtils::str(100*OpFlashFast[j]) + " %" +
+                " Residual " + ProducerUtils::str(OpFlashResidual) + "\n" +
+                " - Reco Time,Y,Z ( " + ProducerUtils::str(MFlashTime) + ", " + ProducerUtils::str(OpFlashY[j]) + ", " + ProducerUtils::str(OpFlashZ[j]) + " )" + "\n" +
+                " - Found valid waveform: " + ProducerUtils::str(MFlashWaveformValid) + "\n"; 
+              MatchedOpFlashX = MAdjFlashX;
+              // MatchedOpFlashResidual = OpFlashResidual;
+              MatchedOpFlashPE = MFlashPE;
             }
-            
-            if ( !lowe->SelectPDSFlash(TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i], MVecCharge[2][i], MFlashTime, MFlashPE, OpFlashTime[j], OpFlashPE[j]) ) {
-              continue;
-            }
-            MOpHitAmplitude = OpHitAmplitude[j];
-            MFlashR = OpFlashR;
-            MFlashPE = OpFlashPE[j];
-            MFlashFast = OpFlashFast[j];
-            MFlashNHits = OpFlashNHits[j];
-            MFlashPlane = OpFlashPlane[j];
-            MFlashMaxPE = OpFlashMaxPE[j];
-            MFlashPur = OpFlashPur[j];
-            MFlashSTD = OpFlashSTD[j];
-            MFlashTime = OpFlashTime[j];
-            MFlashRecoX = OpFlashX[j];
-            MFlashRecoY = OpFlashY[j];
-            MFlashRecoZ = OpFlashZ[j];
-            MFlashWaveform = OpFlashWaveform[j];
-            MFlashWaveformValid = OpFlashWaveformValid[j];
-            MFlashWaveformTime = OpFlashWaveformTime[j];
-            MFlashResidual = OpFlashResidual;
-            // Create an output string with the flash information.
-            sFlashReco = "*** Matched flash: " + ProducerUtils::str(j) + " from " + ProducerUtils::str(int(OpFlashPE.size())) + "\n" +
-              " - Purity " + ProducerUtils::str(100*OpFlashPur[j]) + " %" +
-              " Plane " + ProducerUtils::str(OpFlashPlane[j]) +
-              " #Hits " + ProducerUtils::str(OpFlashNHits[j]) +
-              " PE " + ProducerUtils::str(OpFlashPE[j]) +
-              " MainOpHitPE " + ProducerUtils::str(OpFlashMaxPE[j]) + "\n" +
-              " - Time " + ProducerUtils::str(OpFlashTime[j]) + " (us)" +
-              " Fast " + ProducerUtils::str(100*OpFlashFast[j]) + " %" +
-              " Residual " + ProducerUtils::str(OpFlashResidual) + "\n" +
-              " - Reco Time,Y,Z ( " + ProducerUtils::str(MFlashTime) + ", " + ProducerUtils::str(OpFlashY[j]) + ", " + ProducerUtils::str(OpFlashZ[j]) + " )" + "\n" +
-              " - Found valid waveform: " + ProducerUtils::str(MFlashWaveformValid) + "\n"; 
-            MatchedOpFlashX = MAdjFlashX;
-            MatchedOpFlashResidual = OpFlashResidual;
-            MatchedOpFlashPE = MFlashPE;
           }
           MAdjFlashResidual.push_back(OpFlashResidual);
         }

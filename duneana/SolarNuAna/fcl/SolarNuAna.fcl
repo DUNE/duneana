@@ -84,7 +84,8 @@ BEGIN_PROLOG
     AdjOpFlashMaxPELightMap: @local::light_map_data_dune10kt_1x2x6_AdjOpFlashMaxPELightMap
     AdjOpFlashPELightMap:    @local::light_map_data_dune10kt_1x2x6_AdjOpFlashPELightMap
     FlashMatchBy:                "maximum"   # Match flashes by residual. Alternative is to match by MaxFlashPE.
-
+    FlashMatchByPELightMapExponent: 2        # Exponent for PE light map matching.
+    
     SaveSignalDaughters:        false        # Save the daughters of the signal particles.
     SaveSignalEDep:             false        # Save the energy deposition of the marley energy deposition in the LAr.
     SaveSignalOpHits:           false        # Save the OpHits that are associated with the signal.

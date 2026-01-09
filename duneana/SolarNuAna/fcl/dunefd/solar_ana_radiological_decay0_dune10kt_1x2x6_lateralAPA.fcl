@@ -5,4 +5,5 @@
 
 physics.analyzers.solarnuana: @local::solar_nu_ana_hd_lateralAPA
 physics.analyzers.solarnuana.AdjOpFlashMinPEAttenuate: "light_map"
+physics.analyzers.solarnuana.AdjOpFlashMaxPEAttenuate: "light_map"
 physics.analyzers.solarnuana.FlashMatchBy: "light_map"
