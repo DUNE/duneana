@@ -84,10 +84,12 @@ namespace solar
     // --- Input settings imported from the fcl
     std::vector<std::string> fLabels, fBackgroundLabels;
     std::string fSignalLabel, fClusterLabel, fSolarClusterLabel, fClusterChargeVariable, fOpHitTimeVariable, fAdjOpFlashMinPEAttenuate, fAdjOpFlashMaxPEAttenuate, fFlashMatchBy;
-    int fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut, fAdjOpFlashMinPEAttenuationStrength, fAdjOpFlashMaxPEAttenuationStrength, fFlashMatchByPELightMapExponent;
+    int fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut, fAdjOpFlashMinPEAttenuationStrength, fAdjOpFlashMaxPEAttenuationStrength;
     float fMaxSignalK; 
-    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fAdjOpFlashMaxPECut, fAdjOpFlashMinPEAttenuation, fAdjOpFlashMaxPEAttenuation, fClusterMatchNHit, fClusterAlgoTime;
-    float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld, fXACathodeX, fXAMembraneY, fXAStartCapZ, fXAFinalCapZ;
+    float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fClusterMatchNHit, fClusterAlgoTime;
+    float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
+    float fAdjOpFlashX, fAdjOpFlashY, fAdjOpFlashZ, fAdjOpFlashMaxPERatioCut, fAdjOpFlashMinPECut, fAdjOpFlashMaxPECut, fAdjOpFlashMinPEAttenuation, fAdjOpFlashMaxPEAttenuation;
+    float fXACathodeX, fXAMembraneY, fXAStartCapZ, fXAFinalCapZ, fFlashMatchByPELightMapExponent;
     bool fOpFlashAlgoHitDuplicates, fOpFlashAlgoWeightedTime;
     bool fClusterPreselectionSignal, fClusterPreselectionPrimary, fClusterPreselectionTrack, fClusterPreselectionFlashMatch;
     bool fGenerateSolarCluster, fGenerateAdjCluster, fGenerateAdjOpFlash;
