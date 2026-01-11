@@ -44,7 +44,6 @@ find_package( larsim REQUIRED EXPORT )
 find_package( larevt REQUIRED EXPORT ) 
 find_package( larpandora REQUIRED EXPORT ) 
 #find_package( srproxy REQUIRED ) 
-find_package( systematicstools REQUIRED EXPORT ) 
 find_package(GENIE REQUIRED EXPORT)
 find_package( Geant4 REQUIRED EXPORT ) 
 
