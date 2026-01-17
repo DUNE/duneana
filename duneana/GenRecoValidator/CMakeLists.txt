@@ -35,6 +35,9 @@ art_make( MODULE_LIBRARIES
           ROOT::Tree
 	  canvas::canvas
 	  cetlib_except::cetlib_except
+    # temporary additions for SimPhotonCounter_module clone
+    larana::OpDetResponseService
+    larsim::PhotonPropagation_PhotonVisibilityService_service
         )
 
 install_headers()
