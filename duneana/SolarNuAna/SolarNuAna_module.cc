@@ -97,6 +97,7 @@ namespace solar
     bool fAdjOpFlashMembraneProjection, fAdjOpFlashEndCapProjection; // If true, the TPC reco is projected to the membrane plane. If false, apply a 3D constraint dT, Y, Z.
     bool fOpHitTime2us, fOpFlashTime2us; // If true, the OpHit / OpFlash time is in ticks, and we convert it to microseconds.
     std::vector<bool> SelectedEvents; // List of events that pass the selection. 0 = not selected, 1 = selected.
+    int AnalyzedEvents = 0; // Total number of analyzed events.
     // --- Our TTrees, and its associated variables.
     TTree *fConfigTree;
     TTree *fMCTruthTree;
@@ -318,6 +319,7 @@ namespace solar
     fConfigTree->Branch("SaveAdjOpFlashInfo", &fSaveAdjOpFlashInfo);
     fConfigTree->Branch("SaveTrackInfo", &fSaveTrackInfo);
     fConfigTree->Branch("SelectedEvents", &SelectedEvents);
+    fConfigTree->Branch("AnalyzedEvents", &AnalyzedEvents);
 
     // MC Truth info.
     fMCTruthTree->Branch("Event", &Event, "Event/I");                                        // Event number
@@ -1964,20 +1966,21 @@ namespace solar
       if (sClusterReco != "") { producer->PrintInColor(sClusterReco, ProducerUtils::GetColor(sResultColor)); }
     } // Loop over clusters
     
-    if (SignalParticleK < fMaxSignalK) {
-      fMCTruthTree->Fill();
-      SelectedEvents.push_back(1);
-    }
-    else {
-      SelectedEvents.push_back(0);
-    }
+    fMCTruthTree->Fill();
+    SelectedEvents.push_back(1);
+
 
     producer->PrintInColor("-----------------------------------------------------------------------------------------\n", ProducerUtils::GetColor("green"));
     } // SelectedEvent
+    
+    else {
+      SelectedEvents.push_back(0);
+    }
   }
 
   void SolarNuAna::endJob()
   {
+    AnalyzedEvents = SelectedEvents.size();
     producer->PrintInColor("Finished running the SolarNuAna module", ProducerUtils::GetColor("magenta"));
     fConfigTree->Fill();
   }
