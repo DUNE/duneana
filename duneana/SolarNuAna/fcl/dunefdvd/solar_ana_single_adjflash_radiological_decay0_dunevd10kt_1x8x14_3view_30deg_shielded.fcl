@@ -1,0 +1,7 @@
+# Specific configuration for investigating signal events.
+# Run SolarNuAna on the output of a standard reco workflow for DUNE FD-VD
+
+#include "solar_ana_single_adjflash_radiological_decay0_dunevd10kt_1x8x14_3view_30deg_shielded.fcl"
+
+physics.analyzers.solarnuana.SignalLabel: "generator"
+physics.analyzers.solarnuana.SaveOpFlashInfo:    false
