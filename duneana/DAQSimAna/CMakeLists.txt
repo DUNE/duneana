@@ -1,6 +1,5 @@
 include(MakeDuneToolBuilder)
 add_subdirectory(SNAnaClustering)
-add_subdirectory(RunningSumHitFinder)
 add_subdirectory(CalibrationTree)
 add_subdirectory(DAQQuickClustering)
 add_subdirectory(DataHit)
