@@ -55,6 +55,7 @@
 #include "duneopdet/LowEPDSUtils/AdjOpHitsUtils.h"
 #include "dunecore/ProducerUtils/ProducerUtils.h"
 #include "dunereco/LowEUtils/LowEUtils.h"
+#include "dunereco/LowEUtils/LikelihoodComputer.h"
 
 using namespace lowe;
 using namespace producer;
@@ -122,12 +123,14 @@ namespace solar
     // --- OpFlash Variables
     std::vector<int> OpFlashID, OpFlashNHits, OpFlashPlane;
     std::vector<float> OpHitAmplitude, OpFlashPur, OpFlashPE, OpFlashMaxPE, OpFlashX, OpFlashY, OpFlashZ, OpFlashTime, OpFlashDeltaT, OpFlashSTD, OpFlashFast, OpFlashWaveformTime;
+    std::vector<std::vector<double>> OpFlashPEperOpDet;
     std::vector<bool> OpFlashWaveformValid;
     std::vector<std::vector<int>> OpFlashWaveform;
 
     // --- MatchedFlash Variables
     int MFlashNHits, MFlashPlane;
     float MOpHitAmplitude, MFlashR, MFlashPE, MFlashMaxPE, MFlashPur, MFlashFast, MFlashTime, MFlashSTD, MFlashRecoX, MFlashRecoY, MFlashRecoZ, MFlashResidual, MFlashWaveformTime;
+    std::vector<double> MFlashPEperOpDet;
     std::vector<int> MFlashWaveform;
     bool MFlashCorrect, MFlashWaveformValid;
 
@@ -143,6 +146,9 @@ namespace solar
     TH2F *hYTruth;
     TH2F *hZTruth;
 
+    // --- Likelihood computer for flash matching
+    LikelihoodComputer fLikelihoodComputer;
+    
     // --- Declare our services
     geo::WireReadoutGeom const &wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
     art::ServiceHandle<geo::Geometry> geom;
@@ -528,6 +534,7 @@ namespace solar
     fSolarNuAnaTree->Branch("MatchedOpHitAmplitude", &MOpHitAmplitude, "MatchedOpHitAmplitude/F");  // Matched OpHit amplitude [ADC] for raw [PE] for deconvolved wvfs
     fSolarNuAnaTree->Branch("MatchedOpFlashR", &MFlashR, "MatchedOpFlashR/F");                      // Matched flash reco distance [cm]
     fSolarNuAnaTree->Branch("MatchedOpFlashPE", &MFlashPE, "MatchedOpFlashPE/F");                   // Matched flash tot #PE [PE]
+    fSolarNuAnaTree->Branch("MatchedOpFlashPEperOpDet", &MFlashPEperOpDet);                         // Matched flash #PE per OpDet
     fSolarNuAnaTree->Branch("MatchedOpFlashPur", &MFlashPur, "MatchedOpFlashPur/F");                // Matched flash purity
     fSolarNuAnaTree->Branch("MatchedOpFlashSTD", &MFlashSTD, "MatchedOpFlashSTD/F");                // Matched flash STD
     fSolarNuAnaTree->Branch("MatchedOpFlashFast", &MFlashFast, "MatchedOpFlashFast/F");             // Matched flash Fast Component
@@ -538,7 +545,7 @@ namespace solar
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoX", &MFlashRecoX, "MatchedOpFlashRecoX/F");          // Matched flash reco X [cm]
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoY", &MFlashRecoY, "MatchedOpFlashRecoY/F");          // Matched flash reco Y [cm]
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoZ", &MFlashRecoZ, "MatchedOpFlashRecoZ/F");          // Matched flash reco Z [cm]
-    // fSolarNuAnaTree->Branch("MatchedOpFlashResidual", &MFlashResidual, "MatchedOpFlashResidual/F"); // Matched flash residual wrt. cluster
+    fSolarNuAnaTree->Branch("MatchedOpFlashResidual", &MFlashResidual, "MatchedOpFlashResidual/F"); // Matched flash residual wrt. cluster
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveform", &MFlashWaveform);                             // Matched flash waveform
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveformTime", &MFlashWaveformTime);                     // Matched flash waveform time [us]
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveformValid", &MFlashWaveformValid);                   // Matched flash waveform valid
@@ -553,6 +560,13 @@ namespace solar
     hXTruth = tfs->make<TH2F>("hXTruth", "Missmatch in X distance; Distance [cm]; True X position [cm]", 100, -600, 600, 100, -600, 600);
     hYTruth = tfs->make<TH2F>("hYTruth", "Missmatch in Y distance; Distance [cm]; True Y position [cm]", 100, -600, 600, 100, -600, 600);
     hZTruth = tfs->make<TH2F>("hZTruth", "Missmatch in Z distance; Distance [cm]; True Z position [cm]", 100, -600, 600, 100, 0, 2100);
+
+    if (fFlashMatchBy == "maximumlikelihood") {
+      double fElectronScintYield = 20000.0;
+      std::string fVisibilityFilename = "/exp/dune/app/users/fgalizzi/flashmatch_larsoft/work/fm_module_inputs/dunevis_fdhd_1x2x6_test_float.root";
+      lowe->SetLikelihoodComputer(fElectronScintYield, fVisibilityFilename, fLikelihoodComputer);
+    }
+
   } // BeginJob
 
   //......................................................
@@ -954,6 +968,7 @@ namespace solar
         OpFlashTime.push_back(ThisOpFlashTime);
         OpFlashDeltaT.push_back(TheFlash.TimeWidth); // Convert to microseconds
         OpFlashPE.push_back(TheFlash.PE);
+        OpFlashPEperOpDet.push_back(TheFlash.PEperOpDet);
         OpFlashMaxPE.push_back(TheFlash.MainOpHitPE);
         OpFlashFast.push_back(TheFlash.FastToTotal);
         OpFlashID.push_back(i);
@@ -1138,6 +1153,7 @@ namespace solar
         OpFlashY.push_back(TheFlash.YCenter());
         OpFlashZ.push_back(TheFlash.ZCenter());
         OpFlashPE.push_back(TheFlash.TotalPE());
+        OpFlashPEperOpDet.push_back(TheFlash.PEs());
         OpFlashNHits.push_back(MatchedHits.size());
         OpFlashFast.push_back(TheFlash.FastToTotal());
         OpFlashWaveform.push_back(MainWaveform);
@@ -1547,6 +1563,7 @@ namespace solar
       std::string sAdjClusters = "";
       float OpFlashResidual = 0;
       float MatchedOpFlashPE = -1e6;
+      std::vector<double> MatchedOpFlashPEperOpDet = {};
       // float MatchedOpFlashResidual = 1e6;
       float MatchedOpFlashX = -1e6;
 
@@ -1790,8 +1807,15 @@ namespace solar
           MAdjFlashPur.push_back(OpFlashPur[j]);
 
           // Compute the residual between the predicted cluster signal and the flash
-          adjophits->FlashMatchResidual( OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]) );
-          
+          if (fFlashMatchBy == "maximumlikelihood") {
+            std::cout << "\n\nComputing residual ---" << std::endl;
+            OpFlashResidual = -lowe->GetLikelihoodFlashMatch(MVecTime[2][i], MVecCharge[2][i], MVecRecoY[2][i], MVecRecoZ[2][i], OpFlashTime[j], OpFlashPEperOpDet[j], fLikelihoodComputer);
+            if (OpFlashPur[j] > 0.) std::cout << "Ress: " << OpFlashResidual << " this is the one\n\n" << std::endl;
+            else std::cout << "Ress: " << OpFlashResidual << std::endl;
+          }
+          else {
+            adjophits->FlashMatchResidual( OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]) );
+          }
           // Print the flash information for debugging
           sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + " with residual " + ProducerUtils::str(OpFlashResidual) + "\n";
           
@@ -1802,7 +1826,14 @@ namespace solar
           
           if ( lowe->SelectPDSFlashPE(TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i] - OpFlashTime[j], MVecCharge[2][i], OpFlashPE[j]) ) {
             // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
-            if ( lowe->SelectPDSFlash(IsFirstFlash, TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i], MVecCharge[2][i], MFlashTime, MFlashPE, OpFlashTime[j], OpFlashPE[j]) ) {
+            bool update_matched_flash = false;
+            if (fFlashMatchBy == "cheat" && OpFlashPur[j] > 0. && OpFlashPE[j] > MFlashPE) {
+              update_matched_flash = true;
+            }
+            else if (fFlashMatchBy != "cheat") {
+              update_matched_flash =  lowe->SelectPDSFlash(IsFirstFlash, TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i], MVecCharge[2][i], MFlashTime, MFlashPE, OpFlashTime[j], OpFlashPE[j], MFlashResidual, OpFlashResidual);
+            }
+            if (update_matched_flash) {
               IsFirstFlash = false;
               float a, b, c;
               lowe->GetLightMapParameters("med", MVecCharge[2][i], a, b, c);
@@ -1810,6 +1841,7 @@ namespace solar
               MOpHitAmplitude = OpHitAmplitude[j];
               MFlashR = OpFlashR;
               MFlashPE = OpFlashPE[j];
+              MFlashPEperOpDet = OpFlashPEperOpDet[j];
               MFlashFast = OpFlashFast[j];
               MFlashNHits = OpFlashNHits[j];
               MFlashPlane = OpFlashPlane[j];
@@ -1831,6 +1863,7 @@ namespace solar
                 " #Hits " + ProducerUtils::str(OpFlashNHits[j]) + "\n" +
                 " - MainOpHitPE " + ProducerUtils::str(OpFlashMaxPE[j]) + " (PE); " +
                 " TotalPE " + ProducerUtils::str(OpFlashPE[j]) + " vs expected " + ProducerUtils::str(RefPE) + " (PE)\n" +
+                " - FMAlgo " + fFlashMatchBy + "\n" +
                 " - Time " + ProducerUtils::str(OpFlashTime[j]) + " (us)" +
                 " Fast " + ProducerUtils::str(100*OpFlashFast[j]) + " %" +
                 " Residual " + ProducerUtils::str(OpFlashResidual) + "\n" +
@@ -1839,6 +1872,7 @@ namespace solar
               MatchedOpFlashX = MAdjFlashX;
               // MatchedOpFlashResidual = OpFlashResidual;
               MatchedOpFlashPE = MFlashPE;
+              MatchedOpFlashPEperOpDet = MFlashPEperOpDet;
             }
           }
           MAdjFlashResidual.push_back(OpFlashResidual);
@@ -2002,7 +2036,7 @@ namespace solar
     MFlashRecoX = -1e6;
     MFlashRecoY = -1e6;
     MFlashRecoZ = -1e6;
-    MFlashResidual = -1e6;
+    MFlashResidual = +1e9;
     MFlashWaveform = {};
     MFlashCorrect = false;
     SignalParticleE = 0;
@@ -2017,6 +2051,7 @@ namespace solar
     OpFlashPur.clear();
     OpFlashID.clear();
     OpFlashPE.clear();
+    OpFlashPEperOpDet.clear();
     OpFlashSTD.clear();
     OpFlashWaveform.clear();
     OpFlashWaveformTime.clear();
