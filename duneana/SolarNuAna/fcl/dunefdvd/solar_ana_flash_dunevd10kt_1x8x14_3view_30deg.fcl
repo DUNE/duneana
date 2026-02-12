@@ -6,3 +6,5 @@
 physics.analyzers.solarnuana.GenerateAdjOpFlash: true
 physics.analyzers.solarnuana.SaveOpFlashInfo:    true
 physics.analyzers.solarnuana.SaveAdjOpFlashInfo: true
+physics.analyzers.solarnuana.OpFlashAlgoPE: 1.5
+physics.analyzers.solarnuana.OpFlashAlgoTriggerPE: 1.5
