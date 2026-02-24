@@ -966,7 +966,7 @@ namespace caf {
 
       //Getting the track and shower objects associated to the PFP
       art::Ptr<recob::Track> track;
-      if(dune_ana::DUNEAnaPFParticleUtils::IsTrack(particle, evt, fPandoraLabel, fTrackLabel)){ //Unlike what its name suggets, this function only checks if an associated track exists
+      if(dune_ana::DUNEAnaPFParticleUtils::HasTrack(particle, evt, fPandoraLabel, fTrackLabel)){
         track = dune_ana::DUNEAnaPFParticleUtils::GetTrack(particle, evt, fPandoraLabel, fTrackLabel);
       }
       
