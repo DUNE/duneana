@@ -10,7 +10,7 @@ cmake_minimum_required (VERSION 3.20 FATAL_ERROR)
 #project(duneana VERSION 09.48.00.d00 LANGUAGES CXX)
 find_package(cetmodules REQUIRED) 
 project(duneana LANGUAGES CXX)
-set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 10.20.01)
+set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 10.20.01d01)
 
 # cetbuildtools contains our cmake modules
 
@@ -44,7 +44,6 @@ find_package( larsim REQUIRED EXPORT )
 find_package( larevt REQUIRED EXPORT ) 
 find_package( larpandora REQUIRED EXPORT ) 
 #find_package( srproxy REQUIRED ) 
-find_package( systematicstools REQUIRED EXPORT ) 
 find_package(GENIE REQUIRED EXPORT)
 find_package( Geant4 REQUIRED EXPORT ) 
 
