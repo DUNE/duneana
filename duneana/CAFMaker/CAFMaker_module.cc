@@ -943,6 +943,9 @@ namespace caf {
     //Creating the FD interaction record where we are going to save the tracks/showers in parallel to the PFPs objects
     caf::SRFDInt fdIxn;
 
+    //Mapping particle idx in the vector to their Pandora ID for later use
+    std::map<unsigned int, int> pandoraIDToPFPIdx;
+
     //Iterating on all the PFParticles to fill the reco particles
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
@@ -959,6 +962,13 @@ namespace caf {
       particle_record.tgtA = 40; //Interaction on Ar40. TODO: Maybe to improve if we want to consider interactions outside the detector active volume
       //TODO: Not filling the momentum information as it requires some specific PID to be made.
       // particle_record.p;
+
+      //Pre-fill the parent and daughter fields with the Pandora IDs. They will be converted to SR indices later.
+      particle_record.parent = (particle_record.primary) ? -1 : particle->Parent(); //Setting to -1 if primary as there is no saved record for the neutrino
+      for(auto const& daughter_id : particle->Daughters()){
+        particle_record.daughters.push_back(daughter_id);
+      }
+      pandoraIDToPFPIdx[particle->Self()] = fdIxn.npfps;
 
       FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
       particle_record.walldist = GetWallDistance(*particle, evt); //Getting the distance to the wall for this PFP
@@ -1093,6 +1103,34 @@ namespace caf {
       recoParticlesBranch.pandora.push_back(std::move(particle_record));
       recoParticlesBranch.npandora++;
 
+    }
+
+    //Now that all particles are saved, we can convert the parent/daughter fields from Pandora IDs to SR indices
+    for(auto &particle : recoParticlesBranch.pandora){
+      //Parent
+      if(particle.parent == -1) continue; //Skipping if primary
+      unsigned int parent_pfpID = particle.parent;
+      //Finding the SR index in the map
+      if(pandoraIDToPFPIdx.count(parent_pfpID) == 0){
+        mf::LogWarning("CAFMaker") << "No SR index found for parent PFP ID " << parent_pfpID;
+        particle.parent = -1; //Setting to -1 to avoid confusion
+      }
+      else{
+        particle.parent = pandoraIDToPFPIdx.at(parent_pfpID);
+      }
+
+    //Daughters
+      for(auto &daughter_idx : particle.daughters){
+        unsigned int daughter_pfpID = daughter_idx;
+        //Finding the SR index in the map
+        if(pandoraIDToPFPIdx.count(daughter_pfpID) == 0){
+          mf::LogWarning("CAFMaker") << "No SR index found for daughter PFP ID " << daughter_pfpID;
+          daughter_idx = -1; //Setting to -1 to avoid confusion
+        }
+        else{
+          daughter_idx = pandoraIDToPFPIdx.at(daughter_pfpID);
+        }
+      }
     }
 
     //Saving the FD interaction record
