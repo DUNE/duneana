@@ -304,11 +304,11 @@ end_product_list
 #   case it is optional.
 #
 
-qualifier      dunereco   duneopdet  duneanaobj systematicstools   notes
-c14:debug      c14:debug  c14:debug  c14:debug  c14:debug
-c14:prof       c14:prof   c14:prof   c14:prof   c14:prof
-e26:debug      e26:debug  e26:debug  e26:debug  e26:debug
-e26:prof       e26:prof   e26:prof   e26:prof   e26:prof
+qualifier      dunereco   duneopdet  duneanaobj    notes
+c14:debug      c14:debug  c14:debug  c14:debug  
+c14:prof       c14:prof   c14:prof   c14:prof 
+e26:debug      e26:debug  e26:debug  e26:debug 
+e26:prof       e26:prof   e26:prof   e26:prof 
 end_qualifier_list
 ####################################
 
