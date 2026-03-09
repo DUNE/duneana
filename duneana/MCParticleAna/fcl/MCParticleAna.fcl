@@ -26,6 +26,9 @@ BEGIN_PROLOG
   solar_nu_ana_vd_1x8x14_optimistic: @local::solar_nu_ana_vd_1x8x14
   solar_nu_ana_vd_1x8x14_optimistic.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_optimistic
 
+  solar_nu_ana_vd_1x8x14_shielded: @local::solar_nu_ana_vd_1x8x14
+  solar_nu_ana_vd_1x8x14_shielded.ParticleLabelVector: @local::generator_dunevd10kt_1x8x14_3view_30deg_shielded
+
   solar_nu_ana_vd_1x8x6: @local::solar_nu_ana_vd_1x8x14
   solar_nu_ana_vd_1x8x6.ParticleLabelVector: @local::generator_dunevd10kt_1x8x6_3view_30deg
 
