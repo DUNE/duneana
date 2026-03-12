@@ -916,10 +916,10 @@ namespace solar
         double ThisOpFlashPur = 0;
         OpFlashPlane.push_back(TheFlash.Plane);
         OpFlashNHits.push_back(TheFlash.NHit);
-        OpFlashTime.push_back(TheFlash.Time - fOpFlashTimeOffset); // Convert to microseconds happens in AdjOpHits
+        OpFlashTime.push_back(TheFlash.TimeWeighted - fOpFlashTimeOffset); // Convert to microseconds happens in AdjOpHits
         OpFlashDeltaT.push_back(TheFlash.TimeWidth); // Convert to microseconds
         OpFlashPE.push_back(TheFlash.PE);
-        OpFlashMaxPE.push_back(TheFlash.MaxPE);
+        OpFlashMaxPE.push_back(TheFlash.MainOpHitPE);
         OpFlashFast.push_back(TheFlash.FastToTotal);
         OpFlashID.push_back(i);
         OpFlashX.push_back(TheFlash.X);
@@ -967,9 +967,9 @@ namespace solar
 
         OpFlashPur.push_back(ThisOpFlashPur);
         if (ThisOpFlashPur > 0) {
-          sOpFlashTruth += "OpFlash PE " + ProducerUtils::str(TheFlash.PE) + " with purity " + ProducerUtils::str(ThisOpFlashPur) + " time " + ProducerUtils::str(TheFlash.Time) + " plane " + ProducerUtils::str(TheFlash.Plane) + "\n";
+          sOpFlashTruth += "OpFlash PE " + ProducerUtils::str(TheFlash.PE) + " with purity " + ProducerUtils::str(ThisOpFlashPur) + " time " + ProducerUtils::str(TheFlash.TimeWeighted) + " plane " + ProducerUtils::str(TheFlash.Plane) + "\n";
           sOpFlashTruth += " - Vertex (" + ProducerUtils::str(TheFlash.X) + ", " + ProducerUtils::str(TheFlash.Y) + ", " + ProducerUtils::str(TheFlash.Z) + ")\n";
-          sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + ProducerUtils::str(TheFlash.MaxPE / TheFlash.PE) + " <= " + ProducerUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
+          sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + ProducerUtils::str(TheFlash.MainOpHitPE / TheFlash.PE) + " <= " + ProducerUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
           sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + ProducerUtils::str(int(OpHitVec[i].size())) + " >= " + ProducerUtils::str(TheFlash.NHit) + "\n";
         }
       }
