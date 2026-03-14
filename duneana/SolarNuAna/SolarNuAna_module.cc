@@ -908,13 +908,98 @@ namespace solar
       producer->PrintInColor("\nKinetic energy of signal particle is above threshold of " + ProducerUtils::str(fMaxSignalK) + " MeV. Skipping event.\n", ProducerUtils::GetColor("red"), "Warning");
     }
     if (SelectedEvent) {
-      //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
-      //---------------------------------------------------------------------- PMTrack Analysis -----------------------------------------------------------------------//
-      //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
-      art::Handle<std::vector<recob::Track>> TrackHandle;
-      std::vector<art::Ptr<recob::Track>> TrackList;
-      if (evt.getByLabel(fTrackLabel, TrackHandle)) {
-        art::fill_ptr_vector(TrackList, TrackHandle);
+    //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
+    //---------------------------------------------------------------------- PMTrack Analysis -----------------------------------------------------------------------//
+    //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
+    art::Handle<std::vector<recob::Track>> TrackHandle;
+    std::vector<art::Ptr<recob::Track>> TrackList;
+    if (evt.getByLabel(fTrackLabel, TrackHandle)) {
+      art::fill_ptr_vector(TrackList, TrackHandle);
+    }
+    TrackNum = int(TrackList.size());
+    //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
+    //------------------------------------------------------------------- Optical Flash Analysis --------------------------------------------------------------------//
+    //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
+    // Find OpHits and OpFlashes associated with the event
+    std::string sOpFlashTruth = "";
+    std::vector<art::Ptr<recob::OpHit>> OpHitList;
+    art::Handle<std::vector<recob::OpHit>> OpHitHandle;
+    std::vector<std::vector<art::Ptr<recob::OpHit>>> OpHitVec;
+    std::vector<std::vector<int>> OpHitIdx;
+    if (evt.getByLabel(fOpHitLabel, OpHitHandle)) {
+      art::fill_ptr_vector(OpHitList, OpHitHandle);
+    }
+    // Grab assns with OpHits to get match to neutrino purity
+    OpHitNum = int(OpHitList.size());
+    if (fGenerateAdjOpFlash) {
+      fOpFlashLabel = "solarflash";
+      std::vector<AdjOpHitsUtils::FlashInfo> FlashVec;
+      adjophits->CalcAdjOpHits(OpHitList, OpHitVec, OpHitIdx, evt);
+      adjophits->MakeFlashVector(FlashVec, OpHitVec, evt);
+      OpFlashNum = int(FlashVec.size());
+      
+      for (int i = 0; i < int(FlashVec.size()); i++)
+      {
+        AdjOpHitsUtils::FlashInfo TheFlash = FlashVec[i];
+        double ThisOpFlashPur = 0;
+        OpFlashPlane.push_back(TheFlash.Plane);
+        OpFlashNHits.push_back(TheFlash.NHit);
+        OpFlashTime.push_back(TheFlash.TimeWeighted - fOpFlashTimeOffset); // Convert to microseconds happens in AdjOpHits
+        OpFlashDeltaT.push_back(TheFlash.TimeWidth); // Convert to microseconds
+        OpFlashPE.push_back(TheFlash.PE);
+        OpFlashMaxPE.push_back(TheFlash.MainOpHitPE);
+        OpFlashFast.push_back(TheFlash.FastToTotal);
+        OpFlashID.push_back(i);
+        OpFlashX.push_back(TheFlash.X);
+        OpFlashY.push_back(TheFlash.Y);
+        OpFlashZ.push_back(TheFlash.Z);
+        OpFlashSTD.push_back(TheFlash.STD);
+        for (int j = 0; j < int(OpHitVec[i].size()); j++)
+        {
+          recob::OpHit OpHit = *OpHitVec[i][j];
+          const std::vector<int> ThisOpHitTrackIds = pbt->OpHitToTrackIds(OpHit);
+          float ThisOphitPurity = 0;
+          for (auto const &ThisOpHitTrackId : ThisOpHitTrackIds)
+          {
+            if (SignalTrackIDs.find(ThisOpHitTrackId) != SignalTrackIDs.end())
+              ThisOphitPurity += 1;
+          }
+          // Check if ThisOpHitTrackIds is empty
+          if (ThisOpHitTrackIds.size() == 0)
+            ThisOphitPurity = 0;
+          else
+            ThisOphitPurity /= int(ThisOpHitTrackIds.size());
+
+          ThisOpFlashPur += ThisOphitPurity * OpHit.PE();
+          auto OpHitXYZ = wireReadout.OpDetGeoFromOpChannel(OpHit.OpChannel()).GetCenter();
+          SOpHitPur.push_back(ThisOphitPurity);
+          SOpHitChannel.push_back(OpHit.OpChannel());
+
+          if (fOpHitTimeVariable == "StartTime")
+            SOpHitTime.push_back(OpHit.StartTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+          else // Default to PeakTime
+            SOpHitTime.push_back(OpHit.PeakTime() * clockData.OpticalClock().TickPeriod() - fOpFlashTimeOffset); // Convert to microseconds
+
+          SOpHitPE.push_back(OpHit.PE());
+          SOpHitX.push_back(OpHitXYZ.X());
+          SOpHitY.push_back(OpHitXYZ.Y());
+          SOpHitZ.push_back(OpHitXYZ.Z());
+          SOpHitFlashID.push_back(i);
+          SOpHitPlane.push_back(TheFlash.Plane);
+        }
+        // Check if OpHitVec[i] is empty
+        if (OpHitVec[i].size() == 0)
+          ThisOpFlashPur = 0;
+        else
+          ThisOpFlashPur /= TheFlash.PE;
+
+        OpFlashPur.push_back(ThisOpFlashPur);
+        if (ThisOpFlashPur > 0) {
+          sOpFlashTruth += "OpFlash PE " + ProducerUtils::str(TheFlash.PE) + " with purity " + ProducerUtils::str(ThisOpFlashPur) + " time " + ProducerUtils::str(TheFlash.TimeWeighted) + " plane " + ProducerUtils::str(TheFlash.Plane) + "\n";
+          sOpFlashTruth += " - Vertex (" + ProducerUtils::str(TheFlash.X) + ", " + ProducerUtils::str(TheFlash.Y) + ", " + ProducerUtils::str(TheFlash.Z) + ")\n";
+          sOpFlashTruth += "\t*** 1st Sanity check: Ratio " + ProducerUtils::str(TheFlash.MainOpHitPE / TheFlash.PE) + " <= " + ProducerUtils::str(fAdjOpFlashMaxPERatioCut) + "\n";
+          sOpFlashTruth += "\t*** 2nd Sanity check: #OpHits " + ProducerUtils::str(int(OpHitVec[i].size())) + " >= " + ProducerUtils::str(TheFlash.NHit) + "\n";
+        }
       }
       TrackNum = int(TrackList.size());
       //---------------------------------------------------------------------------------------------------------------------------------------------------------------//
