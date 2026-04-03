@@ -350,7 +350,7 @@ void test::pandoraAnalysis::analyze(art::Event const& e)
 
     std::vector<art::Ptr<recob::Hit>> pfpHits;
 
-    if(dune_ana::DUNEAnaPFParticleUtils::IsTrack(pfp,e,fPFParticleLabel,fTrackLabel)){
+    if(dune_ana::DUNEAnaPFParticleUtils::HasTrack(pfp,e,fPFParticleLabel,fTrackLabel)){
       fPFPIsTrack[iPfp]=true;
       art::Ptr<recob::Track> track = dune_ana::DUNEAnaPFParticleUtils::GetTrack(pfp,e,fPFParticleLabel, fTrackLabel); 
 
@@ -442,7 +442,7 @@ void test::pandoraAnalysis::analyze(art::Event const& e)
       }
     }
 
-    if(dune_ana::DUNEAnaPFParticleUtils::IsShower(pfp,e,fPFParticleLabel,fShowerLabel)){
+    if(dune_ana::DUNEAnaPFParticleUtils::HasShower(pfp,e,fPFParticleLabel,fShowerLabel)){
       fPFPIsShower[iPfp]=true;
       art::Ptr<recob::Shower> shower = dune_ana::DUNEAnaPFParticleUtils::GetShower(pfp,e,fPFParticleLabel, fShowerLabel); 
       fPFPShowerID[iPfp]=shower->ID();
