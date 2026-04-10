@@ -47,6 +47,9 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "dunereco/AnaUtils/DUNEAnaPFParticleUtils.h"
+#include "protoduneana/Utilities/ProtoDUNEPFParticleUtils.h"
+#include "protoduneana/Utilities/ProtoDUNETrackUtils.h"
+#include "protoduneana/Utilities/ProtoDUNEShowerUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaHitUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaEventUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaShowerUtils.h"
@@ -97,10 +100,11 @@ namespace caf {
 
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
-      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
+      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
+      void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
       void FillCVNInfo(caf::SRCVNScoreBranch &cvnBranch, const art::Event &evt) const;
       void FillEnergyInfo(caf::SRNeutrinoEnergyBranch &ErecBranch, const art::Event &evt) const;
-      void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
+      void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
       void FillDirectionInfo(caf::SRDirectionBranch &dirBranch, const art::Event &evt) const;
       int FillGENIERecord(simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
@@ -138,6 +142,9 @@ namespace caf {
       std::string fContainedDistThreshold;
       std::string fHitLabel;
       std::string fG4Label;
+      protoana::ProtoDUNEPFParticleUtils pfpUtil;
+      protoana::ProtoDUNETrackUtils trackUtil;
+      protoana::ProtoDUNEShowerUtils showerUtil;
 
 
       std::map<int, std::tuple<art::Ptr<simb::MCParticle>, bool, int>> fMCParticlesMap; //[tid] = (MCParticle, isPrimary, SRParticle ID)
@@ -285,7 +292,7 @@ namespace caf {
         fMCParticlesMap[mcpart->TrackId()] = {mcpart, true, fNprimaries};
         fNprimaries++;
       } else {
-        fMCParticlesMap[mcpart->TrackId()] = {mcpart, false, fNsecondaries};
+        fMCParticlesMap[mcpart->TrackId()] = {mcpart, false, fNsecondaries}; // todo: include also the true interaction slice (ixn)
         fNsecondaries++;
       } 
     }
@@ -493,6 +500,14 @@ namespace caf {
       }
 
       std::map<std::string, float> properties = metadata->GetPropertiesMap();
+      std::cout << "----------------------------------------" << std::endl;
+      // cout all the properties for debugging
+      std::cout << "Metadata properties for PFP with ID " << pfp->Self() << ":" << std::endl;
+      for(const auto& [key, value] : properties) {
+        std::cout << "  " << key << ": " << value << std::endl;
+      }
+
+      std::cout << "----------------------------------------" << std::endl;
 
       std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaPFParticleUtils::GetHits(pfp, evt, fPandoraLabel);
       std::vector<art::Ptr<recob::Hit>> hits_U = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, 0);
@@ -524,17 +539,43 @@ namespace caf {
       for(const auto& [property_name, property_value] : property_mapping) {
         if(properties.find(property_name) != properties.end()) {
           *(property_value) = properties[property_name];
-        } else {
-          mf::LogWarning("CAFMaker") << "Unknown property '" << property_name << "' for PFP with ID " << pfp->Self();
-        }
+        } 
+        // else {
+        //   mf::LogWarning("CAFMaker") << "Unknown property '" << property_name << "' for PFP with ID " << pfp->Self();
+        // }
       }
 
   }
 
 
   //------------------------------------------------------------------------------
+  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const {
+    // get handle to slices
+    auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
+    if (!sliceHandle) {
+      mf::LogWarning("CAFMaker") << "No Slice collection found with label " << fPandoraLabel;
+      return;
+    }
+    std::vector<art::Ptr<recob::Slice>> slicePtrs;
+    art::fill_ptr_vector(slicePtrs, sliceHandle);
 
-  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const {
+    art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
+
+    for (const auto& slicePtr : slicePtrs) {
+      auto pfpVec = sliceToPFP.at(slicePtr.key());
+      std::cout << "Filling reco info for slice " << slicePtr.key() << " with " << pfpVec.size() << " PFPs" << std::endl;
+      // Create a fresh interaction object for each slice
+      caf::SRInteractionBranch newIxn;
+      FillRecoInfo(recoBranch, fdBranch, evt, slicePtr);
+      // Store the interaction for this slice
+      recoBranch.ixn.pandora.insert(recoBranch.ixn.pandora.end(), newIxn.pandora.begin(), newIxn.pandora.end());
+      recoBranch.ixn.npandora += newIxn.pandora.size();
+
+    }
+      
+  }
+
+  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const {
     SRInteractionBranch &ixn = recoBranch.ixn;
 
     //Only filling with Pandora Reco for the moment
@@ -542,12 +583,30 @@ namespace caf {
     
     lar_pandora::PFParticleVector particleVector;
     lar_pandora::LArPandoraHelper::CollectPFParticles(evt, fPandoraLabel, particleVector);
+
+    auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
+    art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
+    particleVector = sliceToPFP.at(slicePtr.key());
+
+
     lar_pandora::VertexVector vertexVector;
     lar_pandora::PFParticlesToVertices particlesToVertices;
     lar_pandora::LArPandoraHelper::CollectVertices(evt, fPandoraLabel, vertexVector, particlesToVertices);
+    
 
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
+      // check if the particle is beam
+      bool is_test_beam = pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel);
+      if (is_test_beam) {
+        std::cout << "----------------------" << std::endl;
+        std::cout << "Found a beam particle with ID " << particle->Self() << std::endl;
+        // print more info about the beam particle: Number of daughters and pdg hypothesis
+        std::cout << "Number of daughters: " << particle->Daughters().size() << " and pdg hypothesis: " << particle->PdgCode() << std::endl;
+        std::cout << "Is this primary? " << particle->IsPrimary() << std::endl;
+        std::cout << "----------------------" << std::endl;
+      }
+      
       if(particle->IsPrimary()){
         SRInteraction reco;
 
@@ -580,7 +639,7 @@ namespace caf {
 
         //List of reconstructed particles
         SRRecoParticlesBranch &part = reco.part;
-        FillRecoParticlesInfo(part, fdBranch, evt);
+        FillRecoParticlesInfo(part, fdBranch, evt, slicePtr);
 
         //Assuming a single TrueInteraction for now. TODO: Change this if several interactions end up being simulated in the same event
         reco.truth = {0}; 
@@ -593,7 +652,6 @@ namespace caf {
     ixn.npandora = pandora.size();
     ixn.ndlp = ixn.dlp.size();
   }
-
 
   //------------------------------------------------------------------------------
 
@@ -909,7 +967,7 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt) const
+  void CAFMaker::FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const
   {
     //Doing quite a lot of things here related to saving the reco particles
     //Will try to be pedagogical in the comments
@@ -921,11 +979,17 @@ namespace caf {
 
     //Getting all the PFParticles from the event
     lar_pandora::PFParticleVector particleVector;
-    lar_pandora::LArPandoraHelper::CollectPFParticles(evt, fPandoraLabel, particleVector);
+    auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
+    art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
+    particleVector = sliceToPFP.at(slicePtr.key());
+
+
+
     unsigned int nuID = std::numeric_limits<unsigned int>::max();
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
-      if(particle->IsPrimary()){
+      std::cout << "Filling information for particle with ID " << particle->Self() << " and pdg hypothesis " << particle->PdgCode() << std::endl;
+      if(particle->IsPrimary() && (std::abs(particle->PdgCode()) == 12 || std::abs(particle->PdgCode()) == 14 || std::abs(particle->PdgCode()) == 16)){
         nuID = particle->Self(); //Finding the ID of neutrino's particle
         break;
       }
@@ -965,6 +1029,7 @@ namespace caf {
 
       //Pre-fill the parent and daughter fields with the Pandora IDs. They will be converted to SR indices later.
       particle_record.parent = (particle_record.primary) ? -1 : particle->Parent(); //Setting to -1 if primary as there is no saved record for the neutrino
+
       for(auto const& daughter_id : particle->Daughters()){
         particle_record.daughters.push_back(daughter_id);
       }
@@ -980,11 +1045,13 @@ namespace caf {
         track = dune_ana::DUNEAnaPFParticleUtils::GetTrack(particle, evt, fPandoraLabel, fTrackLabel);
       }
       
-      art::Ptr<recob::Shower> shower = dune_ana::DUNEAnaPFParticleUtils::GetShower(particle, evt, fPandoraLabel, fShowerLabel);
-
+      art::Ptr<recob::Shower> shower;
+      if(dune_ana::DUNEAnaPFParticleUtils::IsShower(particle, evt, fPandoraLabel, fShowerLabel)){ //Unlike what its name suggets, this function only checks if an associated shower exists
+        shower = dune_ana::DUNEAnaPFParticleUtils::GetShower(particle, evt, fPandoraLabel, fShowerLabel);
+      }
       //Seeing which option Pandora prefers
       bool isTrack = lar_pandora::LArPandoraHelper::IsTrack(particle);
-
+      bool isShower = lar_pandora::LArPandoraHelper::IsShower(particle);
       //For every PFP we create a track and a shower object and save it, independently of the existence of a track object to keep the PFP/Track/Shower parallel indexing
       SRTrack srtrack;
       SRShower srshower;
@@ -1058,10 +1125,14 @@ namespace caf {
         srshower.direction.SetZ(shower->Direction().Z());
         
         srshower.Evis = Evis; //Using the visible energy of the PFP
-
         //Truth matching already filled at the PFP level, no need to do it again here
         //srshower.truth
         //srshower.truthOverlap
+      }
+
+      if (!isTrack && !isShower){
+        mf::LogWarning("CAFMaker") << "PFP with ID " << particle->Self() << " is not associated to either a track or a shower according to Pandora. This particle will be saved without kinematic information.";
+        continue;
       }
 
       if(isTrack){
@@ -1105,10 +1176,18 @@ namespace caf {
 
     }
 
+    // cout the pandoraIDtoPFPIdx map for debugging
+    std::cout << "Pandora ID to PFP index map:" << std::endl;
+    for(const auto& [pandoraID, pfpIdx] : pandoraIDToPFPIdx){
+      std::cout << "Pandora ID: " << pandoraID << ", PFP index: " << pfpIdx << std::endl;
+    } 
+
+
+
     //Now that all particles are saved, we can convert the parent/daughter fields from Pandora IDs to SR indices
     for(auto &particle : recoParticlesBranch.pandora){
       //Parent
-      if(particle.parent == -1) continue; //Skipping if primary
+      // if(particle.parent == -1) continue; //Skipping if primary
       unsigned int parent_pfpID = particle.parent;
       //Finding the SR index in the map
       if(pandoraIDToPFPIdx.count(parent_pfpID) == 0){
@@ -1120,15 +1199,16 @@ namespace caf {
       }
 
     //Daughters
-      for(auto &daughter_idx : particle.daughters){
-        unsigned int daughter_pfpID = daughter_idx;
+      // for(auto &daughter_idx : particle.daughters){
+      for(size_t i = 0; i < particle.daughters.size(); i++){
+        unsigned int daughter_pfpID = particle.daughters[i];
         //Finding the SR index in the map
         if(pandoraIDToPFPIdx.count(daughter_pfpID) == 0){
           mf::LogWarning("CAFMaker") << "No SR index found for daughter PFP ID " << daughter_pfpID;
-          daughter_idx = -1; //Setting to -1 to avoid confusion
+          particle.daughters[i] = -1; //Setting to -1 to avoid confusion
         }
         else{
-          daughter_idx = pandoraIDToPFPIdx.at(daughter_pfpID);
+          particle.daughters[i] = pandoraIDToPFPIdx.at(daughter_pfpID);
         }
       }
     }
@@ -1157,6 +1237,9 @@ namespace caf {
 
   double CAFMaker::GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const
   {
+    if(!dune_ana::DUNEAnaPFParticleUtils::IsShower(pfp, evt, fPandoraLabel, fShowerLabel)){
+      return 0;
+    }
     //Using the shower version of the PFP to compute the visible energy for the particle
     art::Ptr<recob::Shower> shower = dune_ana::DUNEAnaPFParticleUtils::GetShower(pfp, evt, fPandoraLabel, fShowerLabel);
     if(!shower){ //Should always exist in theory but who knows...
@@ -1229,6 +1312,12 @@ namespace caf {
       fdBranch = &(sr.fd.hd);
       mf::LogInfo("CAFMaker") << "Assuming the FD HD detector";
     }
+    else if (geoName.find("protodune") != std::string::npos)
+    {
+      detector = &(sr.meta.pd_hd);
+      fdBranch = &(sr.fd.pd_hd);
+      mf::LogInfo("CAFMaker") << "Assuming the PDUNE detector";
+    }
     else {
       mf::LogWarning("CAFMaker") << "Didn't detect a know geometry. Defaulting to FD HD!";
       detector = &(sr.meta.fd_hd);
@@ -1257,7 +1346,7 @@ namespace caf {
       FillTruthInfo(sr.mc, *mct, *gt, *mcft, evt);
     }
 
-    FillRecoInfo(sr.common, *fdBranch, evt);
+    FillRecoInfoSliceLoop(sr.common, *fdBranch, evt);
 
     if(fTree){
       fTree->Fill();
