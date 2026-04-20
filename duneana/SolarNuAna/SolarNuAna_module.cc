@@ -114,7 +114,10 @@ namespace solar
     std::vector<float> MAdjClNHits, MAdjClInd0NHits, MAdjClInd1NHits, MAdjClRecoY, MAdjClRecoZ, MAdjClR, MAdjClPur, MAdjClGenPur, MAdjClMainE, MAdjClMainP, MAdjClMainK;
     std::vector<float> MAdjClMainX, MAdjClMainY, MAdjClMainZ, MAdjClEndX, MAdjClEndY, MAdjClEndZ, MSignalFrac, MGenFrac;
     std::vector<int>  MAdjFlashPlane, MAdjFlashNHits;
-    std::vector<float> MAdjFlashTime, MAdjFlashResidual, MAdjFlashPE, MAdjFlashMaxPE, MAdjFlashRecoX, MAdjFlashRecoY, MAdjFlashRecoZ, MAdjFlashR, MAdjFlashPur, MAdjFlashSTD, MAdjFlashFast;
+    std::vector<float> MAdjFlashTime, MAdjFlashResidual, MAdjFlashPE, MAdjFlashMaxPE, MAdjFlashRecoX, MAdjFlashRecoY, MAdjFlashRecoZ, MAdjFlashR, MAdjFlashPur, MAdjFlashSTD, MAdjFlashFast, MAdjFlashNegativeLL;
+    std::vector<bool> MAdjFlashPreselection;
+    std::vector<float> MAdjFlashPEperOpDet;
+    std::vector<float> tempPEperOpDet;
     std::vector<float> SignalEList, SignalPList, SignalKList, SignalTimeList, SignalEndXList, SignalEndYList, SignalEndZList, SignalMaxEDepList, SignalMaxEDepXList, SignalMaxEDepYList, SignalMaxEDepZList;
     std::vector<double> MMainVertex, MEndVertex, MMainParentVertex;
     std::vector<double> MTrackStart, MTrackEnd;
@@ -129,8 +132,8 @@ namespace solar
 
     // --- MatchedFlash Variables
     int MFlashNHits, MFlashPlane;
-    float MOpHitAmplitude, MFlashR, MFlashPE, MFlashMaxPE, MFlashPur, MFlashFast, MFlashTime, MFlashSTD, MFlashRecoX, MFlashRecoY, MFlashRecoZ, MFlashResidual, MFlashWaveformTime;
-    std::vector<double> MFlashPEperOpDet;
+    float MOpHitAmplitude, MFlashR, MFlashPE, MFlashMaxPE, MFlashPur, MFlashFast, MFlashTime, MFlashSTD, MFlashRecoX, MFlashRecoY, MFlashRecoZ, MFlashResidual, MFlashWaveformTime, MFlashNegativeLL;
+    std::vector<float> MFlashPEperOpDet;
     std::vector<int> MFlashWaveform;
     bool MFlashCorrect, MFlashWaveformValid;
 
@@ -148,6 +151,8 @@ namespace solar
 
     // --- Likelihood computer for flash matching
     LikelihoodComputer fLikelihoodComputer;
+    std::string fLikelihoodInputDir;
+    double fTrendTrheshold;
     
     // --- Declare our services
     geo::WireReadoutGeom const &wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
@@ -242,6 +247,9 @@ namespace solar
     fSaveOpFlashInfo = p.get<bool>("SaveOpFlashInfo");
     fSaveAdjOpFlashInfo = p.get<bool>("SaveAdjOpFlashInfo");
     fSaveTrackInfo = p.get<bool>("SaveTrackInfo");
+
+    fLikelihoodInputDir = p.get<std::string>("LikelihoodInputDir");
+    fTrendTrheshold = p.get<double>("TrendThreshold");
     // Generate the list of labels to be used in the analysis
     fLabels.push_back(fSignalLabel);
     for (auto const &label : fBackgroundLabels)
@@ -528,6 +536,9 @@ namespace solar
       fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoY);       // Adj. flash reco Y [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoZ", &MAdjFlashRecoZ);       // Adj. flash reco Z [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashResidual", &MAdjFlashResidual); // Adj. flash residual wrt. cluster
+      fSolarNuAnaTree->Branch("AdjOpFlashPEperOpDet", &MAdjFlashPEperOpDet);     // Adj. flash #PE per OpDet
+      fSolarNuAnaTree->Branch("AdjOpFlashPreselection", &MAdjFlashPreselection); // Adj. flash preselection (bool)
+      fSolarNuAnaTree->Branch("AdjOpFlashNegativeLL", &MAdjFlashNegativeLL); // Adj. flash negative Log-Likelihood
     }
 
     // Matched Flash info.
@@ -550,6 +561,7 @@ namespace solar
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveformTime", &MFlashWaveformTime);                     // Matched flash waveform time [us]
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveformValid", &MFlashWaveformValid);                   // Matched flash waveform valid
     fSolarNuAnaTree->Branch("MatchedOpFlashCorrectly", &MFlashCorrect);                             // Matched flash correctnes (bool)
+    fSolarNuAnaTree->Branch("MatchedOpFlashNegativeLL", &MFlashNegativeLL, "MatchedOpFlashNegativeLL/F"); // Matched flash negative Log-Likelihood
 
     fConfigTree->AddFriend(fSolarNuAnaTree);
     fMCTruthTree->AddFriend(fSolarNuAnaTree);
@@ -561,10 +573,25 @@ namespace solar
     hYTruth = tfs->make<TH2F>("hYTruth", "Missmatch in Y distance; Distance [cm]; True Y position [cm]", 100, -600, 600, 100, -600, 600);
     hZTruth = tfs->make<TH2F>("hZTruth", "Missmatch in Z distance; Distance [cm]; True Z position [cm]", 100, -600, 600, 100, 0, 2100);
 
-    if (fFlashMatchBy == "maximumlikelihood") {
-      double fElectronScintYield = 20000.0;
-      std::string fVisibilityFilename = "/exp/dune/app/users/fgalizzi/flashmatch_larsoft/work/fm_module_inputs/dunevis_fdhd_1x2x6_test_float.root";
-      lowe->SetLikelihoodComputer(fElectronScintYield, fVisibilityFilename, fLikelihoodComputer);
+    if (fFlashMatchBy == "maximumlikelihood" || fFlashMatchBy == "cheat") {
+      double fElectronScintYield = 20000.0; // HARDCODED HARD-CODE
+      double drift_velocity = 0.160396; // HARDCODED HARD-CODE
+      std::string geoName = geom->DetectorName();
+      std::string geom_identifier;
+    if (geoName.find("dune10kt") != std::string::npos) {
+      geom_identifier = "dune10kt";
+    }
+    else if(geoName.find("dunevd10kt") != std::string::npos) {
+      geom_identifier = "dunevd10kt";
+    }
+    else {
+        throw cet::exception("SolarNuAna") << "Geometry " << geoName << " not supported. Only dune10kt and dunevd10kt are supported.\n";
+    }
+      std::cout << "Start setting..." << std::endl;
+      std::cerr << "Start setting..." << std::endl;
+      lowe->SetLikelihoodComputer(fElectronScintYield, geom_identifier, fLikelihoodComputer, fLikelihoodInputDir, fTrendTrheshold, drift_velocity);
+      std::cout << "LikelihoodComputer properly set" << std::endl;
+      std::cerr << "LikelihoodComputer properly set" << std::endl;
     }
 
   } // BeginJob
@@ -951,6 +978,9 @@ namespace solar
       adjophits->CalcAdjOpHits(OpHitList, OpHitVec, OpHitIdx, evt);
       adjophits->MakeFlashVector(FlashVec, OpHitVec, evt);
       OpFlashNum = int(FlashVec.size());
+      if (tempPEperOpDet.size() == 0) {
+        tempPEperOpDet.resize(geom->NOpDets(), 0);
+      }
       for (int i = 0; i < int(FlashVec.size()); i++)
       {
         AdjOpHitsUtils::FlashInfo TheFlash = FlashVec[i];
@@ -1563,7 +1593,8 @@ namespace solar
       std::string sAdjClusters = "";
       float OpFlashResidual = 0;
       float MatchedOpFlashPE = -1e6;
-      std::vector<double> MatchedOpFlashPEperOpDet = {};
+      std::vector<float> MatchedOpFlashPEperOpDet = {};
+      float OpFlashNegativeLL = -1e6;
       // float MatchedOpFlashResidual = 1e6;
       float MatchedOpFlashX = -1e6;
 
@@ -1612,6 +1643,9 @@ namespace solar
         MAdjFlashRecoY = {};
         MAdjFlashRecoZ = {};
         MAdjFlashResidual = {};
+        MAdjFlashPEperOpDet = {};
+        MAdjFlashPreselection = {};
+        MAdjFlashNegativeLL = {};
         MTrackStart = {-1e6, -1e6, -1e6};
         MTrackEnd = {-1e6, -1e6, -1e6};
 
@@ -1805,17 +1839,13 @@ namespace solar
           MAdjFlashRecoZ.push_back(OpFlashZ[j]);
           MAdjFlashSTD.push_back(OpFlashSTD[j]);
           MAdjFlashPur.push_back(OpFlashPur[j]);
+          MAdjFlashPreselection.push_back(false);
+          MAdjFlashNegativeLL.push_back(OpFlashNegativeLL);
+          std::transform(OpFlashPEperOpDet[j].begin(), OpFlashPEperOpDet[j].end(), tempPEperOpDet.begin(), [](double val) { return static_cast<float>(val); });
+          MAdjFlashPEperOpDet.insert(MAdjFlashPEperOpDet.end(), tempPEperOpDet.begin(), tempPEperOpDet.end());
 
           // Compute the residual between the predicted cluster signal and the flash
-          if (fFlashMatchBy == "maximumlikelihood") {
-            std::cout << "\n\nComputing residual ---" << std::endl;
-            OpFlashResidual = -lowe->GetLikelihoodFlashMatch(MVecTime[2][i], MVecCharge[2][i], MVecRecoY[2][i], MVecRecoZ[2][i], OpFlashTime[j], OpFlashPEperOpDet[j], fLikelihoodComputer);
-            if (OpFlashPur[j] > 0.) std::cout << "Ress: " << OpFlashResidual << " this is the one\n\n" << std::endl;
-            else std::cout << "Ress: " << OpFlashResidual << std::endl;
-          }
-          else {
-            adjophits->FlashMatchResidual( OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]) );
-          }
+          adjophits->FlashMatchResidual( OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]) );
           // Print the flash information for debugging
           sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + " with residual " + ProducerUtils::str(OpFlashResidual) + "\n";
           
@@ -1825,13 +1855,20 @@ namespace solar
           }
           
           if ( lowe->SelectPDSFlashPE(TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i] - OpFlashTime[j], MVecCharge[2][i], OpFlashPE[j]) ) {
+            MAdjFlashPreselection.back() = true;
+            if (fFlashMatchBy == "maximumlikelihood" || fFlashMatchBy == "cheat") {
+              std::cout << "\n\nComputing LogLikelihood ---" << std::endl;
+              OpFlashNegativeLL = -lowe->GetLikelihoodFlashMatch(MVecTime[2][i], MVecCharge[2][i], MVecRecoY[2][i], MVecRecoZ[2][i], OpFlashTime[j], OpFlashPEperOpDet[j], fLikelihoodComputer);
+              if (std::isinf(OpFlashNegativeLL) || std::isnan(OpFlashNegativeLL)) OpFlashNegativeLL = +2e9;
+              MAdjFlashNegativeLL.back() = OpFlashNegativeLL;
+            }
             // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
             bool update_matched_flash = false;
             if (fFlashMatchBy == "cheat" && OpFlashPur[j] > 0. && OpFlashPE[j] > MFlashPE) {
               update_matched_flash = true;
             }
             else if (fFlashMatchBy != "cheat") {
-              update_matched_flash =  lowe->SelectPDSFlash(IsFirstFlash, TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i], MVecCharge[2][i], MFlashTime, MFlashPE, OpFlashTime[j], OpFlashPE[j], MFlashResidual, OpFlashResidual);
+              update_matched_flash =  lowe->SelectPDSFlash(IsFirstFlash, TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i], MVecCharge[2][i], MFlashTime, MFlashPE, OpFlashTime[j], OpFlashPE[j], MFlashResidual, OpFlashNegativeLL);
             }
             if (update_matched_flash) {
               IsFirstFlash = false;
@@ -1841,7 +1878,7 @@ namespace solar
               MOpHitAmplitude = OpHitAmplitude[j];
               MFlashR = OpFlashR;
               MFlashPE = OpFlashPE[j];
-              MFlashPEperOpDet = OpFlashPEperOpDet[j];
+              MFlashPEperOpDet = tempPEperOpDet;
               MFlashFast = OpFlashFast[j];
               MFlashNHits = OpFlashNHits[j];
               MFlashPlane = OpFlashPlane[j];
@@ -1855,7 +1892,7 @@ namespace solar
               MFlashWaveform = OpFlashWaveform[j];
               MFlashWaveformValid = OpFlashWaveformValid[j];
               MFlashWaveformTime = OpFlashWaveformTime[j];
-              MFlashResidual = OpFlashResidual;
+              MFlashNegativeLL = OpFlashNegativeLL;
               // Create an output string with the flash information.
               sFlashReco = "*** Matched flash: " + ProducerUtils::str(j) + " from " + ProducerUtils::str(int(OpFlashPE.size())) + "\n" +
                 " - Purity " + ProducerUtils::str(100*OpFlashPur[j]) + " %" +
@@ -1867,6 +1904,7 @@ namespace solar
                 " - Time " + ProducerUtils::str(OpFlashTime[j]) + " (us)" +
                 " Fast " + ProducerUtils::str(100*OpFlashFast[j]) + " %" +
                 " Residual " + ProducerUtils::str(OpFlashResidual) + "\n" +
+                " NegativeLL " + ProducerUtils::str(OpFlashNegativeLL) + "\n" +
                 " - Reco Time,Y,Z ( " + ProducerUtils::str(MFlashTime) + ", " + ProducerUtils::str(OpFlashY[j]) + ", " + ProducerUtils::str(OpFlashZ[j]) + " )" + "\n" +
                 " - Found valid waveform: " + ProducerUtils::str(MFlashWaveformValid) + "\n"; 
               MatchedOpFlashX = MAdjFlashX;
@@ -2039,6 +2077,7 @@ namespace solar
     MFlashResidual = +1e9;
     MFlashWaveform = {};
     MFlashCorrect = false;
+    MFlashNegativeLL = +1e9;
     SignalParticleE = 0;
     SignalParticleP = 0;
     SignalParticleK = 0;
