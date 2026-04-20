@@ -13,6 +13,7 @@
 
 // Generic C++ includes
 #include <iostream>
+#include <tuple>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -79,33 +80,29 @@ namespace caf {
     public:
 
       explicit CAFMaker(fhicl::ParameterSet const& pset);
-      virtual ~CAFMaker();
       void beginJob() override;
       void endJob() override;
       void beginSubRun(const art::SubRun& sr) override;
-      void endSubRun(const art::SubRun& sr) override;
       void analyze(art::Event const & evt) override;
 
 
     private:
       void PreLoadMCParticlesInfo(art::Event const& evt);
-      void FillTruthInfo(caf::SRTruthBranch& sr,
-                         std::vector<simb::MCTruth> const& mctruth,
-                         std::vector<simb::GTruth> const& gtruth,
-                         std::vector<simb::MCFlux> const& flux,
-                         art::Event const& evt);
+      caf::SRTruthBranch GetTruthInfo(std::vector<simb::MCTruth> const& mctruth,
+                   std::vector<simb::GTruth> const& gtruth,
+                   std::vector<simb::MCFlux> const& flux);
 
-      void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
-      void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
-      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
-      void FillCVNInfo(caf::SRCVNScoreBranch &cvnBranch, const art::Event &evt) const;
-      void FillEnergyInfo(caf::SRNeutrinoEnergyBranch &ErecBranch, const art::Event &evt) const;
-      void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
-      void FillDirectionInfo(caf::SRDirectionBranch &dirBranch, const art::Event &evt) const;
+      caf::SRDetectorMeta GetMetaInfo(art::Event const& evt) const;
+      caf::SRBeamBranch GetBeamInfo(const art::Event &evt) const;
+      std::tuple<caf::SRCommonRecoBranch, caf::SRFD> GetRecoInfo(const art::Event &evt, double lar_density) const;
+      caf::SRNeutrinoHypothesisBranch GetCVNInfo(const art::Event &evt) const;
+      caf::SRNeutrinoEnergyBranch GetEnergyInfo(const art::Event &evt) const;
+      std::tuple<caf::SRRecoParticlesBranch, std::vector<caf::SRFDInt>> GetRecoParticlesInfo(const art::Event &evt, double lar_density) const;
+      caf::SRDirectionBranch GetDirectionInfo(const art::Event &evt) const;
       int FillGENIERecord(simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
-      void FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const;
-      void FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
+      std::tuple<std::vector<TrueParticleID>, std::vector<float>> GetTruthMatchingAndOverlap(recob::PFParticle const& pfp, const art::Event &evt, detinfo::DetectorClocksData const& clockData) const;
+      caf::SRPFP GetPFPMetadata(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
@@ -140,7 +137,7 @@ namespace caf {
       std::string fG4Label;
 
 
-      std::map<int, std::tuple<art::Ptr<simb::MCParticle>, bool, int>> fMCParticlesMap; //[tid] = (MCParticle, isPrimary, SRParticle ID)
+      std::map<int, std::tuple<simb::MCParticle const*, bool, int>> fMCParticlesMap; //[tid] = (MCParticle, isPrimary, SRParticle ID)
       uint fNprimaries = 0;
       uint fNsecondaries = 0;
 
@@ -163,7 +160,7 @@ namespace caf {
 
       calo::CalorimetryAlg fCalorimetryAlg;                    ///< the calorimetry algorithm
       double fRecombFactor; ///< recombination factor for the isolated hits
-      
+
       const std::map<simb::Generator_t, caf::Generator> fgenMap = {
         {simb::Generator_t::kUnknown, caf::Generator::kUnknownGenerator},
         {simb::Generator_t::kGENIE,   caf::Generator::kGENIE},
@@ -229,11 +226,7 @@ namespace caf {
   }
 
   //------------------------------------------------------------------------------
-  caf::CAFMaker::~CAFMaker()
-  {
-  }
 
-  //------------------------------------------------------------------------------
   void CAFMaker::beginJob()
   {
     art::ServiceHandle<art::TFileService> tfs;
@@ -270,35 +263,38 @@ namespace caf {
 
   void CAFMaker::PreLoadMCParticlesInfo(art::Event const& evt)
   {
-    //Preloading the MCParticles info to be able to access them later
-    std::vector<art::Ptr< simb::MCParticle>> mcparticles = dune_ana::DUNEAnaEventUtils::GetMCParticles(evt, fG4Label);
-
     //Creating a map of the MC particles to easily access them by their TrackId
     fMCParticlesMap.clear();
     //Not the most efficient way, but I prefer good readibility over performance here
     fNprimaries = 0;
     fNsecondaries = 0;
-    for(art::Ptr<simb::MCParticle> const& mcpart: mcparticles) {
-      if(mcpart->TrackId() == 0) continue; //Skip the neutrino particle (TrackId 0)
-      bool isPrimary = (mcpart->Mother() == 0);
+
+    //Preloading the MCParticles info to be able to access them later
+    auto mcparticlesH = evt.getHandle<std::vector<simb::MCParticle>>(fG4Label);
+    if (!mcparticlesH.isValid()) {
+      return;
+    }
+
+    for(simb::MCParticle const& mcpart: *mcparticlesH) {
+      if(mcpart.TrackId() == 0) continue; //Skip the neutrino particle (TrackId 0)
+      bool isPrimary = (mcpart.Mother() == 0);
       if(isPrimary) {
-        fMCParticlesMap[mcpart->TrackId()] = {mcpart, true, fNprimaries};
-        fNprimaries++;
+        fMCParticlesMap[mcpart.TrackId()] = {&mcpart, true, fNprimaries};
+        ++fNprimaries;
       } else {
-        fMCParticlesMap[mcpart->TrackId()] = {mcpart, false, fNsecondaries};
-        fNsecondaries++;
-      } 
+        fMCParticlesMap[mcpart.TrackId()] = {&mcpart, false, fNsecondaries};
+        ++fNsecondaries;
+      }
     }
   }
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillTruthInfo(caf::SRTruthBranch& truthBranch,
-                               std::vector<simb::MCTruth> const& mctruth,
-                               std::vector<simb::GTruth> const& gtruth,
-                               std::vector<simb::MCFlux> const& flux,
-                               art::Event const& evt)
+  caf::SRTruthBranch CAFMaker::GetTruthInfo(std::vector<simb::MCTruth> const& mctruth,
+                                              std::vector<simb::GTruth> const& gtruth,
+                                              std::vector<simb::MCFlux> const& flux)
   {
+    caf::SRTruthBranch truthBranch;
     for(size_t i=0; i<mctruth.size(); i++){
       caf::SRTrueInteraction inter;
 
@@ -368,7 +364,7 @@ namespace caf {
       std::string s(genInfo.generatorVersion);
       char delimiter = '.';
       while ((next = s.find(delimiter, last)) != string::npos){
-        inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));  
+        inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));
         last = next + 1;
       }
       inter.genVersion.push_back(std::stoi(s.substr(last)));
@@ -417,8 +413,7 @@ namespace caf {
       inter.nsec = fNsecondaries;
 
       for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
-        art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
-        uint srID = std::get<2>(mcpart_tuple);
+        auto const& [mcpart, _, srID] = mcpart_tuple;
         bool isPrimary = (mcpart->Mother() == 0);
         SRTrueParticle part;
         part.pdg = mcpart->PdgCode();
@@ -437,10 +432,7 @@ namespace caf {
 
         caf::TrueParticleID ancestor;
         if(fMCParticlesMap.count(mcpart->Mother()) > 0){
-          art::Ptr<simb::MCParticle> ancestor_ptr;
-          bool ancestor_is_primary;
-          int ancestor_id;
-          std::tie(ancestor_ptr, ancestor_is_primary, ancestor_id) = fMCParticlesMap[mcpart->Mother()];
+          auto const& [_, ancestor_is_primary, ancestor_id] = fMCParticlesMap[mcpart->Mother()];
 
           ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary : caf::TrueParticleID::kSecondary;
           ancestor.ixn = part.interaction_id; //Same interaction as the secondary particle
@@ -481,15 +473,18 @@ namespace caf {
     } // loop through MC truth i
 
     truthBranch.nnu = mctruth.size();
+
+    return truthBranch;
   }
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const {
+  caf::SRPFP CAFMaker::GetPFPMetadata(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const {
+    caf::SRPFP pfpBranch;
     art::Ptr<larpandoraobj::PFParticleMetadata> metadata = dune_ana::DUNEAnaPFParticleUtils::GetMetadata(pfp, evt, fPandoraLabel);
       if(metadata.isNull()){
         mf::LogWarning("CAFMaker") << "No metadata found for PFP with ID " << pfp->Self();
-        return;
+        return pfpBranch;
       }
 
       std::map<std::string, float> properties = metadata->GetPropertiesMap();
@@ -529,17 +524,20 @@ namespace caf {
         }
       }
 
+    return pfpBranch;
   }
 
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const {
+  std::tuple<caf::SRCommonRecoBranch, caf::SRFD> CAFMaker::GetRecoInfo(const art::Event &evt, double lar_density) const {
+    caf::SRCommonRecoBranch recoBranch;
+    caf::SRFD fdBranch;
     SRInteractionBranch &ixn = recoBranch.ixn;
 
     //Only filling with Pandora Reco for the moment
     std::vector<SRInteraction> &pandora = ixn.pandora;
-    
+
     lar_pandora::PFParticleVector particleVector;
     lar_pandora::LArPandoraHelper::CollectPFParticles(evt, fPandoraLabel, particleVector);
     lar_pandora::VertexVector vertexVector;
@@ -565,48 +563,50 @@ namespace caf {
           }
         }
 
-        SRDirectionBranch &dir = reco.dir;
-        FillDirectionInfo(dir, evt);
-
+        reco.dir = GetDirectionInfo(evt);
 
         //Neutrino flavours hypotheses
-        SRNeutrinoHypothesisBranch &nuhyp = reco.nuhyp;
-        //Filling only CVN at the moment.
-        FillCVNInfo(nuhyp.cvn, evt);
+        // Fill only CVN at the moment.
+        reco.nuhyp = GetCVNInfo(evt);
 
         //Neutrino energy hypothese
-        SRNeutrinoEnergyBranch &Enu = reco.Enu;
-        FillEnergyInfo(Enu, evt);
+        reco.Enu = GetEnergyInfo(evt);
 
         //List of reconstructed particles
-        SRRecoParticlesBranch &part = reco.part;
-        FillRecoParticlesInfo(part, fdBranch, evt);
+        auto [reco_branch, fd_interactions] = GetRecoParticlesInfo(evt, lar_density);
+        reco.part = std::move(reco_branch);
+        fdBranch.pandora.insert(fdBranch.pandora.end(), std::make_move_iterator(fd_interactions.begin()), std::make_move_iterator(fd_interactions.end()));
+        fdBranch.npandora += fd_interactions.size();
 
         //Assuming a single TrueInteraction for now. TODO: Change this if several interactions end up being simulated in the same event
-        reco.truth = {0}; 
+        reco.truth = {0};
         reco.truthOverlap = {1.};
 
-        pandora.emplace_back(reco);
+        pandora.emplace_back(std::move(reco));
       }
     }
 
     ixn.npandora = pandora.size();
     ixn.ndlp = ixn.dlp.size();
+
+    return {std::move(recoBranch), std::move(fdBranch)};
   }
 
 
   //------------------------------------------------------------------------------
 
 
-  void CAFMaker::FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const{
-    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService>()->DataFor(evt);
+  std::tuple<std::vector<TrueParticleID>, std::vector<float>> CAFMaker::GetTruthMatchingAndOverlap(recob::PFParticle const& pfp, const art::Event &evt, detinfo::DetectorClocksData const& clockData) const
+  {
+    std::vector<TrueParticleID> truth;
+    std::vector<float> truthOverlap;
 
     //First getting all the hits belonging to that PFP
-    std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaPFParticleUtils::GetHits(pfp, evt, fPandoraLabel);
-
     TruthMatchUtils::IDToEDepositMap idToEDepositMap;
-    for (const art::Ptr<recob::Hit>& pHit : hits){
-      TruthMatchUtils::FillG4IDToEnergyDepositMap(idToEDepositMap, clockData, pHit, true);
+    if (auto hitsH = evt.getHandle<std::vector<recob::Hit>>(fHitLabel)) {
+      for (const recob::Hit& pHit : *hitsH) {
+        TruthMatchUtils::FillG4IDToEnergyDepositMap(idToEDepositMap, clockData, pHit, true);
+      }
     }
 
     float totalEDeposit = 0;
@@ -615,20 +615,17 @@ namespace caf {
     }
 
     if (totalEDeposit <= 0) {
-      mf::LogWarning("CAFMaker") << "No energy deposit found for PFP with ID " << pfp->Self() << ". Skipping truth matching.";
-      return;
+      mf::LogWarning("CAFMaker") << "No energy deposit found for PFP with ID " << pfp.Self() << ". Skipping truth matching.";
+      return std::make_tuple(truth, truthOverlap);
     }
 
     for (const auto& [id, eDeposit] : idToEDepositMap) {
       if (fMCParticlesMap.count(id) == 0) {
-        mf::LogWarning("CAFMaker") << "No MCParticle found with ID " << id << " for PFP with ID " << pfp->Self() << ". Skipping.";
+        mf::LogWarning("CAFMaker") << "No MCParticle found with ID " << id << " for PFP with ID " << pfp.Self() << ". Skipping.";
         continue;
       }
 
-      art::Ptr<simb::MCParticle> mcpart;
-      bool isPrimary;
-      int srID;
-      std::tie(mcpart, isPrimary, srID) = fMCParticlesMap.at(id);
+      auto const& [_, isPrimary, srID] = fMCParticlesMap.at(id);
 
       TrueParticleID truePart;
       truePart.type = isPrimary ? TrueParticleID::kPrimary : TrueParticleID::kSecondary;
@@ -639,7 +636,7 @@ namespace caf {
       truthOverlap.push_back(eDeposit / totalEDeposit);
     }
 
-
+    return {std::move(truth), std::move(truthOverlap)};
   }
 
   //------------------------------------------------------------------------------
@@ -676,7 +673,7 @@ namespace caf {
     }
 
     //Returning the minimum distance to the wall
-    
+
     for(auto const& sp: spacePoints){
       double dist = GetWallDistance(*sp);
       if(dist < minDist){
@@ -696,14 +693,14 @@ namespace caf {
     double maxy = -99999;
     double minz = 99999;
     double maxz = -99999;
-  
+
     fActiveBounds = {minx, maxx, miny, maxy, minz, maxz};
-  
+
      for (geo::TPCGeo const& TPC: fGeom->Iterate<geo::TPCGeo>()) {
       // get center in world coordinates
       auto const center = TPC.GetCenter();
       double tpcDim[3] = {TPC.HalfWidth(), TPC.HalfHeight(), 0.5*TPC.Length() };
-  
+
       if( center.X() - tpcDim[0] < fActiveBounds[0] ) fActiveBounds[0] = center.X() - tpcDim[0];
       if( center.X() + tpcDim[0] > fActiveBounds[1] ) fActiveBounds[1] = center.X() + tpcDim[0];
       if( center.Y() - tpcDim[1] < fActiveBounds[2] ) fActiveBounds[2] = center.Y() - tpcDim[1];
@@ -711,7 +708,7 @@ namespace caf {
       if( center.Z() - tpcDim[2] < fActiveBounds[4] ) fActiveBounds[4] = center.Z() - tpcDim[2];
       if( center.Z() + tpcDim[2] > fActiveBounds[5] ) fActiveBounds[5] = center.Z() + tpcDim[2];
     } // for all TPC
-  
+
     //Note that on the y axis there is an extra on non-instrumented 8cm on each side for the HD workspace geom. Not tweaking it here as this would be too hacky
   }
 
@@ -748,8 +745,8 @@ namespace caf {
   }
 
   //------------------------------------------------------------------------------
- 
- 
+
+
   void CAFMaker::beginSubRun(const art::SubRun& sr)
   {
     art::Handle<sumdata::POTSummary> pots = sr.getHandle<sumdata::POTSummary>(fPOTSummaryLabel);
@@ -762,8 +759,10 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillMetaInfo(caf::SRDetectorMeta &meta, const art::Event &evt) const
+  caf::SRDetectorMeta CAFMaker::GetMetaInfo(const art::Event &evt) const
   {
+    caf::SRDetectorMeta meta;
+
     meta.enabled = true;
     meta.run = evt.id().run();
     meta.subrun = evt.id().subRun();
@@ -771,65 +770,72 @@ namespace caf {
     meta.subevt = 0; //Hardcoded to 0, only makes sense in ND where multiple interactions can occur in the same event
 
     //Nothing is filled about the trigger for the moment
+    return meta;
   }
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const
+  caf::SRBeamBranch CAFMaker::GetBeamInfo(const art::Event &evt) const
   {
     //This part will only be relevant when working on real data with real beam.
+    caf::SRBeamBranch beam;
     beam.ismc = true; //Hardcoded to true at the moment.
+    return beam;
   }
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillCVNInfo(caf::SRCVNScoreBranch &cvnBranch, const art::Event &evt) const
+  caf::SRNeutrinoHypothesisBranch CAFMaker::GetCVNInfo(const art::Event &evt) const
   {
+    caf::SRNeutrinoHypothesisBranch nuhyp;
     art::Handle<std::vector<cvn::Result>> cvnin = evt.getHandle<std::vector<cvn::Result>>(fCVNLabel);
 
     if( !cvnin.failedToGet() && !cvnin->empty()) {
       if(fIsAtmoCVN){ //Hotfix to take care of the fact that the CVN for atmospherics is storing results in a weird way...
         const std::vector<std::vector<float>> &scores = (*cvnin)[0].fOutput;
-        cvnBranch.nc = scores[0][2];
-        cvnBranch.nue = scores[0][1];
-        cvnBranch.numu = scores[0][0];
+        nuhyp.cvn.nc = scores[0][2];
+        nuhyp.cvn.nue = scores[0][1];
+        nuhyp.cvn.numu = scores[0][0];
       }
 
       else{ //Normal code
-        cvnBranch.isnubar = (*cvnin)[0].GetIsAntineutrinoProbability();
-        cvnBranch.nue = (*cvnin)[0].GetNueProbability();
-        cvnBranch.numu = (*cvnin)[0].GetNumuProbability();
-        cvnBranch.nutau = (*cvnin)[0].GetNutauProbability();
-        cvnBranch.nc = (*cvnin)[0].GetNCProbability();
+        nuhyp.cvn.isnubar = (*cvnin)[0].GetIsAntineutrinoProbability();
+        nuhyp.cvn.nue = (*cvnin)[0].GetNueProbability();
+        nuhyp.cvn.numu = (*cvnin)[0].GetNumuProbability();
+        nuhyp.cvn.nutau = (*cvnin)[0].GetNutauProbability();
+        nuhyp.cvn.nc = (*cvnin)[0].GetNCProbability();
 
-        cvnBranch.protons0 = (*cvnin)[0].Get0protonsProbability();
-        cvnBranch.protons1 = (*cvnin)[0].Get1protonsProbability();
-        cvnBranch.protons2 = (*cvnin)[0].Get2protonsProbability();
-        cvnBranch.protonsN = (*cvnin)[0].GetNprotonsProbability();
+        nuhyp.cvn.protons0 = (*cvnin)[0].Get0protonsProbability();
+        nuhyp.cvn.protons1 = (*cvnin)[0].Get1protonsProbability();
+        nuhyp.cvn.protons2 = (*cvnin)[0].Get2protonsProbability();
+        nuhyp.cvn.protonsN = (*cvnin)[0].GetNprotonsProbability();
 
-        cvnBranch.chgpi0 = (*cvnin)[0].Get0pionsProbability();
-        cvnBranch.chgpi1 = (*cvnin)[0].Get1pionsProbability();
-        cvnBranch.chgpi2 = (*cvnin)[0].Get2pionsProbability();
-        cvnBranch.chgpiN = (*cvnin)[0].GetNpionsProbability();
+        nuhyp.cvn.chgpi0 = (*cvnin)[0].Get0pionsProbability();
+        nuhyp.cvn.chgpi1 = (*cvnin)[0].Get1pionsProbability();
+        nuhyp.cvn.chgpi2 = (*cvnin)[0].Get2pionsProbability();
+        nuhyp.cvn.chgpiN = (*cvnin)[0].GetNpionsProbability();
 
-        cvnBranch.pizero0 = (*cvnin)[0].Get0pizerosProbability();
-        cvnBranch.pizero1 = (*cvnin)[0].Get1pizerosProbability();
-        cvnBranch.pizero2 = (*cvnin)[0].Get2pizerosProbability();
-        cvnBranch.pizeroN = (*cvnin)[0].GetNpizerosProbability();
+        nuhyp.cvn.pizero0 = (*cvnin)[0].Get0pizerosProbability();
+        nuhyp.cvn.pizero1 = (*cvnin)[0].Get1pizerosProbability();
+        nuhyp.cvn.pizero2 = (*cvnin)[0].Get2pizerosProbability();
+        nuhyp.cvn.pizeroN = (*cvnin)[0].GetNpizerosProbability();
 
-        cvnBranch.neutron0 = (*cvnin)[0].Get0neutronsProbability();
-        cvnBranch.neutron1 = (*cvnin)[0].Get1neutronsProbability();
-        cvnBranch.neutron2 = (*cvnin)[0].Get2neutronsProbability();
-        cvnBranch.neutronN = (*cvnin)[0].GetNneutronsProbability();
+        nuhyp.cvn.neutron0 = (*cvnin)[0].Get0neutronsProbability();
+        nuhyp.cvn.neutron1 = (*cvnin)[0].Get1neutronsProbability();
+        nuhyp.cvn.neutron2 = (*cvnin)[0].Get2neutronsProbability();
+        nuhyp.cvn.neutronN = (*cvnin)[0].GetNneutronsProbability();
       }
-      
+
     }
+
+    return nuhyp;
   }
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillDirectionInfo(caf::SRDirectionBranch &dirBranch, const art::Event &evt) const
+  caf::SRDirectionBranch CAFMaker::GetDirectionInfo(const art::Event &evt) const
   {
+    caf::SRDirectionBranch dirBranch;
     art::Handle<dune::AngularRecoOutput> dirReco = evt.getHandle<dune::AngularRecoOutput>(fDirectionRecoLabelNumu);
     if(!dirReco.failedToGet()){
       dirBranch.lngtrk.SetX(dirReco->fRecoDirection.X());
@@ -860,12 +866,14 @@ namespace caf {
       mf::LogWarning("CAFMaker") << "No AngularRecoOutput found with label '" << fDirectionRecoLabelCalo << "'";
     }
 
+    return dirBranch;
   }
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillEnergyInfo(caf::SRNeutrinoEnergyBranch &ErecBranch, const art::Event &evt) const
+  caf::SRNeutrinoEnergyBranch CAFMaker::GetEnergyInfo(const art::Event &evt) const
   {
+    caf::SRNeutrinoEnergyBranch ErecBranch;
     //Filling the reg CNN results
     art::InputTag itag(fRegCNNLabel, "regcnnresult");
     art::Handle<std::vector<cnn::RegCNNResult>> regcnn = evt.getHandle<std::vector<cnn::RegCNNResult>>(itag);
@@ -905,19 +913,19 @@ namespace caf {
        }
     }
 
+    return ErecBranch;
   }
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt) const
+  std::tuple<caf::SRRecoParticlesBranch, std::vector<caf::SRFDInt>> CAFMaker::GetRecoParticlesInfo(const art::Event &evt, double lar_density) const
   {
+    caf::SRRecoParticlesBranch recoParticlesBranch;
+    std::vector<caf::SRFDInt> fd_interactions;
     //Doing quite a lot of things here related to saving the reco particles
     //Will try to be pedagogical in the comments
 
-    //Getting Ar density in g/cm3
     auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService>()->DataFor(evt);
-    auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService>()->DataFor(evt, clockData);
-    double lar_density = detProp.Density();
 
     //Getting all the PFParticles from the event
     lar_pandora::PFParticleVector particleVector;
@@ -970,7 +978,7 @@ namespace caf {
       }
       pandoraIDToPFPIdx[particle->Self()] = fdIxn.npfps;
 
-      FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
+      std::tie(particle_record.truth, particle_record.truthOverlap) = GetTruthMatchingAndOverlap(*particle, evt, clockData);
       particle_record.walldist = GetWallDistance(*particle, evt); //Getting the distance to the wall for this PFP
       particle_record.contained = (particle_record.walldist < fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
 
@@ -979,11 +987,11 @@ namespace caf {
       if(dune_ana::DUNEAnaPFParticleUtils::HasTrack(particle, evt, fPandoraLabel, fTrackLabel)){
         track = dune_ana::DUNEAnaPFParticleUtils::GetTrack(particle, evt, fPandoraLabel, fTrackLabel);
       }
-      
+
       art::Ptr<recob::Shower> shower = dune_ana::DUNEAnaPFParticleUtils::GetShower(particle, evt, fPandoraLabel, fShowerLabel);
 
       //Seeing which option Pandora prefers
-      bool isTrack = lar_pandora::LArPandoraHelper::IsTrack(particle);
+      bool isTrack = lar_pandora::LArPandoraHelper::IsTrack(*particle);
 
       //For every PFP we create a track and a shower object and save it, independently of the existence of a track object to keep the PFP/Track/Shower parallel indexing
       SRTrack srtrack;
@@ -1043,7 +1051,7 @@ namespace caf {
               }
             }
           }
-          
+
         }
       }
 
@@ -1056,7 +1064,7 @@ namespace caf {
         srshower.direction.SetX(shower->Direction().X());
         srshower.direction.SetY(shower->Direction().Y());
         srshower.direction.SetZ(shower->Direction().Z());
-        
+
         srshower.Evis = Evis; //Using the visible energy of the PFP
 
         //Truth matching already filled at the PFP level, no need to do it again here
@@ -1080,7 +1088,7 @@ namespace caf {
 
           particle_record.E = srshower.Evis; //Using the visible energy of the PFP
           particle_record.E_method = caf::PartEMethod::kCalorimetry;
-          
+
         }
         particle_record.origRecoObjType = caf::RecoObjType::kShower;
       }
@@ -1094,11 +1102,9 @@ namespace caf {
       fdIxn.nshowers++;
 
       //Also saving PFP metadata
-      caf::SRPFP pfp_metarecord;
-      FillPFPMetadata(pfp_metarecord, particle, evt);
-      fdIxn.pfps.push_back(std::move(pfp_metarecord));
+      fdIxn.pfps.push_back(GetPFPMetadata(particle, evt));
       fdIxn.npfps++;
-        
+
       //Saving the particle record for this PFP
       recoParticlesBranch.pandora.push_back(std::move(particle_record));
       recoParticlesBranch.npandora++;
@@ -1134,8 +1140,7 @@ namespace caf {
     }
 
     //Saving the FD interaction record
-    fdBranch.pandora.push_back(std::move(fdIxn));
-    fdBranch.npandora++;
+    fd_interactions.push_back(std::move(fdIxn));
 
     //Adding some extra record with all the leftover hits not associated to any particle
     caf::SRRecoParticle single_hits;
@@ -1149,6 +1154,7 @@ namespace caf {
     recoParticlesBranch.npandora++;
 
     // particle_record.origRecoObjType
+    return {std::move(recoParticlesBranch), std::move(fd_interactions)};
   }
 
 
@@ -1198,14 +1204,14 @@ namespace caf {
 
 
   //------------------------------------------------------------------------------
-  
+
   void CAFMaker::analyze(art::Event const & evt)
   {
     caf::StandardRecord sr;
     caf::StandardRecord* psr = &sr;
 
     PreLoadMCParticlesInfo(evt);
-    
+
 
     if(fTree){
       fTree->SetBranchAddress("rec", &psr);
@@ -1234,13 +1240,10 @@ namespace caf {
       detector = &(sr.meta.fd_hd);
       fdBranch = &(sr.fd.hd);
     }
-    
 
+    *detector = GetMetaInfo(evt);
 
-
-    FillMetaInfo(*detector, evt);
-
-    FillBeamInfo(sr.beam, evt);
+    sr.beam = GetBeamInfo(evt);
     art::Handle<std::vector<simb::MCTruth>> mct = evt.getHandle< std::vector<simb::MCTruth> >(fMCTruthLabel);
     art::Handle<std::vector<simb::GTruth>> gt = evt.getHandle< std::vector<simb::GTruth> >(fGTruthLabel);
     art::Handle<std::vector<simb::MCFlux>> mcft = evt.getHandle< std::vector<simb::MCFlux> >(fMCFluxLabel);
@@ -1254,10 +1257,11 @@ namespace caf {
       mf::LogWarning("CAFMaker") << "No MCFlux. SRTruthBranch will be empty!";
     }
     else {
-      FillTruthInfo(sr.mc, *mct, *gt, *mcft, evt);
+      sr.mc = GetTruthInfo(*mct, *gt, *mcft);
     }
 
-    FillRecoInfo(sr.common, *fdBranch, evt);
+    auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService>()->DataFor(evt);
+    std::tie(sr.common, *fdBranch) = GetRecoInfo(evt, detProp.Density());
 
     if(fTree){
       fTree->Fill();
@@ -1271,11 +1275,6 @@ namespace caf {
   }
 
   //------------------------------------------------------------------------------
-
-  //------------------------------------------------------------------------------
-  void CAFMaker::endSubRun(const art::SubRun& sr){
-  }
-
   void CAFMaker::endJob()
   {
     fMetaTree->Fill();
