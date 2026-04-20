@@ -1864,7 +1864,7 @@ namespace solar
             }
             // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
             bool update_matched_flash = false;
-            if (fFlashMatchBy == "cheat" && OpFlashPur[j] > 0. && OpFlashPE[j] > MFlashPE) {
+            if (fFlashMatchBy == "cheat" && OpFlashPur[j] > 0. && OpFlashPE[j] > MFlashPE && OpFlashPlane[j] == 0) {
               update_matched_flash = true;
             }
             else if (fFlashMatchBy != "cheat") {
