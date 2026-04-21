@@ -22,6 +22,7 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art_root_io/TFileService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 
 #include "duneanaobj/StandardRecord/StandardRecord.h"
 #include "duneanaobj/StandardRecord/SRGlobal.h"
@@ -93,11 +94,11 @@ namespace caf {
     private:
       void PreLoadMCParticlesInfo(art::Event const& evt);
       void FillTruthInfo(caf::SRTruthBranch& sr,
-                         std::vector<simb::MCTruth> const& mctruth,
-                         std::vector<simb::GTruth> const& gtruth,
-                         std::vector<simb::MCFlux> const& flux,
                          art::Event const& evt);
-
+      void FillTruthInfoFromMCTruth(caf::SRTrueInteraction& inter, simb::MCTruth const& mctruth, art::Event const& evt);
+      void FillTruthInfoFromGTruth(caf::SRTrueInteraction& inter, simb::GTruth const& gtruth, art::Event const& evt);
+      void FillTruthInfoFromMCFlux(caf::SRTrueInteraction& inter, simb::MCFlux const& flux, art::Event const& evt);
+      void FillTruthInfoGENIECommon(caf::SRTrueInteraction& inter, simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
       void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
@@ -120,7 +121,8 @@ namespace caf {
       bool fIsAtmoCVN;
       std::string fRegCNNLabel;
 
-      std::string fMCTruthLabel;
+      // std::string fMCTruthLabel;
+      std::vector<std::string> fMCTruthLabel; //To be able to read both the neutrino and cosmic MC truth
       std::string fGTruthLabel;
       std::string fMCFluxLabel;
       std::string fPOTSummaryLabel;
@@ -193,7 +195,8 @@ namespace caf {
       fCVNLabel(pset.get<std::string>("CVNLabel")),
       fIsAtmoCVN(pset.get<bool>("IsAtmoCVN")),
       fRegCNNLabel(pset.get<std::string>("RegCNNLabel")),
-      fMCTruthLabel(pset.get<std::string>("MCTruthLabel")),
+      // fMCTruthLabel(pset.get<std::string>("MCTruthLabel")),
+      fMCTruthLabel(pset.get<std::vector<std::string>>("MCTruthLabel")),
       fGTruthLabel(pset.get<std::string>("GTruthLabel")),
       fMCFluxLabel(pset.get<std::string>("MCFluxLabel")),
       fPOTSummaryLabel(pset.get<std::string>("POTSummaryLabel")),
@@ -300,34 +303,742 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
+  // void CAFMaker::FillTruthInfo(caf::SRTruthBranch& truthBranch, std::vector<simb::MCTruth> const& mctruth, std::vector<simb::GTruth> const& gtruth, std::vector<simb::MCFlux> const& flux, art::Event const& evt)
+  // {
+  //   for(size_t i=0; i<mctruth.size(); i++){
+  //     caf::SRTrueInteraction inter;
+
+  //     inter.id = i;
+  //     inter.genieIdx = FillGENIERecord(mctruth[i], gtruth[i]); //Filling the GENIE EventRecord tree and associating the right index here
+
+  //     const simb::MCNeutrino &neutrino = mctruth[i].GetNeutrino();
+
+  //     inter.pdg = neutrino.Nu().PdgCode();
+  //     inter.pdgorig = flux[i].fntype;
+  //     inter.iscc = !(neutrino.CCNC()); // ccnc is 0=CC 1=NC
+  //     inter.mode = static_cast<caf::ScatteringMode>(neutrino.Mode());
+  //     inter.targetPDG = gtruth[i].ftgtPDG;
+  //     inter.hitnuc = neutrino.HitNuc(); //gtruth[i].fHitNucPDG seems not to be set properly so using the MCNeutrino info
+  //     double nucMass = genie::PDGLibrary::Instance()->Find(inter.hitnuc)->Mass();
+  //     inter.removalE = nucMass - gtruth[i].fHitNucP4.E(); //Estimating the removal energy as hitNucleonMass - hitNucleonEnergy as the actual value is not stored...
+  //     inter.E = neutrino.Nu().E();
+
+  //     inter.vtx.SetX(neutrino.Lepton().Vx());
+  //     inter.vtx.SetY(neutrino.Lepton().Vy());
+  //     inter.vtx.SetZ(neutrino.Lepton().Vz());
+  //     inter.time = neutrino.Lepton().T();
+  //     inter.momentum.SetX(neutrino.Nu().Momentum().X());
+  //     inter.momentum.SetY(neutrino.Nu().Momentum().Y());
+  //     inter.momentum.SetZ(neutrino.Nu().Momentum().Z());
+
+  //     inter.W = neutrino.W();
+  //     inter.Q2 = neutrino.QSqr();
+  //     inter.bjorkenX = neutrino.X();
+  //     inter.inelasticity = neutrino.Y();
+
+  //     TLorentzVector q = neutrino.Nu().Momentum()-neutrino.Lepton().Momentum();
+  //     inter.q0 = q.E();
+  //     inter.modq = q.Vect().Mag();
+  //     inter.t = gtruth[i].fgT;
+  //     inter.isvtxcont = IsVertexContained(inter.vtx);
+
+  //     inter.ischarm = gtruth[i].fIsCharm;
+  //     inter.isseaquark = gtruth[i].fIsSeaQuark;
+  //     inter.resnum = gtruth[i].fResNum;
+  //     inter.xsec = gtruth[i].fXsec;
+  //     inter.genweight = gtruth[i].fweight;
+
+  //     //TODO: To be done later when the info will be propagated/available
+  //     // inter.baseline ///< Distance from decay to interaction [m]
+  //     // inter.prod_vtx ///< Neutrino production vertex [cm; beam coordinates]
+  //     // inter.parent_dcy_mom ///< Neutrino parent momentum at decay [GeV; beam coordinates]
+  //     // inter.parent_dcy_mode ///< Parent hadron/muon decay mode
+  //     // inter.parent_pdg ///< PDG Code of parent particle ID
+  //     // inter.parent_dcy_E ///< Neutrino parent energy at decay [GeV]
+  //     // inter.imp_weight ///< Importance weight from flux file
+
+  //     const simb::MCGeneratorInfo &genInfo = mctruth[i].GeneratorInfo();
+
+  //     std::map<simb::Generator_t, caf::Generator>::const_iterator it = fgenMap.find(genInfo.generator);
+  //     if (it != fgenMap.end())
+  //     {
+  //       inter.generator = it->second;
+  //     }
+  //     else{
+  //       inter.generator = caf::Generator::kUnknownGenerator;
+  //     }
+
+  //     //Parsing the GENIE version because it is stored as a vector of uint.
+  //     size_t last = 0;
+  //     size_t next = 0;
+  //     std::string s(genInfo.generatorVersion);
+  //     char delimiter = '.';
+  //     while ((next = s.find(delimiter, last)) != string::npos){
+  //       inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));  
+  //       last = next + 1;
+  //     }
+  //     inter.genVersion.push_back(std::stoi(s.substr(last)));
+
+  //     //TODO: Ask to implement a map in the StandardRecord to put everything there
+  //     // CURRENTLY DISABLED genConfigString FIELD
+  //     // if(genInfo.generatorConfig.find("tune") != genInfo.generatorConfig.end()){
+  //     //   inter.genConfigString = genInfo.generatorConfig.at("tune");
+  //     // }
+
+  //     inter.nproton = 0;
+  //     inter.nneutron = 0;
+  //     inter.npip = 0;
+  //     inter.npim = 0;
+  //     inter.npi0 = 0;
+  //     inter.nprim = 0;
+  //     inter.nprefsi = 0;
+  //     inter.nsec = 0;
+
+  //     //Looping on the particles in the MC truth to get the prefsi particles only
+  //     for( int p = 0; p < mctruth[i].NParticles(); p++ ) {
+  //       const simb::MCParticle &mcpart = mctruth[i].GetParticle(p);
+  //       if( mcpart.StatusCode() != genie::EGHepStatus::kIStHadronInTheNucleus) continue; //We only fill the prefsi particles here, the primaries will be filled later
+
+  //       caf::SRTrueParticle part;
+  //       int pdg = mcpart.PdgCode();
+  //       part.pdg = pdg;
+  //       part.G4ID = mcpart.TrackId();
+  //       part.interaction_id = inter.id;
+  //       part.time = mcpart.T();
+  //       part.p = caf::SRLorentzVector(mcpart.Momentum());
+  //       part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
+  //       part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
+  //       part.parent = mcpart.Mother();
+
+  //       inter.prefsi.push_back(std::move(part));
+  //       inter.nprefsi++;
+
+  //       //start and end processes/subprocesses are currently not filled as they are strings and it's tricky to convert them back to uint
+  //     }
+
+  //     //Now filling the primaries and secondaries infos
+  //     inter.prim.resize(fNprimaries);
+  //     inter.nprim = fNprimaries;
+  //     inter.sec.resize(fNsecondaries);
+  //     inter.nsec = fNsecondaries;
+
+  //     for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
+  //       art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
+  //       uint srID = std::get<2>(mcpart_tuple);
+  //       bool isPrimary = (mcpart->Mother() == 0);
+  //       SRTrueParticle part;
+  //       part.pdg = mcpart->PdgCode();
+  //       part.G4ID = mcpart->TrackId();
+  //       part.interaction_id = 0; //TODO: Only considering a single interaction in the FD currently
+  //       part.time = mcpart->T();
+  //       part.p = SRLorentzVector(mcpart->Momentum());
+  //       part.start_pos = SRVector3D(mcpart->Position().Vect());
+  //       part.end_pos = SRVector3D(mcpart->EndPosition().Vect());
+  //       part.parent = mcpart->Mother();
+
+  //       for(int i = 0; i < mcpart->NumberDaughters(); i++){
+  //         int daughter = mcpart->Daughter(i);
+  //         part.daughters.push_back(daughter);
+  //       }
+
+  //       caf::TrueParticleID ancestor;
+  //       if(fMCParticlesMap.count(mcpart->Mother()) > 0){
+  //         art::Ptr<simb::MCParticle> ancestor_ptr;
+  //         bool ancestor_is_primary;
+  //         int ancestor_id;
+  //         std::tie(ancestor_ptr, ancestor_is_primary, ancestor_id) = fMCParticlesMap[mcpart->Mother()];
+
+  //         ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary : caf::TrueParticleID::kSecondary;
+  //         ancestor.ixn = part.interaction_id; //Same interaction as the secondary particle
+  //         ancestor.part = ancestor_id; //The ID of the ancestor particle in the StandardRecord
+
+  //         part.ancestor_id = ancestor;
+  //       }
+
+  //       //TODO: Not filling the start and end processes/subprocesses as they are strings and it's tricky to convert them back to uint
+  //       if(isPrimary){
+  //         inter.prim[srID] = std::move(part);
+
+  //         switch(mcpart->PdgCode()){
+  //           case 2212: // Proton
+  //             inter.nproton++;
+  //             break;
+  //           case 2112: // Neutron
+  //             inter.nneutron++;
+  //             break;
+  //           case 211: // Pi+
+  //             inter.npip++;
+  //             break;
+  //           case -211: // Pi-
+  //             inter.npim++;
+  //             break;
+  //           case 111: // Pi0
+  //             inter.npi0++;
+  //             break;
+  //         }
+  //       }
+  //       else{
+  //         inter.sec[srID] = std::move(part);
+  //       }
+
+  //     }
+
+  //     truthBranch.nu.push_back(std::move(inter));
+  //   } // loop through MC truth i
+
+  //   truthBranch.nnu = mctruth.size();
+  // }
+
+  // void CAFMaker::FillTruthInfo(caf::SRTruthBranch& truthBranch,
+  //                             art::Event const& evt)
+  // {
+  //   truthBranch.nu.clear();
+  //   // cout MCTruthLabel
+  //   size_t cumulativeInteractionIndex = 0; // To keep track of the cumulative index across multiple MCTruth vectors
+
+  //   for (const auto& MCTruthLabel : fMCTruthLabel) {
+  //     std::cout << "MCTruthLabel: " << MCTruthLabel << std::endl;
+  //     art::Handle<std::vector<simb::MCTruth>> mctruth = evt.getHandle< std::vector<simb::MCTruth> >(MCTruthLabel);
+  //     art::Handle<std::vector<simb::GTruth>> gtruth = evt.getHandle< std::vector<simb::GTruth> >(fGTruthLabel);
+  //     art::Handle<std::vector<simb::MCFlux>> flux = evt.getHandle< std::vector<simb::MCFlux> >(fMCFluxLabel);
+
+  //     art::ServiceHandle< cheat::ParticleInventoryService > pi_serv;
+  //     const sim::ParticleList & plist = pi_serv->ParticleList();
+
+  //     if (!mctruth.isValid()) {
+  //       mf::LogWarning("CAFMaker") << "MCTruth vector for " << MCTruthLabel << " is not valid. Truth information will be absent.";
+  //       return; // If MCTruth is not valid, we can't fill any truth information, so we can return early.
+  //     }
+  //     if (!gtruth.isValid() || !flux.isValid()) {
+  //       mf::LogWarning("CAFMaker") << "One or more of the truth vectors are not valid. Truth information will be incomplete.";
+  //     }      
+
+  //     std::cout << "MCTruth size: " << (mctruth.isValid() ? mctruth->size() : 0) << std::endl;
+  //     std::cout << "Particles in first MCTruth: " << (mctruth.isValid() && mctruth->size() > 0 ? (*mctruth)[0].NParticles() : 0) << std::endl;
+  //     int numParticles = mctruth.isValid() && mctruth->size() > 0 ? (*mctruth)[0].NParticles() : 0;
+  //     for (int p = 0; p < numParticles; ++p) {
+  //       const simb::MCParticle &mcpart = (*mctruth)[0].GetParticle(p);
+  //       std::cout << "Particle " << p << ": PDG=" << mcpart.PdgCode() << ", TrackID=" << mcpart.TrackId() << ", Mother=" << mcpart.Mother() << std::endl;
+
+  //       caf::SRTrueInteraction inter;
+  //       inter.id = cumulativeInteractionIndex;
+
+  //       caf::SRTrueParticle part;
+  //       int pdg = mcpart.PdgCode();
+  //       part.pdg = pdg;
+  //       part.G4ID = abs(mcpart.TrackId());
+  //       part.time = mcpart.T();
+  //       part.p = caf::SRLorentzVector(mcpart.Momentum());
+  //       part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
+  //       part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
+  //       part.parent = mcpart.Mother();
+  //       // std::cout << "\t" << part.G4ID << " " << " " << pdg << " " << mcpart.Process() << std::endl;
+
+  //       std::deque<unsigned int> secondaries_to_add;
+
+  //       const simb::MCParticle * the_g4_part = nullptr;
+  //       for (auto const g4_part : plist) {
+  //         if ((abs(mcpart.TrackId()) == g4_part.second->TrackId())){
+  //           std::cout << "FOUND IN G4" << std::endl;
+  //           the_g4_part = g4_part.second;
+  //           break;
+  //         }
+  //       }
+
+  //       if (!the_g4_part) continue;
+
+  //       for(int i = 0; i < the_g4_part->NumberDaughters(); i++){
+  //         int daughter = the_g4_part->Daughter(i);
+  //         part.daughters.push_back(daughter);
+  //         secondaries_to_add.push_back(daughter);
+  //       }
+
+
+  //       inter.prim.push_back(std::move(part));
+
+  //       while (secondaries_to_add.size()) {
+  //           auto this_sec_ID = secondaries_to_add.front();
+  //           if (fMCParticlesMap.count(this_sec_ID) > 0) {
+  //               auto mcpart = std::get<0>(fMCParticlesMap[this_sec_ID]);
+  //               caf::SRTrueParticle part;
+  //               int pdg = mcpart->PdgCode();
+  //               part.pdg = pdg;
+  //               part.G4ID = abs(mcpart->TrackId());
+  //               part.time = mcpart->T();
+  //               part.p = caf::SRLorentzVector(mcpart->Momentum());
+  //               part.start_pos = caf::SRVector3D(mcpart->Position().Vect());
+  //               part.end_pos = caf::SRVector3D(mcpart->EndPosition().Vect());
+  //               part.parent = mcpart->Mother();
+
+  //               for(int i = 0; i < mcpart->NumberDaughters(); i++){
+  //                   int daughter = mcpart->Daughter(i);
+  //                   part.daughters.push_back(daughter);
+  //                   secondaries_to_add.push_back(daughter);
+  //               }
+  //               inter.sec.push_back(std::move(part));
+  //           }
+  //           secondaries_to_add.pop_front();
+  //       }
+
+
+        
+  //       truthBranch.nu.push_back(std::move(inter));
+  //       cumulativeInteractionIndex++; 
+  //     }
+
+  //     truthBranch.nnu = truthBranch.nu.size();
+  //   }
+  // }
+
   void CAFMaker::FillTruthInfo(caf::SRTruthBranch& truthBranch,
-                               std::vector<simb::MCTruth> const& mctruth,
-                               std::vector<simb::GTruth> const& gtruth,
-                               std::vector<simb::MCFlux> const& flux,
-                               art::Event const& evt)
+                              art::Event const& evt)
   {
-    for(size_t i=0; i<mctruth.size(); i++){
-      caf::SRTrueInteraction inter;
+    truthBranch.nu.clear();
+    truthBranch.nnu = 0;
 
-      inter.id = i;
-      inter.genieIdx = FillGENIERecord(mctruth[i], gtruth[i]); //Filling the GENIE EventRecord tree and associating the right index here
+    size_t cumulativeInteractionIndex = 0;
 
-      const simb::MCNeutrino &neutrino = mctruth[i].GetNeutrino();
+    art::Handle<std::vector<simb::GTruth>> gtruthHandle;
+    art::Handle<std::vector<simb::MCFlux>> fluxHandle;
 
+    const bool haveGTruthHandle = evt.getByLabel(fGTruthLabel, gtruthHandle) && gtruthHandle.isValid();
+    const bool haveFluxHandle   = evt.getByLabel(fMCFluxLabel, fluxHandle)   && fluxHandle.isValid();
+
+    if (!haveGTruthHandle) {
+      mf::LogWarning("CAFMaker") << "GTruth product not valid. GENIE-derived truth fields will be left unfilled.";
+    }
+    if (!haveFluxHandle) {
+      mf::LogWarning("CAFMaker") << "MCFlux product not valid. Flux-derived truth fields will be left unfilled.";
+    }
+
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    const sim::ParticleList& plist = pi_serv->ParticleList();
+
+    for (const auto& MCTruthLabel : fMCTruthLabel) {
+      art::Handle<std::vector<simb::MCTruth>> mctruthHandle;
+      evt.getByLabel(MCTruthLabel, mctruthHandle);
+
+      if (!mctruthHandle.isValid()) {
+        mf::LogWarning("CAFMaker")
+          << "MCTruth vector for label '" << MCTruthLabel
+          << "' is not valid. Skipping this label.";
+        continue;
+      }
+
+      const auto& mctruthVec = *mctruthHandle;
+
+      for (size_t i = 0; i < mctruthVec.size(); ++i) {
+        const simb::MCTruth& mct = mctruthVec[i];
+        const bool hasNu = mct.NeutrinoSet();
+
+        const bool haveThisGTruth = haveGTruthHandle && i < gtruthHandle->size();
+        const bool haveThisFlux   = haveFluxHandle   && i < fluxHandle->size();
+
+        if (hasNu) {
+          caf::SRTrueInteraction inter;
+          inter.id = cumulativeInteractionIndex++;
+
+          // Optional GENIE record
+          if (haveThisGTruth) {
+            inter.genieIdx = FillGENIERecord(mct, (*gtruthHandle)[i]);
+          }
+
+          // Generator info is meaningful for both neutrino and non-neutrino MCTruth
+          const simb::MCGeneratorInfo& genInfo = mct.GeneratorInfo();
+          auto it = fgenMap.find(genInfo.generator);
+          inter.generator = (it != fgenMap.end()) ? it->second : caf::Generator::kUnknownGenerator;
+
+          inter.genVersion.clear();
+          if (!genInfo.generatorVersion.empty()) {
+            size_t last = 0;
+            size_t next = 0;
+            std::string s(genInfo.generatorVersion);
+            while ((next = s.find('.', last)) != std::string::npos) {
+              inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));
+              last = next + 1;
+            }
+            inter.genVersion.push_back(std::stoi(s.substr(last)));
+          }
+
+          // Neutrino-specific block
+          const simb::MCNeutrino& neutrino = mct.GetNeutrino();
+
+          inter.pdg = neutrino.Nu().PdgCode();
+          inter.iscc = !(neutrino.CCNC());
+          inter.mode = static_cast<caf::ScatteringMode>(neutrino.Mode());
+          inter.E = neutrino.Nu().E();
+
+          inter.vtx.SetX(neutrino.Lepton().Vx());
+          inter.vtx.SetY(neutrino.Lepton().Vy());
+          inter.vtx.SetZ(neutrino.Lepton().Vz());
+          inter.time = neutrino.Lepton().T();
+
+          inter.momentum.SetX(neutrino.Nu().Momentum().X());
+          inter.momentum.SetY(neutrino.Nu().Momentum().Y());
+          inter.momentum.SetZ(neutrino.Nu().Momentum().Z());
+
+          inter.W = neutrino.W();
+          inter.Q2 = neutrino.QSqr();
+          inter.bjorkenX = neutrino.X();
+          inter.inelasticity = neutrino.Y();
+
+          {
+            TLorentzVector q = neutrino.Nu().Momentum() - neutrino.Lepton().Momentum();
+            inter.q0 = q.E();
+            inter.modq = q.Vect().Mag();
+          }
+
+          inter.isvtxcont = IsVertexContained(inter.vtx);
+
+          // Optional GTruth-dependent neutrino fields
+          if (haveThisGTruth) {
+            const simb::GTruth& gt = (*gtruthHandle)[i];
+            inter.targetPDG = gt.ftgtPDG;
+            inter.ischarm = gt.fIsCharm;
+            inter.isseaquark = gt.fIsSeaQuark;
+            inter.resnum = gt.fResNum;
+            inter.xsec = gt.fXsec;
+            inter.genweight = gt.fweight;
+            inter.t = gt.fgT;
+
+            inter.hitnuc = neutrino.HitNuc();
+            auto* pdef = genie::PDGLibrary::Instance()->Find(inter.hitnuc);
+            if (pdef) {
+              const double nucMass = pdef->Mass();
+              inter.removalE = nucMass - gt.fHitNucP4.E();
+            }
+          }
+          else {
+            inter.hitnuc = neutrino.HitNuc();
+          }
+
+          // Optional flux-dependent fields
+          if (haveThisFlux) {
+            inter.pdgorig = (*fluxHandle)[i].fntype;
+          }
+
+          // TODO fields still unavailable in the current chain:
+          // inter.baseline
+          // inter.prod_vtx
+          // inter.parent_dcy_mom
+          // inter.parent_dcy_mode
+          // inter.parent_pdg
+          // inter.parent_dcy_E
+          // inter.imp_weight
+
+          inter.nproton = 0;
+          inter.nneutron = 0;
+          inter.npip = 0;
+          inter.npim = 0;
+          inter.npi0 = 0;
+          inter.nprim = 0;
+          inter.nprefsi = 0;
+          inter.nsec = 0;
+
+          // Pre-FSI particles: only meaningful for neutrino generator record
+          for (int p = 0; p < mct.NParticles(); ++p) {
+            const simb::MCParticle& mcpart = mct.GetParticle(p);
+            if (mcpart.StatusCode() != genie::EGHepStatus::kIStHadronInTheNucleus) continue;
+
+            caf::SRTrueParticle part;
+            part.pdg = mcpart.PdgCode();
+            part.G4ID = mcpart.TrackId();
+            part.interaction_id = inter.id;
+            part.time = mcpart.T();
+            part.p = caf::SRLorentzVector(mcpart.Momentum());
+            part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
+            part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
+            part.parent = mcpart.Mother();
+
+            inter.prefsi.push_back(std::move(part));
+            ++inter.nprefsi;
+          }
+
+          // For neutrino interactions, primaries/secondaries come from the interaction products,
+          // preserving the logic of the first implementation.
+          inter.prim.resize(fNprimaries);
+          inter.sec.resize(fNsecondaries);
+
+          for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
+            art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
+            uint srID = std::get<2>(mcpart_tuple);
+            bool isPrimary = (mcpart->Mother() == 0);
+
+            caf::SRTrueParticle part;
+            part.pdg = mcpart->PdgCode();
+            part.G4ID = mcpart->TrackId();
+            part.interaction_id = inter.id;
+            part.time = mcpart->T();
+            part.p = caf::SRLorentzVector(mcpart->Momentum());
+            part.start_pos = caf::SRVector3D(mcpart->Position().Vect());
+            part.end_pos = caf::SRVector3D(mcpart->EndPosition().Vect());
+            part.parent = mcpart->Mother();
+
+            for (int d = 0; d < mcpart->NumberDaughters(); ++d) {
+              part.daughters.push_back(mcpart->Daughter(d));
+            }
+
+            if (fMCParticlesMap.count(mcpart->Mother()) > 0) {
+              art::Ptr<simb::MCParticle> ancestor_ptr;
+              bool ancestor_is_primary = false;
+              int ancestor_id = -1;
+              std::tie(ancestor_ptr, ancestor_is_primary, ancestor_id) =
+                fMCParticlesMap.at(mcpart->Mother());
+
+              caf::TrueParticleID ancestor;
+              ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary
+                                                  : caf::TrueParticleID::kSecondary;
+              ancestor.ixn = inter.id;
+              ancestor.part = ancestor_id;
+              part.ancestor_id = ancestor;
+            }
+
+            if (isPrimary) {
+              if (srID < inter.prim.size()) inter.prim[srID] = std::move(part);
+
+              switch (mcpart->PdgCode()) {
+                case 2212: ++inter.nproton; break;
+                case 2112: ++inter.nneutron; break;
+                case 211:  ++inter.npip;    break;
+                case -211: ++inter.npim;    break;
+                case 111:  ++inter.npi0;    break;
+                default: break;
+              }
+            }
+            else {
+              if (srID < inter.sec.size()) inter.sec[srID] = std::move(part);
+            }
+          }
+
+          inter.nprim = inter.prim.size();
+          inter.nsec  = inter.sec.size();
+
+          truthBranch.nu.push_back(std::move(inter));
+        }
+        else {
+          // Non-neutrino MCTruth:
+          // each visible source particle becomes its own truth interaction entry.
+          for (int p = 0; p < mct.NParticles(); ++p) {
+            const simb::MCParticle& mcpart = mct.GetParticle(p);
+
+            caf::SRTrueInteraction inter;
+            inter.id = cumulativeInteractionIndex++;
+
+            // Generator info can still be filled
+            const simb::MCGeneratorInfo& genInfo = mct.GeneratorInfo();
+            auto it = fgenMap.find(genInfo.generator);
+            inter.generator = (it != fgenMap.end()) ? it->second : caf::Generator::kUnknownGenerator;
+
+            inter.genVersion.clear();
+            if (!genInfo.generatorVersion.empty()) {
+              size_t last = 0;
+              size_t next = 0;
+              std::string s(genInfo.generatorVersion);
+              while ((next = s.find('.', last)) != std::string::npos) {
+                inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));
+                last = next + 1;
+              }
+              inter.genVersion.push_back(std::stoi(s.substr(last)));
+            }
+
+            caf::SRTrueParticle part;
+            part.pdg = mcpart.PdgCode();
+            part.G4ID = std::abs(mcpart.TrackId());
+            part.interaction_id = inter.id;
+            part.time = mcpart.T();
+            part.p = caf::SRLorentzVector(mcpart.Momentum());
+            part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
+            part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
+            part.parent = mcpart.Mother();
+
+            std::deque<int> secondaries_to_add;
+
+            const simb::MCParticle* the_g4_part = nullptr;
+            for (auto const& g4_part : plist) {
+              if (std::abs(mcpart.TrackId()) == g4_part.second->TrackId()) {
+                the_g4_part = g4_part.second;
+                break;
+              }
+            }
+
+            if (the_g4_part) {
+              for (int d = 0; d < the_g4_part->NumberDaughters(); ++d) {
+                int daughter = the_g4_part->Daughter(d);
+                part.daughters.push_back(daughter);
+                secondaries_to_add.push_back(daughter);
+              }
+            }
+
+            inter.prim.push_back(std::move(part));
+            inter.nprim = 1;
+
+            while (!secondaries_to_add.empty()) {
+              int this_sec_ID = secondaries_to_add.front();
+              secondaries_to_add.pop_front();
+
+              if (fMCParticlesMap.count(this_sec_ID) == 0) continue;
+
+              auto sec_mcpart = std::get<0>(fMCParticlesMap.at(this_sec_ID));
+
+              caf::SRTrueParticle sec;
+              sec.pdg = sec_mcpart->PdgCode();
+              sec.G4ID = std::abs(sec_mcpart->TrackId());
+              sec.interaction_id = inter.id;
+              sec.time = sec_mcpart->T();
+              sec.p = caf::SRLorentzVector(sec_mcpart->Momentum());
+              sec.start_pos = caf::SRVector3D(sec_mcpart->Position().Vect());
+              sec.end_pos = caf::SRVector3D(sec_mcpart->EndPosition().Vect());
+              sec.parent = sec_mcpart->Mother();
+
+              for (int d = 0; d < sec_mcpart->NumberDaughters(); ++d) {
+                int daughter = sec_mcpart->Daughter(d);
+                sec.daughters.push_back(daughter);
+                secondaries_to_add.push_back(daughter);
+              }
+
+              inter.sec.push_back(std::move(sec));
+            }
+
+            inter.nsec = inter.sec.size();
+
+            // Optional visible-particle vertex proxy from the particle start point
+            inter.vtx.SetX(mcpart.Vx());
+            inter.vtx.SetY(mcpart.Vy());
+            inter.vtx.SetZ(mcpart.Vz());
+            inter.time = mcpart.T();
+            inter.momentum.SetX(mcpart.Px());
+            inter.momentum.SetY(mcpart.Py());
+            inter.momentum.SetZ(mcpart.Pz());
+            inter.isvtxcont = IsVertexContained(inter.vtx);
+
+            truthBranch.nu.push_back(std::move(inter));
+          }
+        }
+      }
+    }
+
+    truthBranch.nnu = truthBranch.nu.size();
+  }
+
+  
+  // void CAFMaker::FillTruthInfo(caf::SRTruthBranch& truthBranch,
+  //                             art::Event const& evt)
+  // {
+  //   art::Handle<std::vector<simb::MCTruth>> mctruth = evt.getHandle< std::vector<simb::MCTruth> >(fMCTruthLabel);
+  //   art::ServiceHandle< cheat::ParticleInventoryService > pi_serv;
+  //   const sim::ParticleList & plist = pi_serv->ParticleList();
+
+  
+  //   if (mctruth->size() != 1)
+  //     throw std::runtime_error("MCTruth vector size is not 1 -- this is unexpected");
+    
+  //   auto this_mctruth = (*mctruth)[0];
+  //   caf::SRTrueInteraction inter;
+  //   // std::cout << this_mctruth.Origin() << std::endl;
+  //   //   //Looping on the particles in the MC truth to get the beam particles only
+  //   std::deque<unsigned int> secondaries_to_add;
+  //   for (int p = 0; p < this_mctruth.NParticles(); p++) {
+  //       const simb::MCParticle &mcpart = this_mctruth.GetParticle(p);
+
+  //       caf::SRTrueParticle part;
+  //       int pdg = mcpart.PdgCode();
+  //       part.pdg = pdg;
+  //       part.G4ID = abs(mcpart.TrackId());
+  //       part.time = mcpart.T();
+  //       part.p = caf::SRLorentzVector(mcpart.Momentum());
+  //       part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
+  //       part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
+  //       part.parent = mcpart.Mother();
+  //       // std::cout << "\t" << part.G4ID << " " << " " << pdg << " " << mcpart.Process() << std::endl;
+
+  //       const simb::MCParticle * the_g4_part = nullptr;
+
+  //       for (auto const g4_part : plist) {
+  //         if ((abs(mcpart.TrackId()) == g4_part.second->TrackId())){
+  //           // std::cout << "FOUND IN G4" << std::endl;
+  //           the_g4_part = g4_part.second;
+  //           break;
+  //         }
+  //       }
+  //       if (!the_g4_part) continue;
+  //       for(int i = 0; i < the_g4_part->NumberDaughters(); i++){
+  //         int daughter = the_g4_part->Daughter(i);
+  //         part.daughters.push_back(daughter);
+  //         secondaries_to_add.push_back(daughter);
+  //       }
+
+  //       inter.prim.push_back(std::move(part));
+  //   }
+
+  //   while (secondaries_to_add.size()) {
+  //       auto this_sec_ID = secondaries_to_add.front();
+  //       if (fMCParticlesMap.count(this_sec_ID) > 0) {
+  //           auto mcpart = std::get<0>(fMCParticlesMap[this_sec_ID]);
+  //           caf::SRTrueParticle part;
+  //           int pdg = mcpart->PdgCode();
+  //           part.pdg = pdg;
+  //           part.G4ID = abs(mcpart->TrackId());
+  //           part.time = mcpart->T();
+  //           part.p = caf::SRLorentzVector(mcpart->Momentum());
+  //           part.start_pos = caf::SRVector3D(mcpart->Position().Vect());
+  //           part.end_pos = caf::SRVector3D(mcpart->EndPosition().Vect());
+  //           part.parent = mcpart->Mother();
+
+  //           for(int i = 0; i < mcpart->NumberDaughters(); i++){
+  //               int daughter = mcpart->Daughter(i);
+  //               part.daughters.push_back(daughter);
+  //               secondaries_to_add.push_back(daughter);
+  //           }
+  //           inter.sec.push_back(std::move(part));
+  //       }
+  //       secondaries_to_add.pop_front();
+  //   }
+  //   truthBranch.nu.push_back(std::move(inter));
+
+  // }
+
+
+
+
+  void CAFMaker::FillTruthInfoFromMCTruth(caf::SRTrueInteraction& inter,
+                                          simb::MCTruth const& mctruth,
+                                          art::Event const& evt)
+  {
+    (void)evt;
+
+    const simb::MCNeutrino& neutrino = mctruth.GetNeutrino();
+    // print all the available information in the MCTruth for debugging purposes
+    std::cout << "MCTruth information:" << std::endl;
+    std::cout << "  PdgCode: " << mctruth.GetNeutrino().Nu().PdgCode() << std::endl;
+    std::cout << "  CCNC: " << neutrino.CCNC() << std::endl;
+    std::cout << "  Mode: " << neutrino.Mode() << std::endl;
+    std::cout << "  HitNuc: " << neutrino.HitNuc() << std::endl;
+    std::cout << "  W: " << neutrino.W() << std::endl;
+    std::cout << "  Q2: " << neutrino.QSqr() << std::endl;
+    std::cout << "  X: " << neutrino.X() << std::endl;
+    std::cout << "  Y: " << neutrino.Y() << std::endl;
+
+    // Print all the other available information in the MCTruth for debugging purposes
+    // Loop over MCTruth particles to get pre-FSI particles only
+    for (int p = 0; p < mctruth.NParticles(); ++p) {
+      const simb::MCParticle& part = mctruth.GetParticle(p);
+      std::cout << "  Particle " << p << ": PDG=" << part.PdgCode() << ", TrackID=" << part.TrackId() << ", Mother=" << part.Mother() << ", StatusCode=" << part.StatusCode() << std::endl;
+    }
+    // --------------=
+
+    // if (neutrino exists){
+    if (neutrino.Nu().PdgCode() != -1 and neutrino.Nu().PdgCode() != -2147483648) { // Checking if the neutrino particle exists by verifying that the PDG code is not 0 (which is the default value when no neutrino is present)
       inter.pdg = neutrino.Nu().PdgCode();
-      inter.pdgorig = flux[i].fntype;
-      inter.iscc = !(neutrino.CCNC()); // ccnc is 0=CC 1=NC
+      inter.iscc = !(neutrino.CCNC()); // ccnc is 0=CC, 1=NC
       inter.mode = static_cast<caf::ScatteringMode>(neutrino.Mode());
-      inter.targetPDG = gtruth[i].ftgtPDG;
-      inter.hitnuc = neutrino.HitNuc(); //gtruth[i].fHitNucPDG seems not to be set properly so using the MCNeutrino info
-      double nucMass = genie::PDGLibrary::Instance()->Find(inter.hitnuc)->Mass();
-      inter.removalE = nucMass - gtruth[i].fHitNucP4.E(); //Estimating the removal energy as hitNucleonMass - hitNucleonEnergy as the actual value is not stored...
+      inter.hitnuc = neutrino.HitNuc();
       inter.E = neutrino.Nu().E();
 
       inter.vtx.SetX(neutrino.Lepton().Vx());
       inter.vtx.SetY(neutrino.Lepton().Vy());
       inter.vtx.SetZ(neutrino.Lepton().Vz());
       inter.time = neutrino.Lepton().T();
+
       inter.momentum.SetX(neutrino.Nu().Momentum().X());
       inter.momentum.SetY(neutrino.Nu().Momentum().Y());
       inter.momentum.SetZ(neutrino.Nu().Momentum().Z());
@@ -337,158 +1048,211 @@ namespace caf {
       inter.bjorkenX = neutrino.X();
       inter.inelasticity = neutrino.Y();
 
-      TLorentzVector q = neutrino.Nu().Momentum()-neutrino.Lepton().Momentum();
+      TLorentzVector q = neutrino.Nu().Momentum() - neutrino.Lepton().Momentum();
       inter.q0 = q.E();
       inter.modq = q.Vect().Mag();
-      inter.t = gtruth[i].fgT;
       inter.isvtxcont = IsVertexContained(inter.vtx);
+    }
 
-      inter.ischarm = gtruth[i].fIsCharm;
-      inter.isseaquark = gtruth[i].fIsSeaQuark;
-      inter.resnum = gtruth[i].fResNum;
-      inter.xsec = gtruth[i].fXsec;
-      inter.genweight = gtruth[i].fweight;
+    const simb::MCGeneratorInfo& genInfo = mctruth.GeneratorInfo();
 
-      //TODO: To be done later when the info will be propagated/available
-      // inter.baseline ///< Distance from decay to interaction [m]
-      // inter.prod_vtx ///< Neutrino production vertex [cm; beam coordinates]
-      // inter.parent_dcy_mom ///< Neutrino parent momentum at decay [GeV; beam coordinates]
-      // inter.parent_dcy_mode ///< Parent hadron/muon decay mode
-      // inter.parent_pdg ///< PDG Code of parent particle ID
-      // inter.parent_dcy_E ///< Neutrino parent energy at decay [GeV]
-      // inter.imp_weight ///< Importance weight from flux file
+    std::map<simb::Generator_t, caf::Generator>::const_iterator it = fgenMap.find(genInfo.generator);
+    if (it != fgenMap.end()) {
+      inter.generator = it->second;
+    }
+    else {
+      inter.generator = caf::Generator::kUnknownGenerator;
+    }
 
-      const simb::MCGeneratorInfo &genInfo = mctruth[i].GeneratorInfo();
-
-      std::map<simb::Generator_t, caf::Generator>::const_iterator it = fgenMap.find(genInfo.generator);
-      if (it != fgenMap.end())
-      {
-        inter.generator = it->second;
-      }
-      else{
-        inter.generator = caf::Generator::kUnknownGenerator;
-      }
-
-      //Parsing the GENIE version because it is stored as a vector of uint.
+    inter.genVersion.clear();
+    {
       size_t last = 0;
       size_t next = 0;
       std::string s(genInfo.generatorVersion);
       char delimiter = '.';
-      while ((next = s.find(delimiter, last)) != string::npos){
-        inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));  
+
+      while ((next = s.find(delimiter, last)) != std::string::npos) {
+        inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));
         last = next + 1;
       }
-      inter.genVersion.push_back(std::stoi(s.substr(last)));
+    std::cout << "Here" << std::endl;
 
-      //TODO: Ask to implement a map in the StandardRecord to put everything there
-      // CURRENTLY DISABLED genConfigString FIELD
-      // if(genInfo.generatorConfig.find("tune") != genInfo.generatorConfig.end()){
-      //   inter.genConfigString = genInfo.generatorConfig.at("tune");
-      // }
+      if (last < s.size()) {
+        inter.genVersion.push_back(std::stoi(s.substr(last)));
+      }
+    }
 
-      inter.nproton = 0;
-      inter.nneutron = 0;
-      inter.npip = 0;
-      inter.npim = 0;
-      inter.npi0 = 0;
-      inter.nprim = 0;
-      inter.nprefsi = 0;
-      inter.nsec = 0;
+    // CURRENTLY DISABLED genConfigString FIELD
+    // if(genInfo.generatorConfig.find("tune") != genInfo.generatorConfig.end()){
+    //   inter.genConfigString = genInfo.generatorConfig.at("tune");
+    // }
 
-      //Looping on the particles in the MC truth to get the prefsi particles only
-      for( int p = 0; p < mctruth[i].NParticles(); p++ ) {
-        const simb::MCParticle &mcpart = mctruth[i].GetParticle(p);
-        if( mcpart.StatusCode() != genie::EGHepStatus::kIStHadronInTheNucleus) continue; //We only fill the prefsi particles here, the primaries will be filled later
+    inter.nproton = 0;
+    inter.nneutron = 0;
+    inter.npip = 0;
+    inter.npim = 0;
+    inter.npi0 = 0;
+    inter.nprim = 0;
+    inter.nprefsi = 0;
+    inter.nsec = 0;
 
-        caf::SRTrueParticle part;
-        int pdg = mcpart.PdgCode();
-        part.pdg = pdg;
-        part.G4ID = mcpart.TrackId();
-        part.interaction_id = inter.id;
-        part.time = mcpart.T();
-        part.p = caf::SRLorentzVector(mcpart.Momentum());
-        part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
-        part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
-        part.parent = mcpart.Mother();
+    inter.prefsi.clear();
 
-        inter.prefsi.push_back(std::move(part));
-        inter.nprefsi++;
+    // Loop over MCTruth particles to get pre-FSI particles only
+    for (int p = 0; p < mctruth.NParticles(); ++p) {
+      const simb::MCParticle& mcpart = mctruth.GetParticle(p);
+      if (mcpart.StatusCode() != genie::EGHepStatus::kIStHadronInTheNucleus) continue;
 
-        //start and end processes/subprocesses are currently not filled as they are strings and it's tricky to convert them back to uint
+      caf::SRTrueParticle part;
+      part.pdg = mcpart.PdgCode();
+      part.G4ID = mcpart.TrackId();
+      part.interaction_id = inter.id;
+      part.time = mcpart.T();
+      part.p = caf::SRLorentzVector(mcpart.Momentum());
+      part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
+      part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
+      part.parent = mcpart.Mother();
+
+      inter.prefsi.push_back(std::move(part));
+      inter.nprefsi++;
+    }
+
+    // Fill primaries and secondaries from the event-level MCParticle map
+    inter.prim.resize(fNprimaries);
+    inter.nprim = fNprimaries;
+    inter.sec.resize(fNsecondaries);
+    inter.nsec = fNsecondaries;
+
+    std::cout << "Filling primaries and secondaries for interaction, number of primaries: " << fNprimaries << ", number of secondaries: " << fNsecondaries << std::endl;
+
+    for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
+      (void)tid;
+
+      art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
+      uint srID = std::get<2>(mcpart_tuple);
+      bool isPrimary = (mcpart->Mother() == 0);
+
+      caf::SRTrueParticle part;
+      part.pdg = mcpart->PdgCode();
+      part.G4ID = mcpart->TrackId();
+      part.interaction_id = 0; // TODO: only considering a single interaction in the FD currently
+      part.time = mcpart->T();
+      part.p = caf::SRLorentzVector(mcpart->Momentum());
+      part.start_pos = caf::SRVector3D(mcpart->Position().Vect());
+      part.end_pos = caf::SRVector3D(mcpart->EndPosition().Vect());
+      part.parent = mcpart->Mother();
+
+      part.daughters.clear();
+      for (int i = 0; i < mcpart->NumberDaughters(); ++i) {
+        int daughter = mcpart->Daughter(i);
+        part.daughters.push_back(daughter);
       }
 
-      //Now filling the primaries and secondaries infos
-      inter.prim.resize(fNprimaries);
-      inter.nprim = fNprimaries;
-      inter.sec.resize(fNsecondaries);
-      inter.nsec = fNsecondaries;
+      caf::TrueParticleID ancestor;
+      if (fMCParticlesMap.count(mcpart->Mother()) > 0) {
+        art::Ptr<simb::MCParticle> ancestor_ptr;
+        bool ancestor_is_primary;
+        int ancestor_id;
+        std::tie(ancestor_ptr, ancestor_is_primary, ancestor_id) = fMCParticlesMap.at(mcpart->Mother());
 
-      for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
-        art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
-        uint srID = std::get<2>(mcpart_tuple);
-        bool isPrimary = (mcpart->Mother() == 0);
-        SRTrueParticle part;
-        part.pdg = mcpart->PdgCode();
-        part.G4ID = mcpart->TrackId();
-        part.interaction_id = 0; //TODO: Only considering a single interaction in the FD currently
-        part.time = mcpart->T();
-        part.p = SRLorentzVector(mcpart->Momentum());
-        part.start_pos = SRVector3D(mcpart->Position().Vect());
-        part.end_pos = SRVector3D(mcpart->EndPosition().Vect());
-        part.parent = mcpart->Mother();
+        (void)ancestor_ptr;
 
-        for(int i = 0; i < mcpart->NumberDaughters(); i++){
-          int daughter = mcpart->Daughter(i);
-          part.daughters.push_back(daughter);
-        }
+        ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary
+                                            : caf::TrueParticleID::kSecondary;
+        ancestor.ixn = part.interaction_id;
+        ancestor.part = ancestor_id;
 
-        caf::TrueParticleID ancestor;
-        if(fMCParticlesMap.count(mcpart->Mother()) > 0){
-          art::Ptr<simb::MCParticle> ancestor_ptr;
-          bool ancestor_is_primary;
-          int ancestor_id;
-          std::tie(ancestor_ptr, ancestor_is_primary, ancestor_id) = fMCParticlesMap[mcpart->Mother()];
-
-          ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary : caf::TrueParticleID::kSecondary;
-          ancestor.ixn = part.interaction_id; //Same interaction as the secondary particle
-          ancestor.part = ancestor_id; //The ID of the ancestor particle in the StandardRecord
-
-          part.ancestor_id = ancestor;
-        }
-
-        //TODO: Not filling the start and end processes/subprocesses as they are strings and it's tricky to convert them back to uint
-        if(isPrimary){
-          inter.prim[srID] = std::move(part);
-
-          switch(mcpart->PdgCode()){
-            case 2212: // Proton
-              inter.nproton++;
-              break;
-            case 2112: // Neutron
-              inter.nneutron++;
-              break;
-            case 211: // Pi+
-              inter.npip++;
-              break;
-            case -211: // Pi-
-              inter.npim++;
-              break;
-            case 111: // Pi0
-              inter.npi0++;
-              break;
-          }
-        }
-        else{
-          inter.sec[srID] = std::move(part);
-        }
-
+        part.ancestor_id = ancestor;
       }
 
-      truthBranch.nu.push_back(std::move(inter));
-    } // loop through MC truth i
+      if (isPrimary) {
+        inter.prim[srID] = std::move(part);
 
-    truthBranch.nnu = mctruth.size();
+        switch (mcpart->PdgCode()) {
+          case 2212: // proton
+            inter.nproton++;
+            break;
+          case 2112: // neutron
+            inter.nneutron++;
+            break;
+          case 211: // pi+
+            inter.npip++;
+            break;
+          case -211: // pi-
+            inter.npim++;
+            break;
+          case 111: // pi0
+            inter.npi0++;
+            break;
+          default:
+            break;
+        }
+      }
+      else {
+        inter.sec[srID] = std::move(part);
+      }
+    }
   }
+
+
+  // void CAFMaker::FillTruthInfoFromGTruth(caf::SRTrueInteraction& inter,
+  //                                       simb::GTruth const& gtruth,
+  //                                       art::Event const& evt)
+  // {
+  //   (void)evt;
+
+  //   inter.targetPDG = gtruth.ftgtPDG;
+  //   inter.t = gtruth.fgT;
+  //   inter.ischarm = gtruth.fIsCharm;
+  //   inter.isseaquark = gtruth.fIsSeaQuark;
+  //   inter.resnum = gtruth.fResNum;
+  //   inter.xsec = gtruth.fXsec;
+  //   inter.genweight = gtruth.fweight;
+  // }
+
+
+  // void CAFMaker::FillTruthInfoFromMCFlux(caf::SRTrueInteraction& inter,
+  //                                       simb::MCFlux const& flux,
+  //                                       art::Event const& evt)
+  // {
+  //   (void)evt;
+
+  //   inter.pdgorig = flux.fntype;
+
+  //   // TODO: To be done later when the info will be propagated/available
+  //   // inter.baseline
+  //   // inter.prod_vtx
+  //   // inter.parent_dcy_mom
+  //   // inter.parent_dcy_mode
+  //   // inter.parent_pdg
+  //   // inter.parent_dcy_E
+  //   // inter.imp_weight
+  // }
+
+
+  // void CAFMaker::FillTruthInfoGENIECommon(caf::SRTrueInteraction& inter,
+  //                                         simb::MCTruth const& mctruth,
+  //                                         simb::GTruth const& gtruth)
+  // {
+  //   inter.genieIdx = FillGENIERecord(mctruth, gtruth);
+
+  //   // gtruth.fHitNucPDG seems not to be set properly, so use MCNeutrino::HitNuc()
+  //   // for the PDG code and GTruth for the struck nucleon 4-vector.
+  //   if (inter.hitnuc != 0) {
+  //     auto* particle = genie::PDGLibrary::Instance()->Find(inter.hitnuc);
+  //     if (particle) {
+  //       double nucMass = particle->Mass();
+  //       inter.removalE = nucMass - gtruth.fHitNucP4.E();
+  //     }
+  //     else {
+  //       inter.removalE = 0.;
+  //     }
+  //   }
+  //   else {
+  //     inter.removalE = 0.;
+  //   }
+  // }  
+
 
   //------------------------------------------------------------------------------
 
@@ -500,14 +1264,14 @@ namespace caf {
       }
 
       std::map<std::string, float> properties = metadata->GetPropertiesMap();
-      std::cout << "----------------------------------------" << std::endl;
-      // cout all the properties for debugging
-      std::cout << "Metadata properties for PFP with ID " << pfp->Self() << ":" << std::endl;
-      for(const auto& [key, value] : properties) {
-        std::cout << "  " << key << ": " << value << std::endl;
-      }
+      // std::cout << "----------------------------------------" << std::endl;
+      // // cout all the properties for debugging
+      // std::cout << "Metadata properties for PFP with ID " << pfp->Self() << ":" << std::endl;
+      // for(const auto& [key, value] : properties) {
+      //   std::cout << "  " << key << ": " << value << std::endl;
+      // }
 
-      std::cout << "----------------------------------------" << std::endl;
+      // std::cout << "----------------------------------------" << std::endl;
 
       std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaPFParticleUtils::GetHits(pfp, evt, fPandoraLabel);
       std::vector<art::Ptr<recob::Hit>> hits_U = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, 0);
@@ -592,7 +1356,6 @@ namespace caf {
     lar_pandora::VertexVector vertexVector;
     lar_pandora::PFParticlesToVertices particlesToVertices;
     lar_pandora::LArPandoraHelper::CollectVertices(evt, fPandoraLabel, vertexVector, particlesToVertices);
-    
 
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
@@ -608,6 +1371,10 @@ namespace caf {
       }
       
       if(particle->IsPrimary()){
+        // cout information about the particle for debugging
+        std::cout << "Processing primary particle with ID " << particle->Self() << std::endl;
+
+
         SRInteraction reco;
 
         reco.vtx = SRVector3D(-999, -999, -999); //Setting an unambiguous default value if no vertex is found
@@ -988,7 +1755,6 @@ namespace caf {
     unsigned int nuID = std::numeric_limits<unsigned int>::max();
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
-      std::cout << "Filling information for particle with ID " << particle->Self() << " and pdg hypothesis " << particle->PdgCode() << std::endl;
       if(particle->IsPrimary() && (std::abs(particle->PdgCode()) == 12 || std::abs(particle->PdgCode()) == 14 || std::abs(particle->PdgCode()) == 16)){
         nuID = particle->Self(); //Finding the ID of neutrino's particle
         break;
@@ -1041,12 +1807,11 @@ namespace caf {
 
       //Getting the track and shower objects associated to the PFP
       art::Ptr<recob::Track> track;
-      if(dune_ana::DUNEAnaPFParticleUtils::IsTrack(particle, evt, fPandoraLabel, fTrackLabel)){ //Unlike what its name suggets, this function only checks if an associated track exists
+      if(dune_ana::DUNEAnaPFParticleUtils::HasTrack(particle, evt, fPandoraLabel, fTrackLabel)){ 
         track = dune_ana::DUNEAnaPFParticleUtils::GetTrack(particle, evt, fPandoraLabel, fTrackLabel);
       }
-      
       art::Ptr<recob::Shower> shower;
-      if(dune_ana::DUNEAnaPFParticleUtils::IsShower(particle, evt, fPandoraLabel, fShowerLabel)){ //Unlike what its name suggets, this function only checks if an associated shower exists
+      if(dune_ana::DUNEAnaPFParticleUtils::HasShower(particle, evt, fPandoraLabel, fShowerLabel)){
         shower = dune_ana::DUNEAnaPFParticleUtils::GetShower(particle, evt, fPandoraLabel, fShowerLabel);
       }
       //Seeing which option Pandora prefers
@@ -1058,6 +1823,7 @@ namespace caf {
 
       //We define Evis at the PFP level as the hits are the same for shower and track
       double Evis = GetVisibleEnergy(particle, evt);
+      std::cout << "Evis for PFP with ID " << particle->Self() << " is " << Evis << " in event " << evt.id() << std::endl;
 
       //This variable will be updated correctly during the recob::Track processing and will be used to fill the reco particle energy method if isTrack.
       caf::PartEMethod trackErecoMethod = caf::PartEMethod::kUnknownMethod;
@@ -1176,11 +1942,11 @@ namespace caf {
 
     }
 
-    // cout the pandoraIDtoPFPIdx map for debugging
-    std::cout << "Pandora ID to PFP index map:" << std::endl;
-    for(const auto& [pandoraID, pfpIdx] : pandoraIDToPFPIdx){
-      std::cout << "Pandora ID: " << pandoraID << ", PFP index: " << pfpIdx << std::endl;
-    } 
+    // // cout the pandoraIDtoPFPIdx map for debugging
+    // std::cout << "Pandora ID to PFP index map:" << std::endl;
+    // for(const auto& [pandoraID, pfpIdx] : pandoraIDToPFPIdx){
+    //   std::cout << "Pandora ID: " << pandoraID << ", PFP index: " << pfpIdx << std::endl;
+    // } 
 
 
 
@@ -1237,7 +2003,7 @@ namespace caf {
 
   double CAFMaker::GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const
   {
-    if(!dune_ana::DUNEAnaPFParticleUtils::IsShower(pfp, evt, fPandoraLabel, fShowerLabel)){
+    if(!dune_ana::DUNEAnaPFParticleUtils::HasShower(pfp, evt, fPandoraLabel, fShowerLabel)){
       return 0;
     }
     //Using the shower version of the PFP to compute the visible energy for the particle
@@ -1330,21 +2096,25 @@ namespace caf {
     FillMetaInfo(*detector, evt);
 
     FillBeamInfo(sr.beam, evt);
-    art::Handle<std::vector<simb::MCTruth>> mct = evt.getHandle< std::vector<simb::MCTruth> >(fMCTruthLabel);
-    art::Handle<std::vector<simb::GTruth>> gt = evt.getHandle< std::vector<simb::GTruth> >(fGTruthLabel);
-    art::Handle<std::vector<simb::MCFlux>> mcft = evt.getHandle< std::vector<simb::MCFlux> >(fMCFluxLabel);
-    if ( !mct ) {
-      mf::LogWarning("CAFMaker") << "No MCTruth. SRTruthBranch will be empty!";
-    }
-    else if ( !gt ) {
-      mf::LogWarning("CAFMaker") << "No GTruth. SRTruthBranch will be empty!";
-    }
-    else if ( !mcft ) {
-      mf::LogWarning("CAFMaker") << "No MCFlux. SRTruthBranch will be empty!";
-    }
-    else {
-      FillTruthInfo(sr.mc, *mct, *gt, *mcft, evt);
-    }
+    // art::Handle<std::vector<simb::MCTruth>> mct = evt.getHandle< std::vector<simb::MCTruth> >(fMCTruthLabel);
+    // art::Handle<std::vector<simb::GTruth>> gt = evt.getHandle< std::vector<simb::GTruth> >(fGTruthLabel);
+    // art::Handle<std::vector<simb::MCFlux>> mcft = evt.getHandle< std::vector<simb::MCFlux> >(fMCFluxLabel);
+    // if ( !mct ) {
+    //   mf::LogWarning("CAFMaker") << "No MCTruth. SRTruthBranch will be empty!";
+    //   FillTruthInfoMCTruthOnly(sr.mc, *mct, evt);
+    // }
+    // else if ( !gt ) {
+    //   mf::LogWarning("CAFMaker") << "No GTruth. SRTruthBranch will be empty!";
+    //   FillTruthInfoGTruthOnly(sr.mc, *gt, evt);
+    // }
+    // else if ( !mcft ) {
+    //   mf::LogWarning("CAFMaker") << "No MCFlux. SRTruthBranch will be empty!";
+    //   FillTruthInfoMCFluxOnly(sr.mc, *mcft, evt);
+    // }
+    // else {
+    //   // FillTruthInfo(sr.mc, *mct, *gt, *mcft, evt);
+    // }
+    FillTruthInfo(sr.mc, evt);
 
     FillRecoInfoSliceLoop(sr.common, *fdBranch, evt);
 

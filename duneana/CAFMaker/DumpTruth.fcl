@@ -1,0 +1,25 @@
+process_name: DumpTruth
+
+source: {
+  module_type: RootInput
+  # Keep this small at first so you don't completely flood your terminal!
+  maxEvents:   1  
+}
+
+physics: {
+  analyzers: {
+    dumpmctruth: {
+      module_type: "DumpMCTruth"
+
+      # Change "generator" to match the module label that produced the MCTruth in your file.
+      # Common DUNE labels: "generator" (GENIE), "corsika" (Cosmics), "marley", or "singles".
+      InputTruth: [ "generator", "cosmicgenerator" ] 
+    }
+  }
+
+  # Schedule the analyzer to run
+  ana: [ dumpmctruth ]
+
+  # Tell art that 'ana' is an end path (output/analyzer path)
+  end_paths: [ ana ]
+}

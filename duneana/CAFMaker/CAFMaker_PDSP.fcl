@@ -21,7 +21,9 @@ dunepdsp_cafmaker:
     DirectionRecoLabelCalo:     "anglerecohits"
     PandoraLabel:               "pandora"
     ParticleIDLabel:            "pandorapid"
-    MCTruthLabel:               "generator"
+    # MCTruthLabel:               "generator"
+    # MCTruthLabel:               [ "generator", "cosmicgenerator" ] 
+    MCTruthLabel:               [ "generator" ] 
     GTruthLabel:                "generator"
     MCFluxLabel:                "generator"
     POTSummaryLabel:            "generator"
