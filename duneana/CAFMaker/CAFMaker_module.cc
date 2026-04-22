@@ -57,6 +57,7 @@
 #include "larsim/Utils/TruthMatchUtils.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
+#include "lardata/ArtDataHelper/MVAReader.h"
 
 
 // root
@@ -113,7 +114,7 @@ namespace caf {
       void ComputeActiveBounds();
       double GetSingleHitsEnergy(art::Event const& evt, int plane) const;
       bool IsVertexContained(caf::SRVector3D const& vtx) const;
-
+      void GetMVAResults(caf::SRPFP & output_pfp, const recob::PFParticle & pfp, const art::Event &evt, anab::MVAReader<recob::Hit,4> * hitResults, int planeid, bool charge_weighted) const;
       std::string fCVNLabel;
       bool fIsAtmoCVN;
       std::string fRegCNNLabel;
@@ -122,8 +123,8 @@ namespace caf {
       std::vector<std::string> fMCTruthLabel; //To be able to read both the neutrino and cosmic MC truth
       std::string fGTruthLabel;
       std::string fMCFluxLabel;
+      std::string fMVALabel;
       std::string fPOTSummaryLabel;
-
       std::string fEnergyRecoCaloLabel;
       std::string fEnergyRecoLepCaloLabel;
       std::string fEnergyRecoMuRangeLabel;
@@ -196,6 +197,7 @@ namespace caf {
       fMCTruthLabel(pset.get<std::vector<std::string>>("MCTruthLabel")),
       fGTruthLabel(pset.get<std::string>("GTruthLabel")),
       fMCFluxLabel(pset.get<std::string>("MCFluxLabel")),
+      fMVALabel(pset.get<std::string >("MVALabel")),
       fPOTSummaryLabel(pset.get<std::string>("POTSummaryLabel")),
       fEnergyRecoCaloLabel(pset.get<std::string>("EnergyRecoCaloLabel")),
       fEnergyRecoLepCaloLabel(pset.get<std::string>("EnergyRecoLepCaloLabel")),
@@ -297,6 +299,7 @@ namespace caf {
       } 
     }
   }
+
 
   //------------------------------------------------------------------------------
   void CAFMaker::FillTruthInfo(caf::SRTruthBranch& truthBranch,
@@ -685,10 +688,57 @@ namespace caf {
       }
 
   }
+  
+  //------------------------------------------------------------------------------
+
+  void CAFMaker::GetMVAResults(caf::SRPFP & output_pfp, const recob::PFParticle & pfp, const art::Event &evt, anab::MVAReader<recob::Hit,4> * hitResults, int planeid, bool charge_weighted) const 
+  {
+    
+    // if (planeid < -1 || planeid > 2) {
+    //   std::stringstream ss;
+    //   ss << "Unknown planeid (" << planeid << ") provided to GetMVAResults";
+    //   throw std::runtime_error(
+    //     ss.str()
+    //   );
+    // }
+
+    // //First getting all the hits belonging to that PFP
+    // const auto & hits = (
+    //   planeid == -1 ?
+    //   pfpUtil.GetPFParticleHits_Ptrs(pfp, evt, fPandoraLabel) :
+    //   pfpUtil.GetPFParticleHitsFromPlane_Ptrs(pfp, evt, fPandoraLabel, planeid)
+    // );
+
+    // float denom = 0.;
+    // output_pfp.cnn_stem_scores.charge_weighted = charge_weighted;
+    // output_pfp.cnn_stem_scores.plane_ID = planeid;
+    // for (const auto & hit : hits){
+    //   auto output = hitResults->getOutput(hit);
+
+    //   float scale = (charge_weighted ? hit->Integral() : 1.);
+
+    //   output_pfp.cnn_stem_scores.track_score += scale*output[hitResults->getIndex("track")];
+    //   output_pfp.cnn_stem_scores.shower_score += scale*output[hitResults->getIndex("em")];
+    //   output_pfp.cnn_stem_scores.empty_score += scale*output[hitResults->getIndex("none")];
+    //   output_pfp.cnn_stem_scores.michel_score += scale*output[hitResults->getIndex("michel")];
+    //   denom += scale;
+    // }
+
+    // if (denom > 0.) {
+    //   output_pfp.cnn_stem_scores /= denom;
+    // }
+    // else {
+    //   output_pfp.cnn_stem_scores.track_score = output_pfp.NaN;
+    //   output_pfp.cnn_stem_scores.shower_score = output_pfp.NaN;
+    //   output_pfp.cnn_stem_scores.empty_score = output_pfp.NaN;
+    //   output_pfp.cnn_stem_scores.michel_score = output_pfp.NaN;
+    // }
+  }
 
 
   //------------------------------------------------------------------------------
-  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const {
+  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const 
+  {
     // get handle to slices
     auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
     if (!sliceHandle) {
@@ -709,7 +759,6 @@ namespace caf {
       // Store the interaction for this slice
       recoBranch.ixn.pandora.insert(recoBranch.ixn.pandora.end(), newIxn.pandora.begin(), newIxn.pandora.end());
       recoBranch.ixn.npandora += newIxn.pandora.size();
-
     }
       
   }
@@ -732,23 +781,40 @@ namespace caf {
     lar_pandora::PFParticlesToVertices particlesToVertices;
     lar_pandora::LArPandoraHelper::CollectVertices(evt, fPandoraLabel, vertexVector, particlesToVertices);
 
+    bool found_beam = false;
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
       // check if the particle is beam
-      bool is_test_beam = pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel);
-      if (is_test_beam) {
+      if (pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel)) {
+        found_beam = true;
+        
+        // print some info about the beam particle for debugging
         std::cout << "----------------------" << std::endl;
         std::cout << "Found a beam particle with ID " << particle->Self() << std::endl;
         // print more info about the beam particle: Number of daughters and pdg hypothesis
         std::cout << "Number of daughters: " << particle->Daughters().size() << " and pdg hypothesis: " << particle->PdgCode() << std::endl;
         std::cout << "Is this primary? " << particle->IsPrimary() << std::endl;
         std::cout << "----------------------" << std::endl;
-      }
       
-      if(particle->IsPrimary()){
-        // cout information about the particle for debugging
-        std::cout << "Processing primary particle with ID " << particle->Self() << std::endl;
+        break;
+      }
+    }
+    
+    bool fill_info_condition = false;
+    for (unsigned int n = 0; n < particleVector.size(); ++n) {
+      const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
+      // check if the particle is beam
+      bool is_test_beam = pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel);   
+      
+      fill_info_condition = false;
+      if (found_beam) {
+        fill_info_condition = is_test_beam && particle->IsPrimary();
+      } else {
+        fill_info_condition = particle->IsPrimary();
+      }
 
+      if(fill_info_condition){
+      // if(particle->IsPrimary()){
 
         SRInteraction reco;
 
@@ -788,6 +854,7 @@ namespace caf {
         reco.truthOverlap = {1.};
 
         pandora.emplace_back(reco);
+        break; //We do this work only the first primary particle in the slice to avoid repetitions
       }
     }
 
@@ -1125,6 +1192,7 @@ namespace caf {
     art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
     particleVector = sliceToPFP.at(slicePtr.key());
 
+    anab::MVAReader<recob::Hit,4> * hitResults = new anab::MVAReader<recob::Hit, 4>(evt, fMVALabel);
 
 
     unsigned int nuID = std::numeric_limits<unsigned int>::max();
@@ -1307,6 +1375,7 @@ namespace caf {
 
       //Also saving PFP metadata
       caf::SRPFP pfp_metarecord;
+      GetMVAResults(pfp_metarecord, *particle, evt, hitResults, 2, true );//TODO -- make configurable
       FillPFPMetadata(pfp_metarecord, particle, evt);
       fdIxn.pfps.push_back(std::move(pfp_metarecord));
       fdIxn.npfps++;
