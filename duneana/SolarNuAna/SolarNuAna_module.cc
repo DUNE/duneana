@@ -578,15 +578,15 @@ namespace solar
       double drift_velocity = 0.160396; // HARDCODED HARD-CODE
       std::string geoName = geom->DetectorName();
       std::string geom_identifier;
-    if (geoName.find("dune10kt") != std::string::npos) {
-      geom_identifier = "dune10kt";
-    }
-    else if(geoName.find("dunevd10kt") != std::string::npos) {
-      geom_identifier = "dunevd10kt";
-    }
-    else {
+      if (geoName.find("dune10kt") != std::string::npos) {
+        geom_identifier = "dune10kt";
+      }
+      else if(geoName.find("dunevd10kt") != std::string::npos) {
+        geom_identifier = "dunevd10kt";
+      }
+      else {
         throw cet::exception("SolarNuAna") << "Geometry " << geoName << " not supported. Only dune10kt and dunevd10kt are supported.\n";
-    }
+      }
       std::cout << "Start setting..." << std::endl;
       std::cerr << "Start setting..." << std::endl;
       lowe->SetLikelihoodComputer(fElectronScintYield, geom_identifier, fLikelihoodComputer, fLikelihoodInputDir, fTrendTrheshold, drift_velocity);
@@ -1858,7 +1858,7 @@ namespace solar
             MAdjFlashPreselection.back() = true;
             if (fFlashMatchBy == "maximumlikelihood" || fFlashMatchBy == "cheat") {
               std::cout << "\n\nComputing LogLikelihood ---" << std::endl;
-              OpFlashNegativeLL = -lowe->GetLikelihoodFlashMatch(MVecTime[2][i], MVecCharge[2][i], MVecRecoY[2][i], MVecRecoZ[2][i], OpFlashTime[j], OpFlashPEperOpDet[j], fLikelihoodComputer);
+              OpFlashNegativeLL = lowe->GetLikelihoodFlashMatch(MVecTime[2][i], MVecCharge[2][i], MVecRecoY[2][i], MVecRecoZ[2][i], OpFlashTime[j], OpFlashPEperOpDet[j], fLikelihoodComputer);
               if (std::isinf(OpFlashNegativeLL) || std::isnan(OpFlashNegativeLL)) OpFlashNegativeLL = +2e9;
               MAdjFlashNegativeLL.back() = OpFlashNegativeLL;
             }
