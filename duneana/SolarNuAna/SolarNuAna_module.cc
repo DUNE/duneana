@@ -115,7 +115,7 @@ namespace solar
       std::vector<float> MAdjClNHits, MAdjClInd0NHits, MAdjClInd1NHits, MAdjClRecoY, MAdjClRecoZ, MAdjClR, MAdjClPur, MAdjClGenPur, MAdjClMainE, MAdjClMainP, MAdjClMainK;
       std::vector<float> MAdjClMainX, MAdjClMainY, MAdjClMainZ, MAdjClEndX, MAdjClEndY, MAdjClEndZ, MSignalFrac, MGenFrac;
       std::vector<int>  MAdjFlashPlane, MAdjFlashNHits;
-      std::vector<float> MAdjFlashTime, MAdjFlashResidual, MAdjFlashPE, MAdjFlashMaxPE, MAdjFlashRecoX, MAdjFlashRecoY, MAdjFlashRecoZ, MAdjFlashR, MAdjFlashPur, MAdjFlashSTD, MAdjFlashFast, MAdjFlashNegativeLL;
+      std::vector<float> MAdjFlashTime, MAdjFlashPE, MAdjFlashMaxPE, MAdjFlashRecoX, MAdjFlashRecoY, MAdjFlashRecoZ, MAdjFlashR, MAdjFlashPur, MAdjFlashSTD, MAdjFlashFast, MAdjFlashNegativeLL;
       std::vector<bool> MAdjFlashPreselection;
       std::vector<float> MAdjFlashPEperOpDet;
       std::vector<float> tempPEperOpDet;
@@ -133,7 +133,7 @@ namespace solar
 
       // --- MatchedFlash Variables
       int MFlashNHits, MFlashPlane;
-      float MOpHitAmplitude, MFlashR, MFlashPE, MFlashMaxPE, MFlashPur, MFlashFast, MFlashTime, MFlashSTD, MFlashRecoX, MFlashRecoY, MFlashRecoZ, MFlashResidual, MFlashWaveformTime, MFlashNegativeLL;
+      float MOpHitAmplitude, MFlashR, MFlashPE, MFlashMaxPE, MFlashPur, MFlashFast, MFlashTime, MFlashSTD, MFlashRecoX, MFlashRecoY, MFlashRecoZ, MFlashWaveformTime, MFlashNegativeLL;
       std::vector<float> MFlashPEperOpDet;
       std::vector<int> MFlashWaveform;
       bool MFlashCorrect, MFlashWaveformValid;
@@ -537,7 +537,6 @@ namespace solar
       fSolarNuAnaTree->Branch("AdjOpFlashRecoX", &MAdjFlashRecoX);       // Adj. flash reco X [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoY", &MAdjFlashRecoY);       // Adj. flash reco Y [cm]
       fSolarNuAnaTree->Branch("AdjOpFlashRecoZ", &MAdjFlashRecoZ);       // Adj. flash reco Z [cm]
-      fSolarNuAnaTree->Branch("AdjOpFlashResidual", &MAdjFlashResidual); // Adj. flash residual wrt. cluster
       fSolarNuAnaTree->Branch("AdjOpFlashPEperOpDet", &MAdjFlashPEperOpDet);     // Adj. flash #PE per OpDet
       fSolarNuAnaTree->Branch("AdjOpFlashPreselection", &MAdjFlashPreselection); // Adj. flash preselection (bool)
       fSolarNuAnaTree->Branch("AdjOpFlashNegativeLL", &MAdjFlashNegativeLL);     // Adj. flash negative Log-Likelihood
@@ -558,7 +557,6 @@ namespace solar
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoX", &MFlashRecoX, "MatchedOpFlashRecoX/F");          // Matched flash reco X [cm]
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoY", &MFlashRecoY, "MatchedOpFlashRecoY/F");          // Matched flash reco Y [cm]
     fSolarNuAnaTree->Branch("MatchedOpFlashRecoZ", &MFlashRecoZ, "MatchedOpFlashRecoZ/F");          // Matched flash reco Z [cm]
-    // fSolarNuAnaTree->Branch("MatchedOpFlashResidual", &MFlashResidual, "MatchedOpFlashResidual/F"); // Matched flash residual wrt. cluster
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveform", &MFlashWaveform);                             // Matched flash waveform
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveformTime", &MFlashWaveformTime);                     // Matched flash waveform time [us]
     fSolarNuAnaTree->Branch("MatchedOpFlashWaveformValid", &MFlashWaveformValid);                   // Matched flash waveform valid
@@ -1676,11 +1674,9 @@ namespace solar
           std::string sClusterReco = "";
           std::string sResultColor = "white";
           std::string sAdjClusters = "";
-          float OpFlashResidual = 0;
           float MatchedOpFlashPE = -1e6;
           std::vector<float> MatchedOpFlashPEperOpDet = {};
           float OpFlashNegativeLL = -1e6;
-          // float MatchedOpFlashResidual = 1e6;
           float MatchedOpFlashX = -1e6;
 
           if (MVecNHits[2][i] > fClusterPreselectionNHits)
@@ -1727,7 +1723,6 @@ namespace solar
             MAdjFlashRecoX = {};
             MAdjFlashRecoY = {};
             MAdjFlashRecoZ = {};
-            MAdjFlashResidual = {};
             MAdjFlashPEperOpDet = {};
             MAdjFlashPreselection = {};
             MAdjFlashNegativeLL = {};
@@ -1929,11 +1924,8 @@ namespace solar
               std::transform(OpFlashPEperOpDet[j].begin(), OpFlashPEperOpDet[j].end(), tempPEperOpDet.begin(), [](double val) { return static_cast<float>(val); });
               MAdjFlashPEperOpDet.insert(MAdjFlashPEperOpDet.end(), tempPEperOpDet.begin(), tempPEperOpDet.end());
 
-              // Compute the residual between the predicted cluster signal and the flash
-              adjophits->FlashMatchResidual( OpFlashResidual, OpHitVec[j], MAdjFlashX, double(MVecRecoY[2][i]), double(MVecRecoZ[2][i]) );
-
               // Print the flash information for debugging
-              sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + " with residual " + ProducerUtils::str(OpFlashResidual) + "\n";
+              sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + "\n";
 
               // Make a cut on the flash MaxPE/PE ratio and the number of hits
               if ( OpFlashNHits[j] < fAdjOpFlashMinNHitCut || OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut ) {
@@ -1948,13 +1940,12 @@ namespace solar
                   if (std::isinf(OpFlashNegativeLL) || std::isnan(OpFlashNegativeLL)) OpFlashNegativeLL = +2e9;
                   MAdjFlashNegativeLL.back() = OpFlashNegativeLL;
                 }
-                // If the residual is smaller than the minimum residual, update the minimum residual and the matched flash.
                 bool update_matched_flash = false;
                 if (fFlashMatchBy == "cheat" && OpFlashPur[j] > 0. && OpFlashPE[j] > MFlashPE && OpFlashPlane[j] == 0) {
                   update_matched_flash = true;
                 }
                 else if (fFlashMatchBy != "cheat") {
-                  update_matched_flash =  lowe->SelectPDSFlash(IsFirstFlash, TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i], MVecCharge[2][i], MFlashTime, MFlashPE, OpFlashTime[j], OpFlashPE[j], MFlashResidual, OpFlashNegativeLL);
+                  update_matched_flash =  lowe->SelectPDSFlash(IsFirstFlash, TPCIDdriftTime[MVecTPC[2][i]], MVecTime[2][i], MVecCharge[2][i], MFlashTime, MFlashPE, OpFlashTime[j], OpFlashPE[j], MFlashNegativeLL, OpFlashNegativeLL);
                 }
                 if (update_matched_flash) {
                   IsFirstFlash = false;
@@ -1979,7 +1970,6 @@ namespace solar
                   MFlashWaveformValid = OpFlashWaveformValid[j];
                   MFlashWaveformTime = OpFlashWaveformTime[j];
                   MFlashNegativeLL = OpFlashNegativeLL;
-                  MFlashResidual = OpFlashResidual;
                   // Create an output string with the flash information.
                   sFlashReco = "*** Matched flash: " + ProducerUtils::str(j) + " from " + ProducerUtils::str(int(OpFlashPE.size())) + "\n" +
                     " - Purity " + ProducerUtils::str(100*OpFlashPur[j]) + " %" +
@@ -1989,16 +1979,13 @@ namespace solar
                     " TotalPE " + ProducerUtils::str(OpFlashPE[j]) + " vs expected " + ProducerUtils::str(RefPE) + " (PE)\n" +
                     " - Time " + ProducerUtils::str(OpFlashTime[j]) + " (us)" +
                     " Fast " + ProducerUtils::str(100*OpFlashFast[j]) + " %" +
-                    " Residual " + ProducerUtils::str(OpFlashResidual) + "\n" +
                     " - Reco Time,Y,Z ( " + ProducerUtils::str(MFlashTime) + ", " + ProducerUtils::str(OpFlashY[j]) + ", " + ProducerUtils::str(OpFlashZ[j]) + " )" + "\n" +
                     " - Found valid waveform: " + ProducerUtils::str(MFlashWaveformValid) + "\n"; 
                   MatchedOpFlashX = MAdjFlashX;
-                  // MatchedOpFlashResidual = OpFlashResidual;
                   MatchedOpFlashPE = MFlashPE;
                   MatchedOpFlashPEperOpDet = MFlashPEperOpDet;
                 }
               }
-              MAdjFlashResidual.push_back(OpFlashResidual);
             }
 
             producer->PrintInColor(sFlashMatching, ProducerUtils::GetColor(sResultColor), "Debug");
@@ -2161,7 +2148,6 @@ namespace solar
     MFlashRecoX = -1e6;
     MFlashRecoY = -1e6;
     MFlashRecoZ = -1e6;
-    MFlashResidual = -1e6;
     MFlashWaveform = {};
     MFlashCorrect = false;
     MFlashNegativeLL = -1e6;
