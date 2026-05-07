@@ -1,11 +1,12 @@
 #include "calorimetry_pdune.fcl"
+#include "ProtoDUNEBeamlineUtils.fcl"
 
 BEGIN_PROLOG
 
 dunepdsp_cafmaker:
 {
     module_type:                "CAFMaker"
-    CreateFlatCAF:              true
+    CreateFlatCAF:              false
 
     CVNLabel:                   "cvneva:cvnresult"
     IsAtmoCVN:                  false #Hotfix to take care of the fact that the CVN for atmospherics is storing results in a weird way...
@@ -39,7 +40,14 @@ dunepdsp_cafmaker:
 
     CalorimetryAlg:             @local::pdune_sp_calorimetryalgmc
     RecombFactor:               0.63 #Average recombination factor used the the hits not attached to a PFP
-    
+
+    # Beam information
+    BeamModuleLabel:        "beamevent"
+    BeamlineUtils: @local::standard_protodunebeamlineutils
+    BeamPIDMomentum: 1.
+
+
+
 }
 
 

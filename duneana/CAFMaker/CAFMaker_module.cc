@@ -54,10 +54,15 @@
 #include "dunereco/AnaUtils/DUNEAnaHitUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaEventUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaShowerUtils.h"
+#include "protoduneana/Utilities/ProtoDUNETruthUtils.h"
 #include "larsim/Utils/TruthMatchUtils.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
 #include "lardata/ArtDataHelper/MVAReader.h"
+
+// to extract the beam instrumentation info, I need to include a dependency from protoduneana, which is not ideal
+#include "protoduneana/Utilities/ProtoDUNEBeamlineUtils.h"
+
 
 
 // root
@@ -100,6 +105,7 @@ namespace caf {
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
       void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
+      void BeamInstInfo(const art::Event & evt, caf::SRInteractionBranch& interaction) const;
       void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
       void FillCVNInfo(caf::SRCVNScoreBranch &cvnBranch, const art::Event &evt) const;
       void FillEnergyInfo(caf::SRNeutrinoEnergyBranch &ErecBranch, const art::Event &evt) const;
@@ -145,9 +151,14 @@ namespace caf {
       protoana::ProtoDUNEPFParticleUtils pfpUtil;
       protoana::ProtoDUNETrackUtils trackUtil;
       protoana::ProtoDUNEShowerUtils showerUtil;
+      protoana::ProtoDUNETruthUtils truthUtil;
+
+
 
 
       std::map<int, std::tuple<art::Ptr<simb::MCParticle>, bool, int>> fMCParticlesMap; //[tid] = (MCParticle, isPrimary, SRParticle ID)
+      std::map<int, std::tuple<int, int, int>> fMCParticleIndexMap; //[tid] = [interaction index, primary index, secondary index]
+
       uint fNprimaries = 0;
       uint fNsecondaries = 0;
 
@@ -155,8 +166,8 @@ namespace caf {
       TTree* fMetaTree = nullptr;
       TTree* fGENIETree = nullptr;
 
-      std::unique_ptr<TFile> fFlatFile;
-      TTree* fFlatTree; //Ownership will be managed directly by ROOT
+      std::unique_ptr<TFile> fFlatFile = nullptr;
+      TTree* fFlatTree = nullptr; //Ownership will be managed directly by ROOT
       std::unique_ptr<flat::Flat<caf::StandardRecord>> fFlatRecord;
 
       genie::NtpMCEventRecord *fEventRecord = nullptr;
@@ -170,7 +181,16 @@ namespace caf {
 
       calo::CalorimetryAlg fCalorimetryAlg;                    ///< the calorimetry algorithm
       double fRecombFactor; ///< recombination factor for the isolated hits
-      
+      std::string fBeamModuleLabel;
+      protoana::ProtoDUNEBeamlineUtils fBeamlineUtils;
+      double fBeamPIDMomentum;
+      bool fMCHasBI;
+      double fBeamInstPFix = 1.;
+    
+      bool fNoBeamInst;
+
+
+
       const std::map<simb::Generator_t, caf::Generator> fgenMap = {
         {simb::Generator_t::kUnknown, caf::Generator::kUnknownGenerator},
         {simb::Generator_t::kGENIE,   caf::Generator::kGENIE},
@@ -220,7 +240,12 @@ namespace caf {
       fGeom(&*art::ServiceHandle<geo::Geometry>()),
       fVertexFiducialVolumeCut(pset.get<std::vector<double>>("VertexFiducialVolumeCut")),
       fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")),
-      fRecombFactor(pset.get<double>("RecombFactor"))
+      fRecombFactor(pset.get<double>("RecombFactor")),
+      fBeamModuleLabel(pset.get<std::string>("BeamModuleLabel")),
+      fBeamlineUtils(pset.get< fhicl::ParameterSet >("BeamlineUtils")),
+      fBeamPIDMomentum(pset.get<double>("BeamPIDMomentum", 1.)),
+      fBeamInstPFix(pset.get<double>("BeamInstPFix", 1.)),
+      fNoBeamInst(pset.get<bool>("NoBeamInst", false))
   {
 
     if(pset.get<bool>("CreateFlatCAF")){
@@ -266,12 +291,14 @@ namespace caf {
 
     fGENIETree->Branch("genie_record", "genie::NtpMCEventRecord", &fEventRecord);
 
-    if(fFlatFile){
+    std::cout << "Before creating flat tree." << std::endl;
+    if(fFlatFile != nullptr){
       fFlatFile->cd();
       fFlatTree = new TTree("cafTree", "cafTree");
 
       fFlatRecord = std::make_unique<flat::Flat<caf::StandardRecord>>(fFlatTree, "rec", "", nullptr);
     }
+    std::cout << "After creating flat tree." << std::endl;
 
   }
 
@@ -535,7 +562,9 @@ namespace caf {
 
             caf::SRTrueInteraction inter;
             inter.id = cumulativeInteractionIndex++;
-
+            
+            fMCParticleIndexMap[std::abs(mcpart.TrackId())] = std::make_tuple(static_cast<int>(inter.id), 0, -1); // Fill the interaction index for this particle. Primary and secondary index are not relevant here since we are not filling the prim/sec vectors for non-neutrino interactions
+            
             // Generator info can still be filled
             const simb::MCGeneratorInfo& genInfo = mct.GeneratorInfo();
             auto it = fgenMap.find(genInfo.generator);
@@ -556,13 +585,14 @@ namespace caf {
             caf::SRTrueParticle part;
             part.pdg = mcpart.PdgCode();
             part.G4ID = std::abs(mcpart.TrackId());
+            part.thisIndex = fMCParticleIndexMap[std::abs(mcpart.TrackId())]; 
             part.interaction_id = inter.id;
             part.time = mcpart.T();
             part.p = caf::SRLorentzVector(mcpart.Momentum());
             part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
             part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
             part.parent = mcpart.Mother();
-
+            part.parentIndex = (fMCParticlesMap.count(std::abs(mcpart.Mother())) > 0) ? fMCParticleIndexMap[std::abs(mcpart.Mother())] : std::make_tuple(-1, -1, -1);
             std::deque<int> secondaries_to_add;
 
             const simb::MCParticle* the_g4_part = nullptr;
@@ -577,7 +607,9 @@ namespace caf {
               for (int d = 0; d < the_g4_part->NumberDaughters(); ++d) {
                 int daughter = the_g4_part->Daughter(d);
                 part.daughters.push_back(daughter);
+                fMCParticleIndexMap[std::abs(daughter)] = std::make_tuple(static_cast<int>(inter.id), -1, static_cast<int>(secondaries_to_add.size())); 
                 secondaries_to_add.push_back(daughter);
+                part.daughterIndices.push_back(fMCParticleIndexMap[std::abs(daughter)]);
               }
             }
 
@@ -595,17 +627,21 @@ namespace caf {
               caf::SRTrueParticle sec;
               sec.pdg = sec_mcpart->PdgCode();
               sec.G4ID = std::abs(sec_mcpart->TrackId());
+              sec.thisIndex = fMCParticleIndexMap[std::abs(sec_mcpart->TrackId())]; 
               sec.interaction_id = inter.id;
               sec.time = sec_mcpart->T();
               sec.p = caf::SRLorentzVector(sec_mcpart->Momentum());
               sec.start_pos = caf::SRVector3D(sec_mcpart->Position().Vect());
               sec.end_pos = caf::SRVector3D(sec_mcpart->EndPosition().Vect());
               sec.parent = sec_mcpart->Mother();
+              sec.parentIndex = (fMCParticlesMap.count(std::abs(sec_mcpart->Mother())) > 0) ? fMCParticleIndexMap[std::abs(sec_mcpart->Mother())] : std::make_tuple(-1, -1, -1);
 
               for (int d = 0; d < sec_mcpart->NumberDaughters(); ++d) {
                 int daughter = sec_mcpart->Daughter(d);
                 sec.daughters.push_back(daughter);
+                fMCParticleIndexMap[std::abs(daughter)] = std::make_tuple(static_cast<int>(inter.id), -1, static_cast<int>(secondaries_to_add.size())); 
                 secondaries_to_add.push_back(daughter);
+                sec.daughterIndices.push_back(fMCParticleIndexMap[std::abs(daughter)]);
               }
 
               inter.sec.push_back(std::move(sec));
@@ -628,8 +664,110 @@ namespace caf {
         }
       }
     }
-
     truthBranch.nnu = truthBranch.nu.size();
+  }
+
+  //------------------------------------------------------------------------------
+
+  void CAFMaker::BeamInstInfo(const art::Event & evt, caf::SRInteractionBranch& interaction) const {
+    std::vector<art::Ptr<beam::ProtoDUNEBeamEvent>> beamVec;
+
+    //Get beam instrumentation info
+    //Works for both MC and data, can probably merge these (To do)
+    if (evt.isRealData()) {
+      auto beamHandle
+          = evt.getValidHandle<std::vector<beam::ProtoDUNEBeamEvent>>(
+              fBeamModuleLabel);
+
+      if (beamHandle.isValid()) {
+        art::fill_ptr_vector(beamVec, beamHandle);
+      }
+    }
+    else {
+      try {
+        auto beamHandle
+            = evt.getValidHandle<std::vector<beam::ProtoDUNEBeamEvent>>(
+                "generator");
+
+        if( beamHandle.isValid()){
+          art::fill_ptr_vector(beamVec, beamHandle);
+        }
+        // fMCHasBI = true;
+      }
+      catch (const cet::exception &e) {
+        MF_LOG_WARNING("PDSPAnalyzer") << "BeamEvent generator object not " <<
+                                          "found, moving on" << std::endl;
+        // fMCHasBI = false;
+        return;
+      }
+    }
+
+    //High level info about the beam trigger
+    const beam::ProtoDUNEBeamEvent & beamEvent = *(beamVec.at(0)); 
+    interaction.beam_inst_trigger = beamEvent.GetTimingTrigger();
+    if (evt.isRealData() && !fBeamlineUtils.IsGoodBeamlineTrigger(evt)) {
+      std::cout << "Matched? " << beamEvent.CheckIsMatched() << std::endl;
+      std::vector< double > momenta = beamEvent.GetRecoBeamMomenta();
+      std::cout << momenta.size() << std::endl;
+      MF_LOG_WARNING("PDSPAnalyzer") << "Failed beam quality check" << std::endl;
+      interaction.beam_inst_valid = false;
+      return;
+    }
+
+    //Number of tracks reconstructed in the final four fiber monitors
+    int nTracks = beamEvent.GetBeamTracks().size();
+
+    //Momentum reconstructed from spectrometer
+    std::vector< double > momenta = beamEvent.GetRecoBeamMomenta();
+    int nMomenta = momenta.size();
+
+    if( nMomenta > 0 ){
+      interaction.beam_inst_P = momenta[0];
+
+      if (!evt.isRealData()) {
+        interaction.beam_inst_P *= fBeamInstPFix;
+      }
+    }
+
+    //Time of flight + channel combinations
+    const std::vector<double> the_tofs = beamEvent.GetTOFs();
+    const std::vector<int> the_chans = beamEvent.GetTOFChans();
+    for (size_t iTOF = 0; iTOF < the_tofs.size(); ++iTOF) {
+      interaction.beam_inst_TOF.push_back(the_tofs[iTOF]);
+      interaction.beam_inst_TOF_Chan.push_back(the_chans[iTOF]);
+    }
+
+    interaction.beam_inst_C0 = beamEvent.GetCKov0Status();
+    interaction.beam_inst_C1 = beamEvent.GetCKov1Status();
+    interaction.beam_inst_C0_pressure = beamEvent.GetCKov0Pressure();
+    interaction.beam_inst_C1_pressure = beamEvent.GetCKov1Pressure();
+
+    //position from the projected track into the TPC -- just using the first
+    //index
+    if( nTracks > 0 ){
+      interaction.beam_inst_X = beamEvent.GetBeamTracks()[0].Trajectory().End().X();
+      interaction.beam_inst_Y = beamEvent.GetBeamTracks()[0].Trajectory().End().Y();
+      interaction.beam_inst_Z = beamEvent.GetBeamTracks()[0].Trajectory().End().Z();
+
+      interaction.beam_inst_dirX = beamEvent.GetBeamTracks()[0].Trajectory().EndDirection().X();
+      interaction.beam_inst_dirY = beamEvent.GetBeamTracks()[0].Trajectory().EndDirection().Y();
+      interaction.beam_inst_dirZ = beamEvent.GetBeamTracks()[0].Trajectory().EndDirection().Z();
+    }
+
+    interaction.beam_inst_nTracks = nTracks;
+    interaction.beam_inst_nMomenta = nMomenta;
+
+    //beamline PID 
+    if (evt.isRealData()) {
+      protoana::ProtoDUNEBeamlineUtils fBeamlineUtils_copy = fBeamlineUtils;
+      std::vector< int > pdg_cands = fBeamlineUtils_copy.GetPID( beamEvent, fBeamPIDMomentum );
+      interaction.beam_inst_PDG_candidates.insert( interaction.beam_inst_PDG_candidates.end(), pdg_cands.begin(), pdg_cands.end() );
+    }
+
+    //number of fibers struck in the spectrometer monitors
+    interaction.beam_inst_nFibersP1 = beamEvent.GetActiveFibers( "XBPF022697" ).size();
+    interaction.beam_inst_nFibersP2 = beamEvent.GetActiveFibers( "XBPF022701" ).size();
+    interaction.beam_inst_nFibersP3 = beamEvent.GetActiveFibers( "XBPF022702" ).size();
   }
 
   //------------------------------------------------------------------------------
@@ -693,46 +831,50 @@ namespace caf {
 
   void CAFMaker::GetMVAResults(caf::SRPFP & output_pfp, const recob::PFParticle & pfp, const art::Event &evt, anab::MVAReader<recob::Hit,4> * hitResults, int planeid, bool charge_weighted) const 
   {
-    
-    // if (planeid < -1 || planeid > 2) {
-    //   std::stringstream ss;
-    //   ss << "Unknown planeid (" << planeid << ") provided to GetMVAResults";
-    //   throw std::runtime_error(
-    //     ss.str()
-    //   );
-    // }
+    if (!hitResults) {
+      mf::LogWarning("CAFMaker") << "Null pointer provided for hitResults in GetMVAResults";
+      return;
+    }
 
-    // //First getting all the hits belonging to that PFP
-    // const auto & hits = (
-    //   planeid == -1 ?
-    //   pfpUtil.GetPFParticleHits_Ptrs(pfp, evt, fPandoraLabel) :
-    //   pfpUtil.GetPFParticleHitsFromPlane_Ptrs(pfp, evt, fPandoraLabel, planeid)
-    // );
+    if (planeid < -1 || planeid > 2) {
+      std::stringstream ss;
+      ss << "Unknown planeid (" << planeid << ") provided to GetMVAResults";
+      throw std::runtime_error(
+        ss.str()
+      );
+    }
 
-    // float denom = 0.;
-    // output_pfp.cnn_stem_scores.charge_weighted = charge_weighted;
-    // output_pfp.cnn_stem_scores.plane_ID = planeid;
-    // for (const auto & hit : hits){
-    //   auto output = hitResults->getOutput(hit);
+    //First getting all the hits belonging to that PFP
+    const auto & hits = (
+      planeid == -1 ?
+      pfpUtil.GetPFParticleHits_Ptrs(pfp, evt, fPandoraLabel) :
+      pfpUtil.GetPFParticleHitsFromPlane_Ptrs(pfp, evt, fPandoraLabel, planeid)
+    );
 
-    //   float scale = (charge_weighted ? hit->Integral() : 1.);
+    float denom = 0.;
+    output_pfp.cnn_stem_scores.charge_weighted = charge_weighted;
+    output_pfp.cnn_stem_scores.plane_ID = planeid;
+    for (const auto & hit : hits){
+      auto output = hitResults->getOutput(hit);
 
-    //   output_pfp.cnn_stem_scores.track_score += scale*output[hitResults->getIndex("track")];
-    //   output_pfp.cnn_stem_scores.shower_score += scale*output[hitResults->getIndex("em")];
-    //   output_pfp.cnn_stem_scores.empty_score += scale*output[hitResults->getIndex("none")];
-    //   output_pfp.cnn_stem_scores.michel_score += scale*output[hitResults->getIndex("michel")];
-    //   denom += scale;
-    // }
+      float scale = (charge_weighted ? hit->Integral() : 1.);
 
-    // if (denom > 0.) {
-    //   output_pfp.cnn_stem_scores /= denom;
-    // }
-    // else {
-    //   output_pfp.cnn_stem_scores.track_score = output_pfp.NaN;
-    //   output_pfp.cnn_stem_scores.shower_score = output_pfp.NaN;
-    //   output_pfp.cnn_stem_scores.empty_score = output_pfp.NaN;
-    //   output_pfp.cnn_stem_scores.michel_score = output_pfp.NaN;
-    // }
+      output_pfp.cnn_stem_scores.track_score += scale*output[hitResults->getIndex("track")];
+      output_pfp.cnn_stem_scores.shower_score += scale*output[hitResults->getIndex("em")];
+      output_pfp.cnn_stem_scores.empty_score += scale*output[hitResults->getIndex("none")];
+      output_pfp.cnn_stem_scores.michel_score += scale*output[hitResults->getIndex("michel")];
+      denom += scale;
+    }
+
+    if (denom > 0.) {
+      output_pfp.cnn_stem_scores /= denom;
+    }
+    else {
+      output_pfp.cnn_stem_scores.track_score = output_pfp.NaN;
+      output_pfp.cnn_stem_scores.shower_score = output_pfp.NaN;
+      output_pfp.cnn_stem_scores.empty_score = output_pfp.NaN;
+      output_pfp.cnn_stem_scores.michel_score = output_pfp.NaN;
+    }
   }
 
 
@@ -760,7 +902,6 @@ namespace caf {
       recoBranch.ixn.pandora.insert(recoBranch.ixn.pandora.end(), newIxn.pandora.begin(), newIxn.pandora.end());
       recoBranch.ixn.npandora += newIxn.pandora.size();
     }
-      
   }
 
   void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const {
@@ -801,10 +942,11 @@ namespace caf {
     }
     
     bool fill_info_condition = false;
+    bool is_test_beam = false;
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
       // check if the particle is beam
-      bool is_test_beam = pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel);   
+      is_test_beam = pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel);   
       
       fill_info_condition = false;
       if (found_beam) {
@@ -852,6 +994,9 @@ namespace caf {
         //Assuming a single TrueInteraction for now. TODO: Change this if several interactions end up being simulated in the same event
         reco.truth = {0}; 
         reco.truthOverlap = {1.};
+        
+        // 
+        reco.isBeamSlice = is_test_beam;
 
         pandora.emplace_back(reco);
         break; //We do this work only the first primary particle in the slice to avoid repetitions
@@ -860,6 +1005,19 @@ namespace caf {
 
     ixn.npandora = pandora.size();
     ixn.ndlp = ixn.dlp.size();
+
+    if (found_beam) {
+      ixn.beamPandoraSliceIndex = ixn.npandora - 1;
+
+      if (!fNoBeamInst){
+        BeamInstInfo(evt, ixn);
+        std::cout << "Filled beam instrumentation values." << std::endl;
+      }
+      else{
+        std::cout << "Dummy beam instrumentation values." << std::endl;
+      }    
+
+    }
   }
 
   //------------------------------------------------------------------------------
@@ -900,12 +1058,12 @@ namespace caf {
       TrueParticleID truePart;
       truePart.type = isPrimary ? TrueParticleID::kPrimary : TrueParticleID::kSecondary;
       truePart.ixn = 0; //Assuming a single interaction for now
-      truePart.part = srID;
-
+      // truePart.part = srID;
+      truePart.part = mcpart->TrackId(); // To me it makes more sense to store the G4 track ID here instead of the index in the prim/sec vector, which makes sense only if you have 1 interaction, but can change if needed
+      
       truth.push_back(truePart);
       truthOverlap.push_back(eDeposit / totalEDeposit);
     }
-
 
   }
 
@@ -1192,7 +1350,15 @@ namespace caf {
     art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
     particleVector = sliceToPFP.at(slicePtr.key());
 
-    anab::MVAReader<recob::Hit,4> * hitResults = new anab::MVAReader<recob::Hit, 4>(evt, fMVALabel);
+    // if MVALabel is "", the hitResults pointer will be a null pointer and the GetMVAResults function will return NaN for all the scores without crashing
+    anab::MVAReader<recob::Hit,4> * hitResults;
+    if(fMVALabel == ""){
+      mf::LogWarning("CAFMaker") << "MVALabel is empty, the MVA scores will not be filled";
+      hitResults = nullptr;
+    }
+    else{
+      hitResults = new anab::MVAReader<recob::Hit, 4>(evt, fMVALabel);
+    }
 
 
     unsigned int nuID = std::numeric_limits<unsigned int>::max();
@@ -1247,7 +1413,19 @@ namespace caf {
       FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
       particle_record.walldist = GetWallDistance(*particle, evt); //Getting the distance to the wall for this PFP
       particle_record.contained = (particle_record.walldist < fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
-
+      
+      
+      protoana::MCParticleSharedHits match = truthUtil.GetMCParticleByHits( clockData, *particle, evt, fPandoraLabel, fHitLabel );
+      if (match.particle) {
+        particle_record.truthMatchByHits = match.particle->TrackId();
+        particle_record.truthMatchByHitsIndex = fMCParticleIndexMap.count(std::abs(match.particle->TrackId())) > 0 ? fMCParticleIndexMap.at(std::abs(match.particle->TrackId())) : std::make_tuple(-1, -1, -1); //Getting the index of the matched MCParticle in the SRParticles vector, -1 if not found
+      }
+      else {
+        particle_record.truthMatchByHits = -1;
+        particle_record.truthMatchByHitsIndex = std::make_tuple(-1, -1, -1);
+      }
+      
+      
       //Getting the track and shower objects associated to the PFP
       art::Ptr<recob::Track> track;
       if(dune_ana::DUNEAnaPFParticleUtils::HasTrack(particle, evt, fPandoraLabel, fTrackLabel)){ 
@@ -1540,24 +1718,7 @@ namespace caf {
     FillMetaInfo(*detector, evt);
 
     FillBeamInfo(sr.beam, evt);
-    // art::Handle<std::vector<simb::MCTruth>> mct = evt.getHandle< std::vector<simb::MCTruth> >(fMCTruthLabel);
-    // art::Handle<std::vector<simb::GTruth>> gt = evt.getHandle< std::vector<simb::GTruth> >(fGTruthLabel);
-    // art::Handle<std::vector<simb::MCFlux>> mcft = evt.getHandle< std::vector<simb::MCFlux> >(fMCFluxLabel);
-    // if ( !mct ) {
-    //   mf::LogWarning("CAFMaker") << "No MCTruth. SRTruthBranch will be empty!";
-    //   FillTruthInfoMCTruthOnly(sr.mc, *mct, evt);
-    // }
-    // else if ( !gt ) {
-    //   mf::LogWarning("CAFMaker") << "No GTruth. SRTruthBranch will be empty!";
-    //   FillTruthInfoGTruthOnly(sr.mc, *gt, evt);
-    // }
-    // else if ( !mcft ) {
-    //   mf::LogWarning("CAFMaker") << "No MCFlux. SRTruthBranch will be empty!";
-    //   FillTruthInfoMCFluxOnly(sr.mc, *mcft, evt);
-    // }
-    // else {
-    //   // FillTruthInfo(sr.mc, *mct, *gt, *mcft, evt);
-    // }
+
     FillTruthInfo(sr.mc, evt);
 
     FillRecoInfoSliceLoop(sr.common, *fdBranch, evt);
@@ -1565,12 +1726,13 @@ namespace caf {
     if(fTree){
       fTree->Fill();
     }
-
-    if(fFlatTree){
+    std::cout << "Before filling flat tree." << std::endl;
+    if(fFlatTree != nullptr && fFlatFile != nullptr){
       fFlatRecord->Clear();
       fFlatRecord->Fill(sr);
       fFlatTree->Fill();
     }
+    std::cout << "After filling flat tree." << std::endl;
   }
 
   //------------------------------------------------------------------------------
@@ -1582,6 +1744,7 @@ namespace caf {
   void CAFMaker::endJob()
   {
     fMetaTree->Fill();
+    std::cout << "Before filling flat tree." << std::endl;
 
     if(fFlatFile){
       fFlatFile->cd();
@@ -1590,7 +1753,8 @@ namespace caf {
       fGENIETree->CloneTree()->Write();
       fFlatFile->Close();
     }
-
+    std::cout << "After filling flat tree." << std::endl;
+    
     delete fEventRecord; //Making this a unique_pointer requires too many circonvolutions because of TTree->Branch requiring a pointer to a pointer
 
   }

@@ -26,7 +26,7 @@ dunefd_cafmaker:
     # MCTruthLabel:               [ "generator", "cosmicgenerator" ] 
     GTruthLabel:                "generator"
     MCFluxLabel:                "generator"
-    MVALabel:                   "emtrkmichelid:emtrkmichel"
+    MVALabel:                   ""
     POTSummaryLabel:            "generator"
     TrackLabel:                 "pandoraTrack"
     ShowerLabel:                "pandoraShower"
