@@ -31,9 +31,11 @@ dunepdsp_cafmaker:
     POTSummaryLabel:            "generator"
     TrackLabel:                 "pandora2Track"
     ShowerLabel:                "pandora2Shower"
+    PFParticleLabel:            "pandora"
     SpacePointLabel:            "pandora"
     HitLabel:                   "hitpdune"
     G4Label:                    "largeant"
+    CalorimetryLabelSCE:        "pandora2calo"
 
     VertexFiducialVolumeCut:    [ 20, 20, 20, 20, 20, 20 ] #FV cut margins for all directions minX, maxX, minY, maxY, minZ, maxZ (in cm)
     ContainedDistThreshold:     20 #Distance from the edge of the AV to be considered contained (in cm)

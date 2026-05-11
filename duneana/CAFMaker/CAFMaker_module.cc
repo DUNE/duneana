@@ -54,9 +54,11 @@
 #include "dunereco/AnaUtils/DUNEAnaHitUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaEventUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaShowerUtils.h"
+#include "protoduneana/Utilities/ProtoDUNEBeamlineUtils.h"
 #include "protoduneana/Utilities/ProtoDUNETruthUtils.h"
 #include "larsim/Utils/TruthMatchUtils.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larreco/RecoAlg/TrackMomentumCalculator.h"
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
 #include "lardata/ArtDataHelper/MVAReader.h"
 
@@ -102,11 +104,13 @@ namespace caf {
       void FillTruthInfo(caf::SRTruthBranch& sr,
                          art::Event const& evt);
       void FillTruthInfoGENIECommon(caf::SRTrueInteraction& inter, simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
+      double ComputeTrueInteractingEnergy(const art::Event & evt, const simb::MCParticle* true_beam_particle) const;
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
-      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
+      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch& truthBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
       void BeamInstInfo(const art::Event & evt, caf::SRInteractionBranch& interaction) const;
-      void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
+      void ComputeRecoInteractingEnergy(const art::Event & evt, const recob::Track * thisTrack, detinfo::DetectorClocksData const& clockData, caf::SRInteractionBranch& interaction, caf::SRTruthBranch& truthBranch) const;
+      void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch& truthBranch, const art::Event &evt) const;
       void FillCVNInfo(caf::SRCVNScoreBranch &cvnBranch, const art::Event &evt) const;
       void FillEnergyInfo(caf::SRNeutrinoEnergyBranch &ErecBranch, const art::Event &evt) const;
       void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
@@ -144,10 +148,12 @@ namespace caf {
       std::string fParticleIDLabel;
       std::string fTrackLabel;
       std::string fShowerLabel;
+      std::string fPFParticleLabel;
       std::string fSpacePointLabel;
       std::string fContainedDistThreshold;
       std::string fHitLabel;
       std::string fG4Label;
+      std::string fCalorimetryLabelSCE;
       protoana::ProtoDUNEPFParticleUtils pfpUtil;
       protoana::ProtoDUNETrackUtils trackUtil;
       protoana::ProtoDUNEShowerUtils showerUtil;
@@ -188,7 +194,7 @@ namespace caf {
       double fBeamInstPFix = 1.;
     
       bool fNoBeamInst;
-
+      bool fVPlaneAsCollector = false;
 
 
       const std::map<simb::Generator_t, caf::Generator> fgenMap = {
@@ -232,10 +238,12 @@ namespace caf {
       fParticleIDLabel(pset.get< std::string >("ParticleIDLabel")),
       fTrackLabel(pset.get< std::string >("TrackLabel")),
       fShowerLabel(pset.get< std::string >("ShowerLabel")),
+      fPFParticleLabel(pset.get< std::string >("PFParticleLabel")),
       fSpacePointLabel(pset.get< std::string >("SpacePointLabel")),
       fContainedDistThreshold(pset.get< std::string >("ContainedDistThreshold")),
       fHitLabel(pset.get< std::string >("HitLabel")),
       fG4Label(pset.get< std::string >("G4Label")),
+      fCalorimetryLabelSCE(pset.get<std::string>("CalorimetryLabelSCE")),
       fEventRecord(new genie::NtpMCEventRecord),
       fGeom(&*art::ServiceHandle<geo::Geometry>()),
       fVertexFiducialVolumeCut(pset.get<std::vector<double>>("VertexFiducialVolumeCut")),
@@ -245,7 +253,8 @@ namespace caf {
       fBeamlineUtils(pset.get< fhicl::ParameterSet >("BeamlineUtils")),
       fBeamPIDMomentum(pset.get<double>("BeamPIDMomentum", 1.)),
       fBeamInstPFix(pset.get<double>("BeamInstPFix", 1.)),
-      fNoBeamInst(pset.get<bool>("NoBeamInst", false))
+      fNoBeamInst(pset.get<bool>("NoBeamInst", false)),
+      fVPlaneAsCollector(pset.get<bool>("VPlaneAsCollector", false))
   {
 
     if(pset.get<bool>("CreateFlatCAF")){
@@ -594,6 +603,7 @@ namespace caf {
             part.parent = mcpart.Mother();
             part.parentIndex = (fMCParticlesMap.count(std::abs(mcpart.Mother())) > 0) ? fMCParticleIndexMap[std::abs(mcpart.Mother())] : std::make_tuple(-1, -1, -1);
             std::deque<int> secondaries_to_add;
+            part.true_beam_interactingEnergy = ComputeTrueInteractingEnergy(evt, &mcpart);
 
             const simb::MCParticle* the_g4_part = nullptr;
             for (auto const& g4_part : plist) {
@@ -635,6 +645,8 @@ namespace caf {
               sec.end_pos = caf::SRVector3D(sec_mcpart->EndPosition().Vect());
               sec.parent = sec_mcpart->Mother();
               sec.parentIndex = (fMCParticlesMap.count(std::abs(sec_mcpart->Mother())) > 0) ? fMCParticleIndexMap[std::abs(sec_mcpart->Mother())] : std::make_tuple(-1, -1, -1);
+
+              sec.true_beam_interactingEnergy = ComputeTrueInteractingEnergy(evt, sec_mcpart.get());
 
               for (int d = 0; d < sec_mcpart->NumberDaughters(); ++d) {
                 int daughter = sec_mcpart->Daughter(d);
@@ -768,7 +780,189 @@ namespace caf {
     interaction.beam_inst_nFibersP1 = beamEvent.GetActiveFibers( "XBPF022697" ).size();
     interaction.beam_inst_nFibersP2 = beamEvent.GetActiveFibers( "XBPF022701" ).size();
     interaction.beam_inst_nFibersP3 = beamEvent.GetActiveFibers( "XBPF022702" ).size();
+
   }
+
+  //------------------------------------------------------------------------------
+  void CAFMaker::ComputeRecoInteractingEnergy(const art::Event & evt, const recob::Track * thisTrack, detinfo::DetectorClocksData const& clockData, caf::SRInteractionBranch& interaction, caf::SRTruthBranch& truthBranch) const {
+    auto allHits = evt.getValidHandle<std::vector<recob::Hit>>(fHitLabel);
+
+    trkf::TrackMomentumCalculator track_p_calc;
+    std::cout<< "Calculating track momentum with range method..." << std::endl;
+
+    auto calo = trackUtil.GetRecoTrackCalorimetry(
+        *thisTrack, evt, fTrackLabel, fCalorimetryLabelSCE);
+      
+    std::cout<< "Calorimetry size: " << calo.size() << std::endl;
+    std::cout<< "Hits size: " << allHits->size() << std::endl;
+    bool found_calo = false;
+    size_t index = 0;
+    for (index = 0; index < calo.size(); ++index) {
+      auto this_plane = calo[index].PlaneID().Plane;
+      std::cout<< "Plane: " << this_plane << " and fVPlaneAsCollector: " << fVPlaneAsCollector << std::endl;
+      if ((this_plane == 2 && !fVPlaneAsCollector) ||
+          (this_plane == 1 && fVPlaneAsCollector)) {
+        found_calo = true;
+        break;
+      }
+    }
+    std::cout<< "Before found calo..." << std::endl;
+
+    if (!found_calo) return;
+    std::cout<< "After found calo..." << std::endl;
+
+    auto calo_dEdX = calo[index].dEdx();
+    auto calo_range = calo[index].ResidualRange();
+    auto TpIndices = calo[index].TpIndices();
+    auto theXYZPoints = calo[index].XYZ();
+
+    // ===================================================================
+    //Struct to handle calorimetry info more easily
+    struct calo_point{
+
+      calo_point();
+      calo_point(size_t w, double in_tick, double p, double dqdx, double dedx, double dq,
+                double cali_dqdx, double cali_dedx, double r, size_t index, double input_wire_z, int t,
+                double efield, double input_x, double input_y, double input_z)
+          : wire(w), tick(in_tick), pitch(p), dQdX(dqdx), dEdX(dedx), dQ(dq),
+            calibrated_dQdX(cali_dqdx), calibrated_dEdX(cali_dedx),
+            res_range(r), hit_index(index), wire_z(input_wire_z), tpc(t),
+            EField(efield), x(input_x), y(input_y), z(input_z) {};
+
+      size_t wire;
+      double tick;
+      double pitch;
+      double dQdX;
+      double dEdX;
+      double dQ;
+      double calibrated_dQdX;
+      double calibrated_dEdX;
+      double res_range;
+      size_t hit_index;
+      double wire_z;
+      int tpc;
+      double EField;
+      double x, y, z;
+
+      std::vector<double> IDE_electrons, IDE_energies;
+      std::vector<int> IDE_IDs;
+      std::vector<int> IDE_origins;
+
+      void SetIDE_electrons(std::vector<double> input) {IDE_electrons = input;};
+      void SetIDE_energies(std::vector<double> input) {IDE_energies = input;};
+      void SetIDE_IDs(std::vector<int> input) {IDE_IDs = input;};
+      void SetIDE_origins(std::vector<int> input) {IDE_origins = input;};
+    };
+    // =====================================================
+
+    std::vector<calo_point> reco_beam_calo_points;
+    for (size_t i = 0; i < calo_dEdX.size(); ++i) {
+      const recob::Hit & theHit = (*allHits)[TpIndices[i]];
+      reco_beam_calo_points.push_back(
+        calo_point(
+          theHit.WireID().Wire,
+          theHit.PeakTime(),
+          calo[index].TrkPitchVec()[i],
+          calo[index].dQdx()[i],
+          calo_dEdX[i],
+          theHit.Integral(),
+          calo[index].dQdx()[i],
+          calo_dEdX[i],
+          calo_range[i],
+          TpIndices[i],
+          0., 0., 0.,
+          theXYZPoints[i].X(),
+          theXYZPoints[i].Y(),
+          theXYZPoints[i].Z()
+        )
+      );
+    }
+
+    std::sort(reco_beam_calo_points.begin(), reco_beam_calo_points.end(),
+              [](const calo_point &a, const calo_point &b) { return a.z < b.z; });
+
+    std::cout<< "After sorting..." << std::endl;
+
+    double init_KE = 0.;
+    if (evt.isRealData() || fMCHasBI) {
+      double mass = 139.57;
+      init_KE = std::sqrt(1.e6 * interaction.beam_inst_P * interaction.beam_inst_P + mass * mass) - mass;
+    } else {
+      // access the mc branch to get the true beam particle info
+      auto &nu = truthBranch.nu[0]; // assuming the first interaction is the beam particle interaction
+      double true_beam_mass = genie::PDGLibrary::Instance()->Find(nu.pdg)->Mass();
+      double initial_E = nu.prim[0].p.E;
+      init_KE = initial_E - true_beam_mass;
+    }
+
+    std::vector<double>  reco_beam_incidentEnergies;
+    reco_beam_incidentEnergies.push_back(init_KE);
+
+    for (size_t i = 0; i + 1 < reco_beam_calo_points.size(); ++i) {
+      if (reco_beam_calo_points[i].dEdX < 0.) continue;
+      double this_energy = reco_beam_incidentEnergies.back() -
+                          (reco_beam_calo_points[i].dEdX *
+                            reco_beam_calo_points[i].pitch);
+      reco_beam_incidentEnergies.push_back(this_energy);
+    }
+
+    if (!reco_beam_incidentEnergies.empty())
+      interaction.reco_beam_interactingEnergy = reco_beam_incidentEnergies.back();
+
+  }  
+
+
+  //------------------------------------------------------------------------------
+
+  double CAFMaker::ComputeTrueInteractingEnergy(const art::Event & evt, const simb::MCParticle* true_beam_particle) const {
+
+    const simb::MCTrajectory & true_beam_trajectory = true_beam_particle->Trajectory();
+    double true_beam_mass = true_beam_particle->Mass()*1.e3;
+    double true_beam_startP = true_beam_particle->P();
+
+    double init_KE = sqrt(1.e6 * true_beam_startP*true_beam_startP +
+                          true_beam_mass*true_beam_mass) - true_beam_mass;
+
+    //slice up the view2_IDEs up by the wire pitch
+    auto sliced_ides = slice_IDEs( view2_IDEs, fZ0, fPitch, true_beam_endZ);
+
+
+    for (size_t i = 1; i < true_beam_trajectory.size(); ++i) {
+      double z0 = true_beam_trajectory.Z(i-1);
+      double z1 = true_beam_trajectory.Z(i);
+      //const TGeoMaterial * mat = geom->Material(test_point);
+      if (z0 < ide_z && z1 > ide_z) {
+        //const TGeoMaterial * mat1 = geom->Material(test_point_1);
+        init_KE = 1.e3 * true_beam_trajectory.E(i-1) - true_beam_mass;
+        break;
+      }
+    }    
+
+    //Go through the sliced up IDEs to create the thin targets 
+    double true_beam_interactingEnergy = -1.;
+    true_beam_incidentEnergies.push_back( init_KE );
+    for( auto it = sliced_ides.begin(); it != sliced_ides.end(); ++it ){
+
+      auto theIDEs = it->second;
+      if (theIDEs.size()) {
+
+        double ide_z = theIDEs[0]->z;
+
+        double deltaE = 0.;
+        for( size_t i = 0; i < theIDEs.size(); ++i ){
+          deltaE += theIDEs[i]->energy;
+        }
+
+        true_beam_incidentEnergies.push_back( true_beam_incidentEnergies.back() - deltaE );
+      }
+      true_beam_incidentEnergies.pop_back();
+      if( true_beam_incidentEnergies.size() ) true_beam_interactingEnergy = true_beam_incidentEnergies.back();
+
+    }
+
+    return true_beam_interactingEnergy;
+  }  
+
 
   //------------------------------------------------------------------------------
 
@@ -879,7 +1073,7 @@ namespace caf {
 
 
   //------------------------------------------------------------------------------
-  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const 
+  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch& truthBranch, const art::Event &evt) const 
   {
     // get handle to slices
     auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
@@ -897,14 +1091,14 @@ namespace caf {
       std::cout << "Filling reco info for slice " << slicePtr.key() << " with " << pfpVec.size() << " PFPs" << std::endl;
       // Create a fresh interaction object for each slice
       caf::SRInteractionBranch newIxn;
-      FillRecoInfo(recoBranch, fdBranch, evt, slicePtr);
+      FillRecoInfo(recoBranch, fdBranch, truthBranch, evt, slicePtr);
       // Store the interaction for this slice
       recoBranch.ixn.pandora.insert(recoBranch.ixn.pandora.end(), newIxn.pandora.begin(), newIxn.pandora.end());
       recoBranch.ixn.npandora += newIxn.pandora.size();
     }
   }
 
-  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const {
+  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch& truthBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const {
     SRInteractionBranch &ixn = recoBranch.ixn;
 
     //Only filling with Pandora Reco for the moment
@@ -997,7 +1191,16 @@ namespace caf {
         
         // 
         reco.isBeamSlice = is_test_beam;
-
+        if (is_test_beam) {
+          const recob::Track* thisTrack = pfpUtil.GetPFParticleTrack(*particle,evt,fPFParticleLabel, fTrackLabel);
+          if (thisTrack) {
+            ComputeRecoInteractingEnergy(evt, thisTrack, art::ServiceHandle<detinfo::DetectorClocksService>()->DataFor(evt), ixn, truthBranch);
+            std::cout << "Computed reconstructed interacting energy: " << ixn.reco_beam_interactingEnergy << std::endl;
+          }
+          else {
+            std::cout << "No track associated to the beam particle, skipping reco interacting energy computation." << std::endl;
+          }
+        }
         pandora.emplace_back(reco);
         break; //We do this work only the first primary particle in the slice to avoid repetitions
       }
@@ -1721,7 +1924,7 @@ namespace caf {
 
     FillTruthInfo(sr.mc, evt);
 
-    FillRecoInfoSliceLoop(sr.common, *fdBranch, evt);
+    FillRecoInfoSliceLoop(sr.common, *fdBranch, sr.mc, evt);
 
     if(fTree){
       fTree->Fill();
