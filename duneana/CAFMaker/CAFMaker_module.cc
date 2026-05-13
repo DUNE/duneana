@@ -500,7 +500,7 @@ namespace caf {
               caf::TrueParticleID ancestor;
               ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary
                                                   : caf::TrueParticleID::kSecondary;
-              ancestor.ixn = inter.id;
+              ancestor.ixn = ancestor_ixn;
               ancestor.part = ancestor_id;
               part.ancestor_id = ancestor;
             }
@@ -564,6 +564,21 @@ namespace caf {
             part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
             part.parent = mcpart.Mother();
 
+            if (fMCParticlesMap.count(mcpart.Mother()) > 0) {
+              art::Ptr<simb::MCParticle> ancestor_ptr;
+              bool ancestor_is_primary = false;
+              int ancestor_id = -1;
+              int ancestor_ixn = -1;
+              std::tie(ancestor_ptr, ancestor_ixn, ancestor_is_primary, ancestor_id) =
+                fMCParticlesMap.at(mcpart.Mother());
+
+              caf::TrueParticleID ancestor;
+              ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary
+                                                  : caf::TrueParticleID::kSecondary;
+              ancestor.ixn = ancestor_ixn;
+              ancestor.part = ancestor_id;
+              part.ancestor_id = ancestor;
+            }
             std::deque<int> secondaries_to_add;
 
             const simb::MCParticle* the_g4_part = nullptr;
@@ -603,6 +618,23 @@ namespace caf {
               sec.start_pos = caf::SRVector3D(sec_mcpart->Position().Vect());
               sec.end_pos = caf::SRVector3D(sec_mcpart->EndPosition().Vect());
               sec.parent = sec_mcpart->Mother();
+
+              if (fMCParticlesMap.count(sec_mcpart->Mother()) > 0) {
+                art::Ptr<simb::MCParticle> ancestor_ptr;
+                bool ancestor_is_primary = false;
+                int ancestor_id = -1;
+                int ancestor_ixn = -1;
+                std::tie(ancestor_ptr, ancestor_ixn, ancestor_is_primary, ancestor_id) =
+                  fMCParticlesMap.at(sec_mcpart->Mother());
+
+                caf::TrueParticleID ancestor;
+                ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary
+                                                    : caf::TrueParticleID::kSecondary;
+                ancestor.ixn = ancestor_ixn;
+                ancestor.part = ancestor_id;
+                sec.ancestor_id = ancestor;
+              }
+
 
               for (int d = 0; d < sec_mcpart->NumberDaughters(); ++d) {
                 int daughter = sec_mcpart->Daughter(d);
@@ -644,14 +676,6 @@ namespace caf {
       }
 
       std::map<std::string, float> properties = metadata->GetPropertiesMap();
-      // std::cout << "----------------------------------------" << std::endl;
-      // // cout all the properties for debugging
-      // std::cout << "Metadata properties for PFP with ID " << pfp->Self() << ":" << std::endl;
-      // for(const auto& [key, value] : properties) {
-      //   std::cout << "  " << key << ": " << value << std::endl;
-      // }
-
-      // std::cout << "----------------------------------------" << std::endl;
 
       std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaPFParticleUtils::GetHits(pfp, evt, fPandoraLabel);
       std::vector<art::Ptr<recob::Hit>> hits_U = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, 0);
@@ -684,9 +708,6 @@ namespace caf {
         if(properties.find(property_name) != properties.end()) {
           *(property_value) = properties[property_name];
         } 
-        // else {
-        //   mf::LogWarning("CAFMaker") << "Unknown property '" << property_name << "' for PFP with ID " << pfp->Self();
-        // }
       }
 
   }
@@ -707,13 +728,7 @@ namespace caf {
 
     for (const auto& slicePtr : slicePtrs) {
       auto pfpVec = sliceToPFP.at(slicePtr.key());
-      std::cout << "Filling reco info for slice " << slicePtr.key() << " with " << pfpVec.size() << " PFPs" << std::endl;
-      // Create a fresh interaction object for each slice
-      caf::SRInteractionBranch newIxn;
       FillRecoInfo(recoBranch, fdBranch, evt, slicePtr);
-      // Store the interaction for this slice
-      recoBranch.ixn.pandora.insert(recoBranch.ixn.pandora.end(), newIxn.pandora.begin(), newIxn.pandora.end());
-      recoBranch.ixn.npandora += newIxn.pandora.size();
     }
       
   }
@@ -741,16 +756,7 @@ namespace caf {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
       // check if the particle is beam
       if (pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel)) {
-        found_beam = true;
-        
-        // print some info about the beam particle for debugging
-        std::cout << "----------------------" << std::endl;
-        std::cout << "Found a beam particle with ID " << particle->Self() << std::endl;
-        // print more info about the beam particle: Number of daughters and pdg hypothesis
-        std::cout << "Number of daughters: " << particle->Daughters().size() << " and pdg hypothesis: " << particle->PdgCode() << std::endl;
-        std::cout << "Is this primary? " << particle->IsPrimary() << std::endl;
-        std::cout << "----------------------" << std::endl;
-      
+        found_beam = true;      
         break;
       }
     }
@@ -859,11 +865,6 @@ namespace caf {
       int ixnID=-1;
       std::tie(mcpart, ixnID, isPrimary, srID) = fMCParticlesMap.at(id);
       caf::TrueParticleID::PartType type = isPrimary ? TrueParticleID::kPrimary : TrueParticleID::kSecondary;
-      // // debug
-      // if (ixnID >= 0) {
-      //   std::cout << "interaction ID: " << ixnID << ", isPrimary: " << isPrimary << ", type: " << type << ", srID: " << srID << ", energy deposit: " << eDeposit << std::endl;
-      // }
-      // // -----
 
       TrueParticleID truePart;
       truePart.type = type;
@@ -1315,7 +1316,6 @@ namespace caf {
 
       if (!isTrack && !isShower){
         mf::LogWarning("CAFMaker") << "PFP with ID " << particle->Self() << " is not associated to either a track or a shower according to Pandora. This particle will be saved without kinematic information.";
-        continue;
       }
 
       if(isTrack){
@@ -1359,18 +1359,10 @@ namespace caf {
 
     }
 
-    // // cout the pandoraIDtoPFPIdx map for debugging
-    // std::cout << "Pandora ID to PFP index map:" << std::endl;
-    // for(const auto& [pandoraID, pfpIdx] : pandoraIDToPFPIdx){
-    //   std::cout << "Pandora ID: " << pandoraID << ", PFP index: " << pfpIdx << std::endl;
-    // } 
-
-
 
     //Now that all particles are saved, we can convert the parent/daughter fields from Pandora IDs to SR indices
     for(auto &particle : recoParticlesBranch.pandora){
       //Parent
-      // if(particle.parent == -1) continue; //Skipping if primary
       unsigned int parent_pfpID = particle.parent;
       //Finding the SR index in the map
       if(pandoraIDToPFPIdx.count(parent_pfpID) == 0){
@@ -1513,44 +1505,8 @@ namespace caf {
     FillMetaInfo(*detector, evt);
 
     FillBeamInfo(sr.beam, evt);
-    // art::Handle<std::vector<simb::MCTruth>> mct = evt.getHandle< std::vector<simb::MCTruth> >(fMCTruthLabel);
-    // art::Handle<std::vector<simb::GTruth>> gt = evt.getHandle< std::vector<simb::GTruth> >(fGTruthLabel);
-    // art::Handle<std::vector<simb::MCFlux>> mcft = evt.getHandle< std::vector<simb::MCFlux> >(fMCFluxLabel);
-    // if ( !mct ) {
-    //   mf::LogWarning("CAFMaker") << "No MCTruth. SRTruthBranch will be empty!";
-    //   FillTruthInfoMCTruthOnly(sr.mc, *mct, evt);
-    // }
-    // else if ( !gt ) {
-    //   mf::LogWarning("CAFMaker") << "No GTruth. SRTruthBranch will be empty!";
-    //   FillTruthInfoGTruthOnly(sr.mc, *gt, evt);
-    // }
-    // else if ( !mcft ) {
-    //   mf::LogWarning("CAFMaker") << "No MCFlux. SRTruthBranch will be empty!";
-    //   FillTruthInfoMCFluxOnly(sr.mc, *mcft, evt);
-    // }
-    // else {
-    //   // FillTruthInfo(sr.mc, *mct, *gt, *mcft, evt);
-    // }
-    FillTruthInfo(sr.mc, evt);
 
-    // +++++++++++++++++++++++++++++
-    // cout the fMCParticlesMap, print the unique values of the interaction number
-    std::map<unsigned int, int> interaction_occurencies; //Map of all MCParticles in the event with their corresponding interaction number
-    for (const auto& [key, value] : fMCParticlesMap) {
-      if (interaction_occurencies.count(std::get<2>(value)) == 0) {
-        interaction_occurencies[std::get<2>(value)] = 1;
-      }
-      else{
-      interaction_occurencies[std::get<2>(value)]++;
-      }
-    }
-    std::cout << "Unique interaction numbers in fMCParticlesMap: " << std::endl;
-    for (const auto& [interaction, count] : interaction_occurencies) {
-      std::cout << interaction << " " << "(occurencies: " << count << ") " <<  std::endl;
-    }
-    std::cout << std::endl;
-    
-    // +++++++++++++++++++++++++++++
+    FillTruthInfo(sr.mc, evt);
 
     FillRecoInfoSliceLoop(sr.common, *fdBranch, evt);
 
