@@ -534,9 +534,17 @@ namespace caf {
 
             caf::SRTrueInteraction inter;
             inter.id = cumulativeInteractionIndex++;
-
-            fMCParticlesMap[std::abs(mcpart.TrackId())] = std::make_tuple(std::get<0>(fMCParticlesMap.at(std::abs(mcpart.TrackId()))), inter.id, true, inter.prim.size());      
-
+            const int trackID = std::abs(mcpart.TrackId());
+            auto mcPartIt = fMCParticlesMap.find(trackID);
+            if (mcPartIt != fMCParticlesMap.end()) {
+              mcPartIt->second = std::make_tuple(std::get<0>(mcPartIt->second), inter.id, true, inter.prim.size());
+            }
+            else {
+             // create warning
+              mf::LogWarning("CAFMaker") << "MCParticle with TrackId " << trackID << " not found in preloaded map. This particle will not be included in the truth record.";
+              continue;
+            }
+            
             // Generator info can still be filled
             const simb::MCGeneratorInfo& genInfo = mct.GeneratorInfo();
             auto it = fgenMap.find(genInfo.generator);
@@ -727,7 +735,6 @@ namespace caf {
     art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
 
     for (const auto& slicePtr : slicePtrs) {
-      auto pfpVec = sliceToPFP.at(slicePtr.key());
       FillRecoInfo(recoBranch, fdBranch, evt, slicePtr);
     }
       
