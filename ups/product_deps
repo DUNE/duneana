@@ -245,7 +245,7 @@ defaultqual	e26
 #   entry to match for a given product.
 #
 product          version
-cetmodules	 v3_24_01	-	only_for_build
+cetmodules	 v3_27_04	-	only_for_build
 dunereco         v10_20_06d01
 duneopdet        v10_20_06d01
 duneanaobj       v03_12_00
