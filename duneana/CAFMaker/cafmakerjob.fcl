@@ -2,7 +2,6 @@
 #include "mvamodule.fcl"
 #include "CAFMaker.fcl"
 #include "resourcetracking_services.fcl"
-#include "nusyst_knobs.fcl"
 
 process_name: CAF
 

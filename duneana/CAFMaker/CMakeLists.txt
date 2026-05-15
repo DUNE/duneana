@@ -24,6 +24,8 @@ cet_build_plugin(CAFMaker   art::module LIBRARIES
 			larpandora::LArPandoraInterface
                         larreco::Calorimetry
                         dunereco::AnaUtils
+                        duneprototypes::ProtoDUNEDataUtils
+                        protoduneana::ProtoDUNEUtilities
                         larsim::Utils
               BASENAME_ONLY
 )
