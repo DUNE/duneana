@@ -23,6 +23,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art_root_io/TFileService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTrackerService.h"
 
 #include "duneanaobj/StandardRecord/StandardRecord.h"
 #include "duneanaobj/StandardRecord/SRGlobal.h"
@@ -44,6 +45,7 @@
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/AnalysisBase/ParticleID.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/WireReadout.h"
 #include "nugen/EventGeneratorBase/GENIE/GENIE2ART.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -104,6 +106,7 @@ namespace caf {
       void FillTruthInfo(caf::SRTruthBranch& sr,
                          art::Event const& evt);
       void FillTruthInfoGENIECommon(caf::SRTrueInteraction& inter, simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
+      std::map<int, std::vector<const sim::IDE*>> slice_IDEs( std::vector<const sim::IDE*> ides, double the_z0, double the_pitch, double true_endZ) const;     
       double ComputeTrueInteractingEnergy(const art::Event & evt, const simb::MCParticle* true_beam_particle) const;
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
@@ -182,6 +185,7 @@ namespace caf {
       int fMetaRun, fMetaSubRun, fMetaVersion;
 
       const geo::Geometry* fGeom;
+      geo::WireReadoutGeom const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
       std::vector<double> fActiveBounds;
       std::vector<double> fVertexFiducialVolumeCut;
 
@@ -567,7 +571,20 @@ namespace caf {
           // Non-neutrino MCTruth:
           // each visible source particle becomes its own truth interaction entry.
           for (int p = 0; p < mct.NParticles(); ++p) {
-            const simb::MCParticle& mcpart = mct.GetParticle(p);
+
+
+            // mimicking the protoana::ProtoDUNETruthUtils::GetGeantGoodParticle() logic
+            
+            const simb::MCParticle& this_gen_mcpart = mct.GetParticle(p);
+            simb::MCParticle mcpart;
+            for(auto const g4_part : plist){
+              if((this_gen_mcpart.PdgCode() == g4_part.second->PdgCode()) && fabs(g4_part.second->E() - this_gen_mcpart.E()) < 1e-5){
+                mcpart = *(g4_part.second);
+                break;
+              }
+            }
+
+            std::cout << "Processing non-neutrino MCTruth, particle " << p << "/" << mct.NParticles() << " with PDG " << mcpart.PdgCode() << std::endl;
 
             caf::SRTrueInteraction inter;
             inter.id = cumulativeInteractionIndex++;
@@ -604,7 +621,7 @@ namespace caf {
             part.parentIndex = (fMCParticlesMap.count(std::abs(mcpart.Mother())) > 0) ? fMCParticleIndexMap[std::abs(mcpart.Mother())] : std::make_tuple(-1, -1, -1);
             std::deque<int> secondaries_to_add;
             part.true_beam_interactingEnergy = ComputeTrueInteractingEnergy(evt, &mcpart);
-
+            std::cout << "True beam interacting energy for particle " << mcpart.TrackId() << " (PDG " << mcpart.PdgCode() << "): " << part.true_beam_interactingEnergy << " MeV" << std::endl;
             const simb::MCParticle* the_g4_part = nullptr;
             for (auto const& g4_part : plist) {
               if (std::abs(mcpart.TrackId()) == g4_part.second->TrackId()) {
@@ -913,54 +930,118 @@ namespace caf {
 
 
   //------------------------------------------------------------------------------
+  std::map<int, std::vector<const sim::IDE*>> CAFMaker::slice_IDEs(std::vector<const sim::IDE*> ides, double the_z0, double the_pitch, double true_endZ) const {
+
+    std::map<int, std::vector<const sim::IDE*>> results;
+
+    for (size_t i = 0; i < ides.size(); ++i) {
+      int slice_num = std::floor(
+          (ides[i]->z - (the_z0 - the_pitch/2.)) / the_pitch);
+      results[slice_num].push_back(ides[i]);
+    }
+
+    return results;
+  }
+
+
 
   double CAFMaker::ComputeTrueInteractingEnergy(const art::Event & evt, const simb::MCParticle* true_beam_particle) const {
 
     const simb::MCTrajectory & true_beam_trajectory = true_beam_particle->Trajectory();
     double true_beam_mass = true_beam_particle->Mass()*1.e3;
     double true_beam_startP = true_beam_particle->P();
+    int true_beam_ID          = true_beam_particle->TrackId();
+    double true_beam_endZ = true_beam_particle->EndZ();
+
+
+    constexpr geo::PlaneID planeID{0, 1, 2};
+    double fZ0 = wireReadout.Wire( geo::WireID(planeID, 0) ).GetCenter().Z();
+    double fPitch = wireReadout.Plane(planeID).WirePitch();
 
     double init_KE = sqrt(1.e6 * true_beam_startP*true_beam_startP +
                           true_beam_mass*true_beam_mass) - true_beam_mass;
 
     //slice up the view2_IDEs up by the wire pitch
-    auto sliced_ides = slice_IDEs( view2_IDEs, fZ0, fPitch, true_beam_endZ);
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
 
+    auto view2_IDEs = bt_serv->TrackIdToSimIDEs_Ps( true_beam_ID, geo::View_t(2) );
+  
+    // Sort based on IDE z-position
+    std::sort(view2_IDEs.begin(), view2_IDEs.end(),
+              [](const sim::IDE* i1, const sim::IDE* i2){ return i1->z < i2->z; });
 
-    for (size_t i = 1; i < true_beam_trajectory.size(); ++i) {
-      double z0 = true_beam_trajectory.Z(i-1);
-      double z1 = true_beam_trajectory.Z(i);
-      //const TGeoMaterial * mat = geom->Material(test_point);
-      if (z0 < ide_z && z1 > ide_z) {
-        //const TGeoMaterial * mat1 = geom->Material(test_point_1);
-        init_KE = 1.e3 * true_beam_trajectory.E(i-1) - true_beam_mass;
-        break;
-      }
-    }    
+    //This is an attempt to remove IDEs from things like delta-rays
+    //that have a large gap in z to the previous
+    size_t remove_index = 0;
+    bool   do_remove = false;
+    if( view2_IDEs.size() ){
+      for( size_t i = 1; i < view2_IDEs.size()-1; ++i ){
+        const sim::IDE * prev_IDE = view2_IDEs[i-1];
+        const sim::IDE * this_IDE = view2_IDEs[i];
 
-    //Go through the sliced up IDEs to create the thin targets 
-    double true_beam_interactingEnergy = -1.;
-    true_beam_incidentEnergies.push_back( init_KE );
-    for( auto it = sliced_ides.begin(); it != sliced_ides.end(); ++it ){
-
-      auto theIDEs = it->second;
-      if (theIDEs.size()) {
-
-        double ide_z = theIDEs[0]->z;
-
-        double deltaE = 0.;
-        for( size_t i = 0; i < theIDEs.size(); ++i ){
-          deltaE += theIDEs[i]->energy;
+        if( this_IDE->trackID < 0 && ( this_IDE->z - prev_IDE->z ) > 5 ){
+          remove_index = i;
+          do_remove = true;
+          break;   
         }
-
-        true_beam_incidentEnergies.push_back( true_beam_incidentEnergies.back() - deltaE );
       }
-      true_beam_incidentEnergies.pop_back();
-      if( true_beam_incidentEnergies.size() ) true_beam_interactingEnergy = true_beam_incidentEnergies.back();
-
     }
 
-    return true_beam_interactingEnergy;
+    if( do_remove ){
+      view2_IDEs.erase( view2_IDEs.begin() + remove_index, view2_IDEs.end() );
+    }
+
+
+    
+    auto sliced_ides = slice_IDEs( view2_IDEs, fZ0, fPitch, true_beam_endZ);
+    if (sliced_ides.size()) {
+
+      auto first_slice = sliced_ides.begin();
+      //Check it has any IDEs
+      auto theIDEs = first_slice->second;
+      if (!theIDEs.size()) {
+        return -1.;
+      }
+ 
+
+      double ide_z = theIDEs[0]->z;
+      for (size_t i = 1; i < true_beam_trajectory.size(); ++i) {
+        double z0 = true_beam_trajectory.Z(i-1);
+        double z1 = true_beam_trajectory.Z(i);
+        //const TGeoMaterial * mat = geom->Material(test_point);
+        if (z0 < ide_z && z1 > ide_z) {
+          //const TGeoMaterial * mat1 = geom->Material(test_point_1);
+          init_KE = 1.e3 * true_beam_trajectory.E(i-1) - true_beam_mass;
+          break;
+        }
+      }    
+
+      //Go through the sliced up IDEs to create the thin targets 
+      double true_beam_interactingEnergy = -1.;
+      std::vector<double> true_beam_incidentEnergies;
+      true_beam_incidentEnergies.push_back( init_KE );
+      for( auto it = sliced_ides.begin(); it != sliced_ides.end(); ++it ){
+
+        auto theIDEs = it->second;
+        if (theIDEs.size()) {
+
+          double deltaE = 0.;
+          for( size_t i = 0; i < theIDEs.size(); ++i ){
+            deltaE += theIDEs[i]->energy;
+          }
+
+          true_beam_incidentEnergies.push_back( true_beam_incidentEnergies.back() - deltaE );
+        }
+        true_beam_incidentEnergies.pop_back();
+        if( true_beam_incidentEnergies.size() ) true_beam_interactingEnergy = true_beam_incidentEnergies.back();
+
+      }
+
+      return true_beam_interactingEnergy;
+    } else {
+        return -1.;
+    }
+
   }  
 
 
