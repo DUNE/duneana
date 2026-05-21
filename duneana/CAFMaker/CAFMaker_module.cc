@@ -44,6 +44,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/AnalysisBase/ParticleID.h"
+#include "lardataobj/Simulation/GeneratedParticleInfo.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/WireReadout.h"
 #include "nugen/EventGeneratorBase/GENIE/GENIE2ART.h"
@@ -379,6 +380,11 @@ namespace caf {
 
       const auto& mctruthVec = *mctruthHandle;
 
+      art::FindManyP<simb::MCParticle, sim::GeneratedParticleInfo> fmcparts(mctruthHandle, evt, fG4Label);
+      if (!fmcparts.isValid()) {
+        mf::LogWarning("CAFMaker") << "MCTruth-MCParticle association not valid for label '" << MCTruthLabel << "'. Non-neutrino particles may be skipped.";
+      }
+
       for (size_t i = 0; i < mctruthVec.size(); ++i) {
         const simb::MCTruth& mct = mctruthVec[i];
         const bool hasNu = mct.NeutrinoSet();
@@ -570,21 +576,13 @@ namespace caf {
         else {
           // Non-neutrino MCTruth:
           // each visible source particle becomes its own truth interaction entry.
-          for (int p = 0; p < mct.NParticles(); ++p) {
+          auto const& assoc_parts = fmcparts.at(i);
+          auto const& assoc_infos = fmcparts.data(i);
+          for (size_t j = 0; j < assoc_parts.size(); ++j) {
+            if (!assoc_infos[j]->hasGeneratedParticleIndex()) continue;
+            const simb::MCParticle& mcpart = *assoc_parts[j];
 
-
-            // mimicking the protoana::ProtoDUNETruthUtils::GetGeantGoodParticle() logic
-            
-            const simb::MCParticle& this_gen_mcpart = mct.GetParticle(p);
-            simb::MCParticle mcpart;
-            for(auto const g4_part : plist){
-              if((this_gen_mcpart.PdgCode() == g4_part.second->PdgCode()) && fabs(g4_part.second->E() - this_gen_mcpart.E()) < 1e-5){
-                mcpart = *(g4_part.second);
-                break;
-              }
-            }
-
-            std::cout << "Processing non-neutrino MCTruth, particle " << p << "/" << mct.NParticles() << " with PDG " << mcpart.PdgCode() << std::endl;
+            std::cout << "Processing non-neutrino MCTruth, particle " << j << "/" << assoc_parts.size() << " with PDG " << mcpart.PdgCode() << std::endl;
 
             caf::SRTrueInteraction inter;
             inter.id = cumulativeInteractionIndex++;
@@ -1169,13 +1167,7 @@ namespace caf {
 
     for (const auto& slicePtr : slicePtrs) {
       auto pfpVec = sliceToPFP.at(slicePtr.key());
-      std::cout << "Filling reco info for slice " << slicePtr.key() << " with " << pfpVec.size() << " PFPs" << std::endl;
-      // Create a fresh interaction object for each slice
-      caf::SRInteractionBranch newIxn;
       FillRecoInfo(recoBranch, fdBranch, truthBranch, evt, slicePtr);
-      // Store the interaction for this slice
-      recoBranch.ixn.pandora.insert(recoBranch.ixn.pandora.end(), newIxn.pandora.begin(), newIxn.pandora.end());
-      recoBranch.ixn.npandora += newIxn.pandora.size();
     }
   }
 
