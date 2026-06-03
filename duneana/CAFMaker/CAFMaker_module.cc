@@ -123,7 +123,7 @@ namespace caf {
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       void FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const;
       void FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
-      double GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const;
+      double GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
       double GetSingleHitsEnergy(art::Event const& evt, int plane) const;
@@ -512,14 +512,23 @@ namespace caf {
             ++inter.nprefsi;
           }
 
-          // For neutrino interactions, primaries/secondaries come from the interaction products,
-          // preserving the logic of the first implementation.
-          inter.prim.resize(fNprimaries);
-          inter.sec.resize(fNsecondaries);
+          // For neutrino interactions, use only the particles associated with
+          // this specific MCTruth object via fmcparts, so that particles from
+          // other truth interactions are not assigned here.
+          const auto& this_assoc_parts = fmcparts.at(i);
 
-          for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
-            art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
-            uint srID = std::get<2>(mcpart_tuple);
+          uint this_nprim = 0;
+          uint this_nsec  = 0;
+          for (auto const& mcpart_ptr : this_assoc_parts) {
+            if (mcpart_ptr->Mother() == 0) ++this_nprim;
+            else                           ++this_nsec;
+          }
+          inter.prim.resize(this_nprim);
+          inter.sec.resize(this_nsec);
+
+          uint prim_idx = 0;
+          uint sec_idx  = 0;
+          for (auto const& mcpart : this_assoc_parts) {
             bool isPrimary = (mcpart->Mother() == 0);
 
             caf::SRTrueParticle part;
@@ -552,8 +561,9 @@ namespace caf {
             }
 
             if (isPrimary) {
-              if (srID < inter.prim.size()) inter.prim[srID] = std::move(part);
-
+              fMCParticleIndexMap[std::abs(mcpart->TrackId())] =
+                std::make_tuple(static_cast<int>(inter.id), static_cast<int>(prim_idx), -1);
+              inter.prim[prim_idx] = std::move(part);
               switch (mcpart->PdgCode()) {
                 case 2212: ++inter.nproton; break;
                 case 2112: ++inter.nneutron; break;
@@ -562,9 +572,13 @@ namespace caf {
                 case 111:  ++inter.npi0;    break;
                 default: break;
               }
+              ++prim_idx;
             }
             else {
-              if (srID < inter.sec.size()) inter.sec[srID] = std::move(part);
+              fMCParticleIndexMap[std::abs(mcpart->TrackId())] =
+                std::make_tuple(static_cast<int>(inter.id), -1, static_cast<int>(sec_idx));
+              inter.sec[sec_idx] = std::move(part);
+              ++sec_idx;
             }
           }
 
@@ -578,7 +592,7 @@ namespace caf {
           // each visible source particle becomes its own truth interaction entry.
           auto const& assoc_parts = fmcparts.at(i);
           auto const& assoc_infos = fmcparts.data(i);
-          for (size_t j = 0; j < assoc_parts.size(); ++j) {
+          for (size_t j = assoc_parts.size(); j-- > 0; ) {
             if (!assoc_infos[j]->hasGeneratedParticleIndex()) continue;
             const simb::MCParticle& mcpart = *assoc_parts[j];
 
@@ -619,7 +633,7 @@ namespace caf {
             part.parentIndex = (fMCParticlesMap.count(std::abs(mcpart.Mother())) > 0) ? fMCParticleIndexMap[std::abs(mcpart.Mother())] : std::make_tuple(-1, -1, -1);
             std::deque<int> secondaries_to_add;
             part.true_beam_interactingEnergy = ComputeTrueInteractingEnergy(evt, &mcpart);
-            std::cout << "True beam interacting energy for particle " << mcpart.TrackId() << " (PDG " << mcpart.PdgCode() << "): " << part.true_beam_interactingEnergy << " MeV" << std::endl;
+
             const simb::MCParticle* the_g4_part = nullptr;
             for (auto const& g4_part : plist) {
               if (std::abs(mcpart.TrackId()) == g4_part.second->TrackId()) {
@@ -675,6 +689,15 @@ namespace caf {
             }
 
             inter.nsec = inter.sec.size();
+
+            // // Re-scan inter.sec to assign correct final BFS-order indices.
+            // for (size_t sec_idx = 0; sec_idx < inter.sec.size(); ++sec_idx) {
+            //   int tid = inter.sec[sec_idx].G4ID;
+            //   if (fMCParticleIndexMap.count(tid) > 0) {
+            //     std::get<2>(fMCParticleIndexMap[tid]) = static_cast<int>(sec_idx);
+            //     inter.sec[sec_idx].thisIndex = fMCParticleIndexMap[tid];
+            //   }
+            // }
 
             // Optional visible-particle vertex proxy from the particle start point
             inter.vtx.SetX(mcpart.Vx());
@@ -807,14 +830,18 @@ namespace caf {
 
     auto calo = trackUtil.GetRecoTrackCalorimetry(
         *thisTrack, evt, fTrackLabel, fCalorimetryLabelSCE);
-      
+         
+    std::cout<< "Got calorimetry using: " << thisTrack->ID() << ", track label: " << fTrackLabel << ", calo label: " << fCalorimetryLabelSCE << std::endl;
+
     std::cout<< "Calorimetry size: " << calo.size() << std::endl;
     std::cout<< "Hits size: " << allHits->size() << std::endl;
     bool found_calo = false;
     size_t index = 0;
     for (index = 0; index < calo.size(); ++index) {
       auto this_plane = calo[index].PlaneID().Plane;
-      std::cout<< "Plane: " << this_plane << " and fVPlaneAsCollector: " << fVPlaneAsCollector << std::endl;
+      std::cout<< "Plane: " << this_plane << " and fVPlaneAsCollector: " << fVPlaneAsCollector << " at index " << index << std::endl;
+      std::cout<< "Calo dEdx size: " << calo[index].dEdx().size() << " first dEdx: " << (calo[index].dEdx().size() > 0 ? calo[index].dEdx()[0] : -1) << std::endl;
+
       if ((this_plane == 2 && !fVPlaneAsCollector) ||
           (this_plane == 1 && fVPlaneAsCollector)) {
         found_calo = true;
@@ -824,9 +851,10 @@ namespace caf {
     std::cout<< "Before found calo..." << std::endl;
 
     if (!found_calo) return;
-    std::cout<< "After found calo..." << std::endl;
+    std::cout<< "After found calo at index " << index << "..." << std::endl;
 
     auto calo_dEdX = calo[index].dEdx();
+    std::cout<< "Calorimetry dEdx size: " << calo_dEdX.size() << " first dEdx: " << (calo_dEdX.size() > 0 ? calo_dEdX[0] : -1) << std::endl;
     auto calo_range = calo[index].ResidualRange();
     auto TpIndices = calo[index].TpIndices();
     auto theXYZPoints = calo[index].XYZ();
@@ -902,22 +930,34 @@ namespace caf {
     if (evt.isRealData() || fMCHasBI) {
       double mass = 139.57;
       init_KE = std::sqrt(1.e6 * interaction.beam_inst_P * interaction.beam_inst_P + mass * mass) - mass;
+
     } else {
-      // access the mc branch to get the true beam particle info
-      auto &nu = truthBranch.nu[0]; // assuming the first interaction is the beam particle interaction
-      double true_beam_mass = genie::PDGLibrary::Instance()->Find(nu.pdg)->Mass();
+      if (truthBranch.nu.empty()) {
+        mf::LogWarning("CAFMaker") << "ComputeRecoInteractingEnergy: truthBranch.nu is empty; cannot compute init_KE. Returning early.";
+        return;
+      }
+      auto &nu = truthBranch.nu[0];
+      if (nu.prim.empty()) {
+        mf::LogWarning("CAFMaker") << "ComputeRecoInteractingEnergy: nu.prim is empty; cannot compute init_KE. Returning early.";
+        return;
+      }
+      auto* pdef = genie::PDGLibrary::Instance()->Find(nu.pdg);
+      if (!pdef) {
+        mf::LogWarning("CAFMaker") << "ComputeRecoInteractingEnergy: PDGLibrary returned nullptr for PDG " << nu.pdg << ". Returning early.";
+        return;
+      }
+      double true_beam_mass = pdef->Mass();
       double initial_E = nu.prim[0].p.E;
       init_KE = initial_E - true_beam_mass;
     }
 
     std::vector<double>  reco_beam_incidentEnergies;
+    std::cout << "Initial kinetic energy: " << init_KE << " MeV" << std::endl;
     reco_beam_incidentEnergies.push_back(init_KE);
 
-    for (size_t i = 0; i + 1 < reco_beam_calo_points.size(); ++i) {
+    for( size_t i = 0; i < reco_beam_calo_points.size() - 1; ++i ){ //-1 to not count the last slice
       if (reco_beam_calo_points[i].dEdX < 0.) continue;
-      double this_energy = reco_beam_incidentEnergies.back() -
-                          (reco_beam_calo_points[i].dEdX *
-                            reco_beam_calo_points[i].pitch);
+      double this_energy = reco_beam_incidentEnergies.back() -(reco_beam_calo_points[i].dEdX *reco_beam_calo_points[i].pitch);
       reco_beam_incidentEnergies.push_back(this_energy);
     }
 
@@ -1001,6 +1041,7 @@ namespace caf {
         return -1.;
       }
  
+      
 
       double ide_z = theIDEs[0]->z;
       for (size_t i = 1; i < true_beam_trajectory.size(); ++i) {
@@ -1015,9 +1056,9 @@ namespace caf {
       }    
 
       //Go through the sliced up IDEs to create the thin targets 
-      double true_beam_interactingEnergy = -1.;
-      std::vector<double> true_beam_incidentEnergies;
-      true_beam_incidentEnergies.push_back( init_KE );
+      double true_beam_interactingEnergy = init_KE;
+      // std::vector<double> true_beam_incidentEnergies;
+      // true_beam_incidentEnergies.push_back( init_KE );
       for( auto it = sliced_ides.begin(); it != sliced_ides.end(); ++it ){
 
         auto theIDEs = it->second;
@@ -1028,11 +1069,10 @@ namespace caf {
             deltaE += theIDEs[i]->energy;
           }
 
-          true_beam_incidentEnergies.push_back( true_beam_incidentEnergies.back() - deltaE );
-        }
-        true_beam_incidentEnergies.pop_back();
-        if( true_beam_incidentEnergies.size() ) true_beam_interactingEnergy = true_beam_incidentEnergies.back();
+          // true_beam_incidentEnergies.push_back( true_beam_incidentEnergies.back() - deltaE );
+          true_beam_interactingEnergy -= deltaE;
 
+        }
       }
 
       return true_beam_interactingEnergy;
@@ -1163,12 +1203,10 @@ namespace caf {
     std::vector<art::Ptr<recob::Slice>> slicePtrs;
     art::fill_ptr_vector(slicePtrs, sliceHandle);
 
-    art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
-
     for (const auto& slicePtr : slicePtrs) {
-      auto pfpVec = sliceToPFP.at(slicePtr.key());
       FillRecoInfo(recoBranch, fdBranch, truthBranch, evt, slicePtr);
     }
+
   }
 
   void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch& truthBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const {
@@ -1207,6 +1245,18 @@ namespace caf {
         break;
       }
     }
+
+    if (found_beam) {
+      if (!fNoBeamInst){
+        BeamInstInfo(evt, ixn);
+        std::cout << "Filled beam instrumentation values." << std::endl;
+      }
+      else{
+        std::cout << "Dummy beam instrumentation values." << std::endl;
+      }    
+
+    }
+    
     
     bool fill_info_condition = false;
     bool is_test_beam = false;
@@ -1268,7 +1318,6 @@ namespace caf {
           const recob::Track* thisTrack = pfpUtil.GetPFParticleTrack(*particle,evt,fPFParticleLabel, fTrackLabel);
           if (thisTrack) {
             ComputeRecoInteractingEnergy(evt, thisTrack, art::ServiceHandle<detinfo::DetectorClocksService>()->DataFor(evt), ixn, truthBranch);
-            std::cout << "Computed reconstructed interacting energy: " << ixn.reco_beam_interactingEnergy << std::endl;
           }
           else {
             std::cout << "No track associated to the beam particle, skipping reco interacting energy computation." << std::endl;
@@ -1284,16 +1333,8 @@ namespace caf {
 
     if (found_beam) {
       ixn.beamPandoraSliceIndex = ixn.npandora - 1;
+    }    
 
-      if (!fNoBeamInst){
-        BeamInstInfo(evt, ixn);
-        std::cout << "Filled beam instrumentation values." << std::endl;
-      }
-      else{
-        std::cout << "Dummy beam instrumentation values." << std::endl;
-      }    
-
-    }
   }
 
   //------------------------------------------------------------------------------
@@ -1367,9 +1408,9 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  double CAFMaker::GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const{
+  double CAFMaker::GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const{
     double minDist = std::numeric_limits<double>::max();
-    std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaEventUtils::GetSpacePoints(evt, fSpacePointLabel);
+    std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaPFParticleUtils::GetSpacePoints(pfp, evt, fSpacePointLabel);
 
     if(spacePoints.empty()){
       mf::LogWarning("CAFMaker") << "No space points found with label '" << fSpacePointLabel << "'";
@@ -1456,8 +1497,8 @@ namespace caf {
     art::Handle<sumdata::POTSummary> pots = sr.getHandle<sumdata::POTSummary>(fPOTSummaryLabel);
     if( pots ) fMetaPOT += pots->totpot;
 
-    fMetaRun = sr.id().subRun();
-    fMetaSubRun = sr.id().run();
+    fMetaRun = sr.id().run();
+    fMetaSubRun = sr.id().subRun();
 
   }
 
@@ -1687,7 +1728,7 @@ namespace caf {
       pandoraIDToPFPIdx[particle->Self()] = fdIxn.npfps;
 
       FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
-      particle_record.walldist = GetWallDistance(*particle, evt); //Getting the distance to the wall for this PFP
+      particle_record.walldist = GetWallDistance(particle, evt); //Getting the distance to the wall for this PFP
       particle_record.contained = (particle_record.walldist < fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
       
       
@@ -1720,7 +1761,6 @@ namespace caf {
 
       //We define Evis at the PFP level as the hits are the same for shower and track
       double Evis = GetVisibleEnergy(particle, evt);
-      std::cout << "Evis for PFP with ID " << particle->Self() << " is " << Evis << " in event " << evt.id() << std::endl;
 
       //This variable will be updated correctly during the recob::Track processing and will be used to fill the reco particle energy method if isTrack.
       caf::PartEMethod trackErecoMethod = caf::PartEMethod::kUnknownMethod;
@@ -1892,7 +1932,7 @@ namespace caf {
     recoParticlesBranch.pandora.push_back(std::move(single_hits));
     recoParticlesBranch.npandora++;
 
-    // particle_record.origRecoObjType
+    delete hitResults;
   }
 
 
