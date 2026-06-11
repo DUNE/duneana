@@ -48,9 +48,6 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "dunereco/AnaUtils/DUNEAnaPFParticleUtils.h"
-#include "protoduneana/Utilities/ProtoDUNEPFParticleUtils.h"
-#include "protoduneana/Utilities/ProtoDUNETrackUtils.h"
-#include "protoduneana/Utilities/ProtoDUNEShowerUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaHitUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaEventUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaShowerUtils.h"
@@ -140,9 +137,6 @@ namespace caf {
       std::string fContainedDistThreshold;
       std::string fHitLabel;
       std::string fG4Label;
-      protoana::ProtoDUNEPFParticleUtils pfpUtil;
-      protoana::ProtoDUNETrackUtils trackUtil;
-      protoana::ProtoDUNEShowerUtils showerUtil;
 
 
       std::map<int, std::tuple<art::Ptr<simb::MCParticle>, int, bool, int>> fMCParticlesMap; //[tid] = (MCParticle, interaction, isPrimary, SRParticle ID)
@@ -732,8 +726,6 @@ namespace caf {
     std::vector<art::Ptr<recob::Slice>> slicePtrs;
     art::fill_ptr_vector(slicePtrs, sliceHandle);
 
-    art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
-
     for (const auto& slicePtr : slicePtrs) {
       FillRecoInfo(recoBranch, fdBranch, evt, slicePtr);
     }
@@ -747,8 +739,6 @@ namespace caf {
     std::vector<SRInteraction> &pandora = ixn.pandora;
     
     lar_pandora::PFParticleVector particleVector;
-    lar_pandora::LArPandoraHelper::CollectPFParticles(evt, fPandoraLabel, particleVector);
-
     auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
     art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
     particleVector = sliceToPFP.at(slicePtr.key());
@@ -762,7 +752,15 @@ namespace caf {
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
       // check if the particle is beam
-      if (pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel)) {
+      // ----------- Reproducing the isBeamParticle behaviour ------------------
+      auto pfParticles_beam = evt.getValidHandle<std::vector<recob::PFParticle>>(fPandoraLabel);
+      const art::FindManyP<larpandoraobj::PFParticleMetadata> findMetaData_beam(pfParticles_beam, evt, fPandoraLabel);
+      const larpandoraobj::PFParticleMetadata& metaData_beam = *((findMetaData_beam.at(particle->Self())).at(0));
+      const std::map<std::string, float>& mdMap_beam = metaData_beam.GetPropertiesMap();
+      bool is_test_beam = (mdMap_beam.find("IsTestBeam") != mdMap_beam.end());
+
+      // -----------------------------
+      if (is_test_beam) {
         found_beam = true;      
         break;
       }
@@ -772,8 +770,17 @@ namespace caf {
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
       // check if the particle is beam
-      bool is_test_beam = pfpUtil.IsBeamParticle(*particle, evt, fPandoraLabel);   
-      
+      // ----------- Reproducing the isBeamParticle behaviour ------------------
+      auto pfParticles_beam = evt.getValidHandle<std::vector<recob::PFParticle>>(fPandoraLabel);
+      const art::FindManyP<larpandoraobj::PFParticleMetadata> findMetaData_beam(pfParticles_beam, evt, fPandoraLabel);
+      const larpandoraobj::PFParticleMetadata& metaData_beam = *((findMetaData_beam.at(particle->Self())).at(0));
+      const std::map<std::string, float>& mdMap_beam = metaData_beam.GetPropertiesMap();
+      bool is_test_beam = (mdMap_beam.find("IsTestBeam") != mdMap_beam.end());
+
+      // -----------------------------
+
+
+
       fill_info_condition = false;
       if (found_beam) {
         fill_info_condition = is_test_beam && particle->IsPrimary();
@@ -829,10 +836,6 @@ namespace caf {
 
     ixn.npandora = pandora.size();
     ixn.ndlp = ixn.dlp.size();
-
-    if (found_beam) {
-      ixn.beamPandoraSliceIndex = ixn.npandora - 1;
-    }
 
   }
 
@@ -1219,14 +1222,6 @@ namespace caf {
       pandoraIDToPFPIdx[particle->Self()] = fdIxn.npfps;
 
       FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
-      // loop and fill the truthMatchIndex variable with the index of the max value in the truthOverlap vector
-      if (!particle_record.truthOverlap.empty()) {
-        auto max_it = std::max_element(particle_record.truthOverlap.begin(), particle_record.truthOverlap.end());
-        particle_record.truthMatchIndex = std::distance(particle_record.truthOverlap.begin(), max_it);
-      }
-      else{
-        particle_record.truthMatchIndex = -1; //Setting to -1 if there is no truth match
-      }
 
       particle_record.walldist = GetWallDistance(*particle, evt); //Getting the distance to the wall for this PFP
       particle_record.contained = (particle_record.walldist < fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
