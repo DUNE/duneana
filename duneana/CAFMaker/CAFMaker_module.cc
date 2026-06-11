@@ -1369,24 +1369,10 @@ namespace caf {
 
     //Now that all particles are saved, we can convert the parent/daughter fields from Pandora IDs to SR indices
     for(auto &particle : recoParticlesBranch.pandora){
-      //Parent
-      unsigned int parent_pfpID = particle.parent;
-      //Finding the SR index in the map
-      if(pandoraIDToPFPIdx.count(parent_pfpID) == 0){
-        mf::LogWarning("CAFMaker") << "No SR index found for parent PFP ID " << parent_pfpID;
-        particle.parent = -1; //Setting to -1 to avoid confusion
-      }
-      else{
-        particle.parent = pandoraIDToPFPIdx.at(parent_pfpID);
-      }
-
     //Daughters
       // for(auto &daughter_idx : particle.daughters){
       for(size_t i = 0; i < particle.daughters.size(); i++){
         unsigned int daughter_pfpID = particle.daughters[i];
-      //Daughters
-      for(auto &daughter_idx : particle.daughters){
-        unsigned int daughter_pfpID = daughter_idx;
         //Finding the SR index in the map
         if(pandoraIDToPFPIdx.count(daughter_pfpID) == 0){
           mf::LogWarning("CAFMaker") << "No SR index found for daughter PFP ID " << daughter_pfpID;
@@ -1395,18 +1381,6 @@ namespace caf {
         else{
           particle.daughters[i] = pandoraIDToPFPIdx.at(daughter_pfpID);
         }
-      }
-
-      //Parent
-      if(particle.parent == -1) continue; //Skipping if primary
-      unsigned int parent_pfpID = particle.parent;
-      //Finding the SR index in the map
-      if(pandoraIDToPFPIdx.count(parent_pfpID) == 0){
-        mf::LogWarning("CAFMaker") << "No SR index found for parent PFP ID " << parent_pfpID;
-        particle.parent = -1; //Setting to -1 to avoid confusion
-      }
-      else{
-        particle.parent = pandoraIDToPFPIdx.at(parent_pfpID);
       }
 
       //Parent
