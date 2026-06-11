@@ -820,7 +820,7 @@ namespace caf {
         //Assuming a single TrueInteraction for now. TODO: Change this if several interactions end up being simulated in the same event
         reco.truth = {0}; 
         reco.truthOverlap = {1.};
-        reco.isBeamSlice = is_test_beam;
+        reco.isFromTrigger = is_test_beam;
 
         pandora.emplace_back(reco);
         break; //We do this work only the first primary particle in the slice to avoid repetitions
