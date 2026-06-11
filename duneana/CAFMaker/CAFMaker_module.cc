@@ -954,16 +954,19 @@ namespace caf {
     std::vector<double>  reco_beam_incidentEnergies;
     std::cout << "Initial kinetic energy: " << init_KE << " MeV" << std::endl;
     reco_beam_incidentEnergies.push_back(init_KE);
+    if (reco_beam_calo_points.size() > 0) {
+        mf::LogWarning("CAFMaker") << "ComputeRecoInteractingEnergy: Not enough calorimetry points to compute interacting energy. Returning early.";
+      for( size_t i = 0; i < reco_beam_calo_points.size() - 1; ++i ){ //-1 to not count the last slice
+        if (reco_beam_calo_points[i].dEdX < 0.) continue;
+        double this_energy = reco_beam_incidentEnergies.back() -(reco_beam_calo_points[i].dEdX *reco_beam_calo_points[i].pitch);
+        reco_beam_incidentEnergies.push_back(this_energy);
+      }
 
-    for( size_t i = 0; i < reco_beam_calo_points.size() - 1; ++i ){ //-1 to not count the last slice
-      if (reco_beam_calo_points[i].dEdX < 0.) continue;
-      double this_energy = reco_beam_incidentEnergies.back() -(reco_beam_calo_points[i].dEdX *reco_beam_calo_points[i].pitch);
-      reco_beam_incidentEnergies.push_back(this_energy);
+      if (!reco_beam_incidentEnergies.empty())
+        interaction.reco_beam_interactingEnergy = reco_beam_incidentEnergies.back();
     }
 
-    if (!reco_beam_incidentEnergies.empty())
-      interaction.reco_beam_interactingEnergy = reco_beam_incidentEnergies.back();
-
+    std::cout<< "Final interacting energy: " << interaction.reco_beam_interactingEnergy << " MeV" << std::endl;
   }  
 
 
@@ -1735,11 +1738,32 @@ namespace caf {
       protoana::MCParticleSharedHits match = truthUtil.GetMCParticleByHits( clockData, *particle, evt, fPandoraLabel, fHitLabel );
       if (match.particle) {
         particle_record.truthMatchByHits = match.particle->TrackId();
-        particle_record.truthMatchByHitsIndex = fMCParticleIndexMap.count(std::abs(match.particle->TrackId())) > 0 ? fMCParticleIndexMap.at(std::abs(match.particle->TrackId())) : std::make_tuple(-1, -1, -1); //Getting the index of the matched MCParticle in the SRParticles vector, -1 if not found
+        TrueParticleID truePartbyHits;
+        truePartbyHits.ixn = fMCParticleIndexMap.count(std::abs(match.particle->TrackId())) > 0 ? std::get<1>(fMCParticleIndexMap.at(std::abs(match.particle->TrackId()))) : -1; //Getting the interaction index of the matched MCParticle, -1 if not found
+        if (fMCParticleIndexMap.count(std::abs(match.particle->TrackId())) > 0) {
+          if (std::get<1>(fMCParticleIndexMap.at(std::abs(match.particle->TrackId()))) != -1) {
+            truePartbyHits.part = std::get<1>(fMCParticleIndexMap.at(std::abs(match.particle->TrackId()))); 
+            truePartbyHits.type = TrueParticleID::kPrimary; 
+          }
+          else if (std::get<2>(fMCParticleIndexMap.at(std::abs(match.particle->TrackId()))) != -1) {
+            truePartbyHits.part = std::get<2>(fMCParticleIndexMap.at(std::abs(match.particle->TrackId()))); 
+            truePartbyHits.type = TrueParticleID::kSecondary; 
+          }
+          else {
+            truePartbyHits.part = -1;
+            truePartbyHits.type = TrueParticleID::kUnknown; 
+          }
+        }
+
+        particle_record.truthMatchByHitsIndex = truePartbyHits;
       }
       else {
         particle_record.truthMatchByHits = -1;
-        particle_record.truthMatchByHitsIndex = std::make_tuple(-1, -1, -1);
+        TrueParticleID truePartbyHits;
+        truePartbyHits.part = -1;
+        truePartbyHits.ixn = -1;
+        truePartbyHits.type = TrueParticleID::kUnknown;
+        particle_record.truthMatchByHitsIndex = truePartbyHits;
       }
       
       
