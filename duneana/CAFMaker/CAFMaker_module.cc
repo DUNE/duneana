@@ -512,6 +512,33 @@ namespace caf {
           inter.nprim = inter.prim.size();
           inter.nsec  = inter.sec.size();
 
+          // Fill parentID and daughtersID now that prim/sec vectors are complete
+          // and fMCParticlesMap holds the final SR indices for all particles in this interaction.
+          auto fill_id_refs = [&](std::vector<caf::SRTrueParticle>& particles) {
+            for (auto& p : particles) {
+              if (fMCParticlesMap.count(p.parent) > 0) {
+                bool par_isPrimary; int par_ixn, par_idx;
+                std::tie(std::ignore, par_ixn, par_isPrimary, par_idx) = fMCParticlesMap.at(p.parent);
+                p.parentID.ixn  = par_ixn;
+                p.parentID.type = par_isPrimary ? caf::TrueParticleID::kPrimary : caf::TrueParticleID::kSecondary;
+                p.parentID.part = par_idx;
+              }
+              for (unsigned int dTid : p.daughters) {
+                caf::TrueParticleID dID;
+                if (fMCParticlesMap.count(dTid) > 0) {
+                  bool d_isPrimary; int d_ixn, d_idx;
+                  std::tie(std::ignore, d_ixn, d_isPrimary, d_idx) = fMCParticlesMap.at(dTid);
+                  dID.ixn  = d_ixn;
+                  dID.type = d_isPrimary ? caf::TrueParticleID::kPrimary : caf::TrueParticleID::kSecondary;
+                  dID.part = d_idx;
+                }
+                p.daughtersID.push_back(dID);
+              }
+            }
+          };
+          fill_id_refs(inter.prim);
+          fill_id_refs(inter.sec);
+
           truthBranch.nu.push_back(std::move(inter));
         }
         else {
@@ -642,6 +669,32 @@ namespace caf {
             }
 
             inter.nsec = inter.sec.size();
+
+            // Fill parentID and daughtersID now that prim/sec are complete
+            auto fill_id_refs_nonu = [&](std::vector<caf::SRTrueParticle>& particles) {
+              for (auto& p : particles) {
+                if (fMCParticlesMap.count(p.parent) > 0) {
+                  bool par_isPrimary; int par_ixn, par_idx;
+                  std::tie(std::ignore, par_ixn, par_isPrimary, par_idx) = fMCParticlesMap.at(p.parent);
+                  p.parentID.ixn  = par_ixn;
+                  p.parentID.type = par_isPrimary ? caf::TrueParticleID::kPrimary : caf::TrueParticleID::kSecondary;
+                  p.parentID.part = par_idx;
+                }
+                for (unsigned int dTid : p.daughters) {
+                  caf::TrueParticleID dID;
+                  if (fMCParticlesMap.count(dTid) > 0) {
+                    bool d_isPrimary; int d_ixn, d_idx;
+                    std::tie(std::ignore, d_ixn, d_isPrimary, d_idx) = fMCParticlesMap.at(dTid);
+                    dID.ixn  = d_ixn;
+                    dID.type = d_isPrimary ? caf::TrueParticleID::kPrimary : caf::TrueParticleID::kSecondary;
+                    dID.part = d_idx;
+                  }
+                  p.daughtersID.push_back(dID);
+                }
+              }
+            };
+            fill_id_refs_nonu(inter.prim);
+            fill_id_refs_nonu(inter.sec);
 
             // Optional visible-particle vertex proxy from the particle start point
             inter.vtx.SetX(mcpart.Vx());
