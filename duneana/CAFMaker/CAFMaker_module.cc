@@ -54,7 +54,6 @@
 #include "larsim/Utils/TruthMatchUtils.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
-#include "lardata/ArtDataHelper/MVAReader.h"
 
 
 // root
@@ -93,7 +92,6 @@ namespace caf {
       void PreLoadMCParticlesInfo(art::Event const& evt);
       void FillTruthInfo(caf::SRTruthBranch& sr,
                          art::Event const& evt);
-      void FillTruthInfoGENIECommon(caf::SRTrueInteraction& inter, simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
       void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
@@ -140,8 +138,6 @@ namespace caf {
 
 
       std::map<int, std::tuple<art::Ptr<simb::MCParticle>, int, bool, int>> fMCParticlesMap; //[tid] = (MCParticle, interaction, isPrimary, SRParticle ID)
-      uint fNprimaries = 0;
-      uint fNsecondaries = 0;
 
       TTree* fTree = nullptr;
       TTree* fMetaTree = nullptr;
@@ -605,11 +601,11 @@ namespace caf {
             std::deque<int> secondaries_to_add;
 
             const simb::MCParticle* the_g4_part = nullptr;
-            for (auto const& g4_part : plist) {
-              if (std::abs(mcpart.TrackId()) == g4_part.second->TrackId()) {
-                the_g4_part = g4_part.second;
-                break;
-              }
+            
+            const int thisTrackId = std::abs(mcpart.TrackId());
+            auto g4It = plist.find(thisTrackId);
+            if (g4It != plist.end()) {
+              the_g4_part = g4It->second;
             }
 
             if (the_g4_part) {
@@ -774,7 +770,11 @@ namespace caf {
     art::fill_ptr_vector(slicePtrs, sliceHandle);
 
     art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
-
+    if (!sliceToPFP.isValid()) {
+       mf::LogWarning("CAFMaker") << "Slice->PFParticle associations not found for label " << fPandoraLabel;
+       return;
+    }
+  
     for (const auto& slicePtr : slicePtrs) {
       FillRecoInfo(recoBranch, fdBranch, evt, slicePtr, sliceToPFP);
     }
@@ -799,10 +799,14 @@ namespace caf {
     bool found_beam = false;
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
-      const larpandoraobj::PFParticleMetadata& metaData_beam = *((findMetaData_beam.at(particle->Self())).at(0));
-      const std::map<std::string, float>& mdMap_beam = metaData_beam.GetPropertiesMap();
-      bool is_test_beam = (mdMap_beam.find("IsTestBeam") != mdMap_beam.end());
-
+      bool is_test_beam = false;
+      if (findMetaData_beam.isValid()) {
+        const auto& mdVec = findMetaData_beam.at(particle->Self());
+        if (!mdVec.empty() && mdVec.at(0).isNonnull()) {
+          const auto& mdMap = mdVec.at(0)->GetPropertiesMap();
+          is_test_beam = (mdMap.find("IsTestBeam") != mdMap.end());
+        }
+      }
       if (is_test_beam) {
         found_beam = true;
         break;
@@ -812,13 +816,14 @@ namespace caf {
     bool fill_info_condition = false;
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
-      const larpandoraobj::PFParticleMetadata& metaData_beam = *((findMetaData_beam.at(particle->Self())).at(0));
-      const std::map<std::string, float>& mdMap_beam = metaData_beam.GetPropertiesMap();
-      bool is_test_beam = (mdMap_beam.find("IsTestBeam") != mdMap_beam.end());
-
-      // -----------------------------
-
-
+      bool is_test_beam = false;
+      if (findMetaData_beam.isValid()) {
+        const auto& mdVec = findMetaData_beam.at(particle->Self());
+        if (!mdVec.empty() && mdVec.at(0).isNonnull()) {
+          const auto& mdMap = mdVec.at(0)->GetPropertiesMap();
+          is_test_beam = (mdMap.find("IsTestBeam") != mdMap.end());
+        }
+      }
 
       fill_info_condition = false;
       if (found_beam) {
