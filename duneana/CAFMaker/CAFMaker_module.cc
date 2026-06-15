@@ -320,6 +320,12 @@ namespace caf {
 
       const auto& mctruthVec = *mctruthHandle;
 
+      art::FindManyP<simb::MCParticle> fmParticles(mctruthHandle, evt, fG4Label);
+      if (!fmParticles.isValid()) {
+        mf::LogWarning("CAFMaker") << "MCTruth->MCParticle associations for label '"
+          << MCTruthLabel << "' not found. Prim/sec filling will be skipped for this label.";
+      }
+
       for (size_t i = 0; i < mctruthVec.size(); ++i) {
         const simb::MCTruth& mct = mctruthVec[i];
         const bool hasNu = mct.NeutrinoSet();
@@ -447,54 +453,59 @@ namespace caf {
             ++inter.nprefsi;
           }
 
-          for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
-            art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
-            fMCParticlesMap[tid] = std::make_tuple(mcpart, inter.id, (mcpart->Mother() == 0), (mcpart->Mother() == 0) ? inter.prim.size() : inter.sec.size());
-            bool isPrimary = (mcpart->Mother() == 0);
+          if (fmParticles.isValid()) {
+            for (const art::Ptr<simb::MCParticle>& mcpart : fmParticles.at(i)) {
+              const int tid = mcpart->TrackId();
+              if (tid == 0) continue;
 
-            caf::SRTrueParticle part;
-            part.pdg = mcpart->PdgCode();
-            part.G4ID = mcpart->TrackId();
-            part.interaction_id = inter.id;
-            part.time = mcpart->T();
-            part.p = caf::SRLorentzVector(mcpart->Momentum());
-            part.start_pos = caf::SRVector3D(mcpart->Position().Vect());
-            part.end_pos = caf::SRVector3D(mcpart->EndPosition().Vect());
-            part.parent = mcpart->Mother();
+              bool isPrimary = (mcpart->Mother() == 0);
+              fMCParticlesMap[tid] = std::make_tuple(mcpart, inter.id, isPrimary,
+                  isPrimary ? (int)inter.prim.size() : (int)inter.sec.size());
 
-            for (int d = 0; d < mcpart->NumberDaughters(); ++d) {
-              part.daughters.push_back(mcpart->Daughter(d));
-            }
+              caf::SRTrueParticle part;
+              part.pdg = mcpart->PdgCode();
+              part.G4ID = tid;
+              part.interaction_id = inter.id;
+              part.time = mcpart->T();
+              part.p = caf::SRLorentzVector(mcpart->Momentum());
+              part.start_pos = caf::SRVector3D(mcpart->Position().Vect());
+              part.end_pos = caf::SRVector3D(mcpart->EndPosition().Vect());
+              part.parent = mcpart->Mother();
 
-            if (fMCParticlesMap.count(mcpart->Mother()) > 0) {
-              art::Ptr<simb::MCParticle> ancestor_ptr;
-              bool ancestor_is_primary = false;
-              int ancestor_id = -1;
-              int ancestor_ixn = -1;
-              std::tie(ancestor_ptr, ancestor_ixn, ancestor_is_primary, ancestor_id) =
-                fMCParticlesMap.at(mcpart->Mother());
-
-              caf::TrueParticleID ancestor;
-              ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary
-                                                  : caf::TrueParticleID::kSecondary;
-              ancestor.ixn = ancestor_ixn;
-              ancestor.part = ancestor_id;
-              part.ancestor_id = ancestor;
-            }
-
-            if (isPrimary) {
-              inter.prim.push_back(std::move(part));      
-              switch (mcpart->PdgCode()) {
-                case 2212: ++inter.nproton; break;
-                case 2112: ++inter.nneutron; break;
-                case 211:  ++inter.npip;    break;
-                case -211: ++inter.npim;    break;
-                case 111:  ++inter.npi0;    break;
-                default: break;
+              for (int d = 0; d < mcpart->NumberDaughters(); ++d) {
+                part.daughters.push_back(mcpart->Daughter(d));
               }
-            }
-            else {
-              inter.sec.push_back(std::move(part));
+
+              if (fMCParticlesMap.count(mcpart->Mother()) > 0) {
+                art::Ptr<simb::MCParticle> ancestor_ptr;
+                bool ancestor_is_primary = false;
+                int ancestor_id = -1;
+                int ancestor_ixn = -1;
+                std::tie(ancestor_ptr, ancestor_ixn, ancestor_is_primary, ancestor_id) =
+                  fMCParticlesMap.at(mcpart->Mother());
+
+                caf::TrueParticleID ancestor;
+                ancestor.type = ancestor_is_primary ? caf::TrueParticleID::kPrimary
+                                                    : caf::TrueParticleID::kSecondary;
+                ancestor.ixn = ancestor_ixn;
+                ancestor.part = ancestor_id;
+                part.ancestor_id = ancestor;
+              }
+
+              if (isPrimary) {
+                inter.prim.push_back(std::move(part));
+                switch (mcpart->PdgCode()) {
+                  case 2212: ++inter.nproton; break;
+                  case 2112: ++inter.nneutron; break;
+                  case 211:  ++inter.npip;    break;
+                  case -211: ++inter.npim;    break;
+                  case 111:  ++inter.npi0;    break;
+                  default: break;
+                }
+              }
+              else {
+                inter.sec.push_back(std::move(part));
+              }
             }
           }
 
