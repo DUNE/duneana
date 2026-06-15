@@ -96,11 +96,11 @@ namespace caf {
       void FillTruthInfoGENIECommon(caf::SRTrueInteraction& inter, simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
-      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
+      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
       void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
       void FillCVNInfo(caf::SRCVNScoreBranch &cvnBranch, const art::Event &evt) const;
       void FillEnergyInfo(caf::SRNeutrinoEnergyBranch &ErecBranch, const art::Event &evt) const;
-      void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const;
+      void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
       void FillDirectionInfo(caf::SRDirectionBranch &dirBranch, const art::Event &evt) const;
       int FillGENIERecord(simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
@@ -773,53 +773,45 @@ namespace caf {
     std::vector<art::Ptr<recob::Slice>> slicePtrs;
     art::fill_ptr_vector(slicePtrs, sliceHandle);
 
+    art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
+
     for (const auto& slicePtr : slicePtrs) {
-      FillRecoInfo(recoBranch, fdBranch, evt, slicePtr);
+      FillRecoInfo(recoBranch, fdBranch, evt, slicePtr, sliceToPFP);
     }
       
   }
 
-  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const {
+  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const {
     SRInteractionBranch &ixn = recoBranch.ixn;
 
     //Only filling with Pandora Reco for the moment
     std::vector<SRInteraction> &pandora = ixn.pandora;
-    
-    lar_pandora::PFParticleVector particleVector;
-    auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
-    art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
-    particleVector = sliceToPFP.at(slicePtr.key());
 
+    lar_pandora::PFParticleVector particleVector = sliceToPFP.at(slicePtr.key());
 
     lar_pandora::VertexVector vertexVector;
     lar_pandora::PFParticlesToVertices particlesToVertices;
     lar_pandora::LArPandoraHelper::CollectVertices(evt, fPandoraLabel, vertexVector, particlesToVertices);
 
+    auto pfParticles_beam = evt.getValidHandle<std::vector<recob::PFParticle>>(fPandoraLabel);
+    const art::FindManyP<larpandoraobj::PFParticleMetadata> findMetaData_beam(pfParticles_beam, evt, fPandoraLabel);
+
     bool found_beam = false;
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
-      // check if the particle is beam
-      // ----------- Reproducing the isBeamParticle behaviour ------------------
-      auto pfParticles_beam = evt.getValidHandle<std::vector<recob::PFParticle>>(fPandoraLabel);
-      const art::FindManyP<larpandoraobj::PFParticleMetadata> findMetaData_beam(pfParticles_beam, evt, fPandoraLabel);
       const larpandoraobj::PFParticleMetadata& metaData_beam = *((findMetaData_beam.at(particle->Self())).at(0));
       const std::map<std::string, float>& mdMap_beam = metaData_beam.GetPropertiesMap();
       bool is_test_beam = (mdMap_beam.find("IsTestBeam") != mdMap_beam.end());
 
-      // -----------------------------
       if (is_test_beam) {
-        found_beam = true;      
+        found_beam = true;
         break;
       }
     }
-    
+
     bool fill_info_condition = false;
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
-      // check if the particle is beam
-      // ----------- Reproducing the isBeamParticle behaviour ------------------
-      auto pfParticles_beam = evt.getValidHandle<std::vector<recob::PFParticle>>(fPandoraLabel);
-      const art::FindManyP<larpandoraobj::PFParticleMetadata> findMetaData_beam(pfParticles_beam, evt, fPandoraLabel);
       const larpandoraobj::PFParticleMetadata& metaData_beam = *((findMetaData_beam.at(particle->Self())).at(0));
       const std::map<std::string, float>& mdMap_beam = metaData_beam.GetPropertiesMap();
       bool is_test_beam = (mdMap_beam.find("IsTestBeam") != mdMap_beam.end());
@@ -869,7 +861,7 @@ namespace caf {
 
         //List of reconstructed particles
         SRRecoParticlesBranch &part = reco.part;
-        FillRecoParticlesInfo(part, fdBranch, evt, slicePtr);
+        FillRecoParticlesInfo(part, fdBranch, evt, slicePtr, sliceToPFP);
 
         //Assuming a single TrueInteraction for now. TODO: Change this if several interactions end up being simulated in the same event
         reco.truth = {0}; 
@@ -1203,7 +1195,7 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  void CAFMaker::FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr) const
+  void CAFMaker::FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const
   {
     //Doing quite a lot of things here related to saving the reco particles
     //Will try to be pedagogical in the comments
@@ -1213,11 +1205,8 @@ namespace caf {
     auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService>()->DataFor(evt, clockData);
     double lar_density = detProp.Density();
 
-    //Getting all the PFParticles from the event
-    lar_pandora::PFParticleVector particleVector;
-    auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
-    art::FindManyP<recob::PFParticle> sliceToPFP(sliceHandle, evt, fPandoraLabel);
-    particleVector = sliceToPFP.at(slicePtr.key());
+    //Getting all the PFParticles from this slice
+    lar_pandora::PFParticleVector particleVector = sliceToPFP.at(slicePtr.key());
 
     unsigned int nuID = std::numeric_limits<unsigned int>::max();
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
