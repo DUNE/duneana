@@ -132,7 +132,7 @@ namespace caf {
       std::string fTrackLabel;
       std::string fShowerLabel;
       std::string fSpacePointLabel;
-      std::string fContainedDistThreshold;
+      double fContainedDistThreshold;
       std::string fHitLabel;
       std::string fG4Label;
 
@@ -200,7 +200,7 @@ namespace caf {
       fTrackLabel(pset.get< std::string >("TrackLabel")),
       fShowerLabel(pset.get< std::string >("ShowerLabel")),
       fSpacePointLabel(pset.get< std::string >("SpacePointLabel")),
-      fContainedDistThreshold(pset.get< std::string >("ContainedDistThreshold")),
+      fContainedDistThreshold(pset.get< double >("ContainedDistThreshold")),
       fHitLabel(pset.get< std::string >("HitLabel")),
       fG4Label(pset.get< std::string >("G4Label")),
       fEventRecord(new genie::NtpMCEventRecord),
