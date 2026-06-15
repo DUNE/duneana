@@ -106,7 +106,7 @@ namespace caf {
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       void FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const;
       void FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
-      double GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const;
+      double GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
       double GetSingleHitsEnergy(art::Event const& evt, int plane) const;
@@ -446,23 +446,6 @@ namespace caf {
             inter.prefsi.push_back(std::move(part));
             ++inter.nprefsi;
           }
-
-          // // For neutrino interactions, primaries/secondaries come from the interaction products,
-          // // preserving the logic of the first implementation.
-          // inter.prim.resize(fNprimaries);
-          // inter.sec.resize(fNsecondaries);
-
-    // fNprimaries = 0;
-    // fNsecondaries = 0;
-    // for(art::Ptr<simb::MCParticle> const& mcpart: mcparticles) {
-    //   if(mcpart->TrackId() == 0) continue; //Skip the neutrino particle (TrackId 0)
-    //   bool isPrimary = (mcpart->Mother() == 0);
-    //   if(isPrimary) {
-    //     fMCParticlesMap[mcpart->TrackId()] = {mcpart, true, fNprimaries};
-    //     fNprimaries++;
-    //   } else {
-    //     fMCParticlesMap[mcpart->TrackId()] = {mcpart, false, fNsecondaries}; // todo: include also the true interaction slice (ixn)
-    //     fNsecondaries++;
 
           for (auto const& [tid, mcpart_tuple] : fMCParticlesMap) {
             art::Ptr<simb::MCParticle> mcpart = std::get<0>(mcpart_tuple);
@@ -913,9 +896,9 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  double CAFMaker::GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const{
+  double CAFMaker::GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const{
     double minDist = std::numeric_limits<double>::max();
-    std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaEventUtils::GetSpacePoints(evt, fSpacePointLabel);
+    std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaPFParticleUtils::GetSpacePoints(pfp, evt, fSpacePointLabel);
 
     if(spacePoints.empty()){
       mf::LogWarning("CAFMaker") << "No space points found with label '" << fSpacePointLabel << "'";
@@ -1002,8 +985,8 @@ namespace caf {
     art::Handle<sumdata::POTSummary> pots = sr.getHandle<sumdata::POTSummary>(fPOTSummaryLabel);
     if( pots ) fMetaPOT += pots->totpot;
 
-    fMetaRun = sr.id().subRun();
-    fMetaSubRun = sr.id().run();
+    fMetaSubRun = sr.id().subRun();
+    fMetaRun = sr.id().run();
 
   }
 
@@ -1223,7 +1206,7 @@ namespace caf {
 
       FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
 
-      particle_record.walldist = GetWallDistance(*particle, evt); //Getting the distance to the wall for this PFP
+      particle_record.walldist = GetWallDistance(particle, evt); //Getting the distance to the wall for this PFP
       particle_record.contained = (particle_record.walldist < fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
 
       //Getting the track and shower objects associated to the PFP

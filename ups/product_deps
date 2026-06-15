@@ -249,7 +249,6 @@ cetmodules	 v3_27_04	-	only_for_build
 dunereco         v10_20_09d00
 duneopdet        v10_20_09d00
 duneanaobj       v03_15_00
-# protoduneana     v10_20_09d00
 end_product_list
 ####################################
 
