@@ -248,7 +248,7 @@ product          version
 cetmodules	 v3_27_04	-	only_for_build
 dunereco         v10_20_09d01
 duneopdet        v10_20_09d01
-duneanaobj       v03_12_00
+duneanaobj       v03_15_00
 end_product_list
 ####################################
 
