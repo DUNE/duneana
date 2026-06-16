@@ -106,7 +106,7 @@ namespace caf {
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       void FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const;
       void FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
-      double GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const;
+      double GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
       double GetSingleHitsEnergy(art::Event const& evt, int plane) const;
@@ -135,7 +135,7 @@ namespace caf {
       std::string fTrackLabel;
       std::string fShowerLabel;
       std::string fSpacePointLabel;
-      std::string fContainedDistThreshold;
+      double fContainedDistThreshold;
       std::string fHitLabel;
       std::string fG4Label;
 
@@ -204,7 +204,7 @@ namespace caf {
       fTrackLabel(pset.get< std::string >("TrackLabel")),
       fShowerLabel(pset.get< std::string >("ShowerLabel")),
       fSpacePointLabel(pset.get< std::string >("SpacePointLabel")),
-      fContainedDistThreshold(pset.get< std::string >("ContainedDistThreshold")),
+      fContainedDistThreshold(pset.get< double >("ContainedDistThreshold")),
       fHitLabel(pset.get< std::string >("HitLabel")),
       fG4Label(pset.get< std::string >("G4Label")),
       fEventRecord(new genie::NtpMCEventRecord),
@@ -666,9 +666,9 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  double CAFMaker::GetWallDistance(recob::PFParticle const& pfp, const art::Event &evt) const{
+  double CAFMaker::GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const{
     double minDist = std::numeric_limits<double>::max();
-    std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaEventUtils::GetSpacePoints(evt, fSpacePointLabel);
+    std::vector<art::Ptr<recob::SpacePoint>> spacePoints = dune_ana::DUNEAnaPFParticleUtils::GetSpacePoints(pfp, evt, fSpacePointLabel);
 
     if(spacePoints.empty()){
       mf::LogWarning("CAFMaker") << "No space points found with label '" << fSpacePointLabel << "'";
@@ -971,7 +971,7 @@ namespace caf {
       pandoraIDToPFPIdx[particle->Self()] = fdIxn.npfps;
 
       FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
-      particle_record.walldist = GetWallDistance(*particle, evt); //Getting the distance to the wall for this PFP
+      particle_record.walldist = GetWallDistance(particle, evt); //Getting the distance to the wall for this PFP
       particle_record.contained = (particle_record.walldist < fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
 
       //Getting the track and shower objects associated to the PFP
