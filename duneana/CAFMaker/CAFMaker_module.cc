@@ -53,7 +53,12 @@
 #include "dunereco/AnaUtils/DUNEAnaShowerUtils.h"
 #include "larsim/Utils/TruthMatchUtils.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "lardataobj/Simulation/SimChannel.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
+#include "dunecore/DuneObj/ProtoDUNEBeamEvent.h"
 
 
 // root
@@ -94,8 +99,8 @@ namespace caf {
                          art::Event const& evt);
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
-      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
-      void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
+      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch &truthBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
+      void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch &truthBranch, const art::Event &evt) const;
       void FillCVNInfo(caf::SRCVNScoreBranch &cvnBranch, const art::Event &evt) const;
       void FillEnergyInfo(caf::SRNeutrinoEnergyBranch &ErecBranch, const art::Event &evt) const;
       void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
@@ -108,6 +113,18 @@ namespace caf {
       double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
       double GetSingleHitsEnergy(art::Event const& evt, int plane) const;
+      std::map<int, std::vector<const sim::IDE*>> slice_IDEs(
+          std::vector<const sim::IDE*> ides,
+          double the_z0, double the_pitch, double true_endZ) const;
+      double ComputeTrueInteractingEnergy(
+          const art::Event& evt,
+          const simb::MCParticle* true_beam_particle) const;
+      void ComputeRecoInteractingEnergy(
+          const art::Event& evt,
+          const recob::Track* thisTrack,
+          detinfo::DetectorClocksData const& clockData,
+          caf::SRInteractionBranch& interaction,
+          caf::SRTruthBranch& truthBranch) const;
       bool IsVertexContained(caf::SRVector3D const& vtx) const;
       std::string fCVNLabel;
       bool fIsAtmoCVN;
@@ -158,7 +175,14 @@ namespace caf {
 
       calo::CalorimetryAlg fCalorimetryAlg;                    ///< the calorimetry algorithm
       double fRecombFactor; ///< recombination factor for the isolated hits
-      
+      std::string fCalorimetryLabelSCE;    ///< SCE-corrected calorimetry label for beam track
+      bool fVPlaneAsCollector;             ///< Use V-plane (1) instead of W-plane (2) as collection plane
+      std::string fPFParticleLabel;        ///< PFParticle label used to retrieve beam particle track
+      bool fMCHasBI;                       ///< MC sample has beam instrumentation info (enables data-path KE in ComputeRecoInteractingEnergy)
+      std::string fBeamModuleLabel;        ///< Label for beam instrumentation data product (real data)
+      double fBeamInstPFix;               ///< Momentum correction factor for MC beam instrumentation
+      geo::WireReadoutGeom const* fWireReadout = nullptr; ///< Wire readout geometry for wire pitch
+
       const std::map<simb::Generator_t, caf::Generator> fgenMap = {
         {simb::Generator_t::kUnknown, caf::Generator::kUnknownGenerator},
         {simb::Generator_t::kGENIE,   caf::Generator::kGENIE},
@@ -207,7 +231,13 @@ namespace caf {
       fGeom(&*art::ServiceHandle<geo::Geometry>()),
       fVertexFiducialVolumeCut(pset.get<std::vector<double>>("VertexFiducialVolumeCut")),
       fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")),
-      fRecombFactor(pset.get<double>("RecombFactor"))
+      fRecombFactor(pset.get<double>("RecombFactor")),
+      fCalorimetryLabelSCE(pset.get<std::string>("CalorimetryLabelSCE", "")),
+      fVPlaneAsCollector(pset.get<bool>("VPlaneAsCollector", false)),
+      fPFParticleLabel(pset.get<std::string>("PFParticleLabel", "pandora")),
+      fMCHasBI(pset.get<bool>("MCHasBI", false)),
+      fBeamModuleLabel(pset.get<std::string>("BeamModuleLabel", "beamevent")),
+      fBeamInstPFix(pset.get<double>("BeamInstPFix", 1.))
   {
 
     if(pset.get<bool>("CreateFlatCAF")){
@@ -218,6 +248,7 @@ namespace caf {
     }
 
     ComputeActiveBounds();
+    fWireReadout = &art::ServiceHandle<geo::WireReadout>()->Get();
 
     if(fVertexFiducialVolumeCut.size() != 6){
       throw cet::exception("CAFMaker") << "VertexFiducialVolumeCut must be a vector of 6 elements";
@@ -616,6 +647,7 @@ namespace caf {
               }
             }
 
+            part.true_beam_interactingEnergy = ComputeTrueInteractingEnergy(evt, &mcpart);
             inter.prim.push_back(std::move(part));
             inter.nprim = 1;
 
@@ -661,6 +693,7 @@ namespace caf {
                 secondaries_to_add.push_back(daughter);
               }
 
+              sec.true_beam_interactingEnergy = ComputeTrueInteractingEnergy(evt, sec_mcpart.get());
               inter.sec.push_back(std::move(sec));
             }
 
@@ -758,7 +791,7 @@ namespace caf {
   }
 
   //------------------------------------------------------------------------------
-  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const 
+  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch &truthBranch, const art::Event &evt) const
   {
     // get handle to slices
     auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
@@ -776,12 +809,12 @@ namespace caf {
     }
   
     for (const auto& slicePtr : slicePtrs) {
-      FillRecoInfo(recoBranch, fdBranch, evt, slicePtr, sliceToPFP);
+      FillRecoInfo(recoBranch, fdBranch, truthBranch, evt, slicePtr, sliceToPFP);
     }
       
   }
 
-  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const {
+  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, caf::SRTruthBranch &truthBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const {
     SRInteractionBranch &ixn = recoBranch.ixn;
 
     //Only filling with Pandora Reco for the moment
@@ -872,6 +905,19 @@ namespace caf {
         reco.truth = {0}; 
         reco.truthOverlap = {1.};
         reco.isFromTrigger = is_test_beam;
+
+        if (is_test_beam) {
+          art::Ptr<recob::Track> beamTrack;
+          if (dune_ana::DUNEAnaPFParticleUtils::HasTrack(particle, evt, fPandoraLabel, fTrackLabel)) {
+            beamTrack = dune_ana::DUNEAnaPFParticleUtils::GetTrack(particle, evt, fPandoraLabel, fTrackLabel);
+          }
+          if (beamTrack.isNonnull()) {
+            auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
+            ComputeRecoInteractingEnergy(evt, beamTrack.get(), clockData, ixn, truthBranch);
+          } else {
+            mf::LogWarning("CAFMaker") << "No track associated to beam particle — skipping reco interacting energy.";
+          }
+        }
 
         pandora.emplace_back(reco);
         break; //We do this work only the first primary particle in the slice to avoid repetitions
@@ -1039,8 +1085,231 @@ namespace caf {
   }
 
   //------------------------------------------------------------------------------
- 
- 
+
+  std::map<int, std::vector<const sim::IDE*>> CAFMaker::slice_IDEs(
+      std::vector<const sim::IDE*> ides,
+      double the_z0, double the_pitch, double true_endZ) const {
+
+    std::map<int, std::vector<const sim::IDE*>> results;
+
+    for (size_t i = 0; i < ides.size(); ++i) {
+      int slice_num = std::floor(
+          (ides[i]->z - (the_z0 - the_pitch/2.)) / the_pitch);
+      results[slice_num].push_back(ides[i]);
+    }
+
+    return results;
+  }
+
+  //------------------------------------------------------------------------------
+
+  double CAFMaker::ComputeTrueInteractingEnergy(
+      const art::Event& evt,
+      const simb::MCParticle* true_beam_particle) const {
+
+    const simb::MCTrajectory& true_beam_trajectory = true_beam_particle->Trajectory();
+    double true_beam_mass   = true_beam_particle->Mass() * 1.e3;
+    double true_beam_startP = true_beam_particle->P();
+    int    true_beam_ID     = true_beam_particle->TrackId();
+    double true_beam_endZ   = true_beam_particle->EndZ();
+
+    constexpr geo::PlaneID planeID{0, 1, 2};
+    double fZ0    = fWireReadout->Wire(geo::WireID(planeID, 0)).GetCenter().Z();
+    double fPitch = fWireReadout->Plane(planeID).WirePitch();
+
+    double init_KE = std::sqrt(1.e6 * true_beam_startP * true_beam_startP +
+                               true_beam_mass * true_beam_mass) - true_beam_mass;
+
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    auto view2_IDEs = bt_serv->TrackIdToSimIDEs_Ps(true_beam_ID, geo::View_t(2));
+
+    std::sort(view2_IDEs.begin(), view2_IDEs.end(),
+              [](const sim::IDE* i1, const sim::IDE* i2){ return i1->z < i2->z; });
+
+    size_t remove_index = 0;
+    bool   do_remove    = false;
+    if (view2_IDEs.size()) {
+      for (size_t i = 1; i < view2_IDEs.size() - 1; ++i) {
+        const sim::IDE* prev_IDE = view2_IDEs[i-1];
+        const sim::IDE* this_IDE = view2_IDEs[i];
+        if (this_IDE->trackID < 0 && (this_IDE->z - prev_IDE->z) > 5) {
+          remove_index = i;
+          do_remove    = true;
+          break;
+        }
+      }
+    }
+    if (do_remove)
+      view2_IDEs.erase(view2_IDEs.begin() + remove_index, view2_IDEs.end());
+
+    auto sliced_ides = slice_IDEs(view2_IDEs, fZ0, fPitch, true_beam_endZ);
+    if (sliced_ides.size()) {
+      auto  first_slice = sliced_ides.begin();
+      auto  theIDEs     = first_slice->second;
+      if (theIDEs.empty()) return -1.;
+
+      double ide_z = theIDEs[0]->z;
+      for (size_t i = 1; i < true_beam_trajectory.size(); ++i) {
+        double z0 = true_beam_trajectory.Z(i-1);
+        double z1 = true_beam_trajectory.Z(i);
+        if (z0 < ide_z && z1 > ide_z) {
+          init_KE = 1.e3 * true_beam_trajectory.E(i-1) - true_beam_mass;
+          break;
+        }
+      }
+
+      double true_beam_interactingEnergy = init_KE;
+      for (auto it = sliced_ides.begin(); it != sliced_ides.end(); ++it) {
+        auto sliceIDEs = it->second;
+        if (sliceIDEs.size()) {
+          double deltaE = 0.;
+          for (size_t i = 0; i < sliceIDEs.size(); ++i)
+            deltaE += sliceIDEs[i]->energy;
+          true_beam_interactingEnergy -= deltaE;
+        }
+      }
+      return true_beam_interactingEnergy;
+    } else {
+      return -1.;
+    }
+  }
+
+  //------------------------------------------------------------------------------
+
+  void CAFMaker::ComputeRecoInteractingEnergy(
+      const art::Event& evt,
+      const recob::Track* thisTrack,
+      detinfo::DetectorClocksData const& clockData,
+      caf::SRInteractionBranch& interaction,
+      caf::SRTruthBranch& truthBranch) const {
+
+    // Retrieve calorimetry — direct art association, no protoduneana dependency
+    auto tracksHandle = evt.getValidHandle<std::vector<recob::Track>>(fTrackLabel);
+    art::FindManyP<anab::Calorimetry> fmCalo(tracksHandle, evt, fCalorimetryLabelSCE);
+    std::vector<anab::Calorimetry> calo;
+    if (fmCalo.isValid()) {
+      for (auto caloPtr : fmCalo.at(thisTrack->ID()))
+        calo.push_back(*caloPtr);
+    }
+
+    bool found_calo = false;
+    size_t index = 0;
+    for (index = 0; index < calo.size(); ++index) {
+      auto this_plane = calo[index].PlaneID().Plane;
+      if ((this_plane == 2 && !fVPlaneAsCollector) ||
+          (this_plane == 1 &&  fVPlaneAsCollector)) {
+        found_calo = true;
+        break;
+      }
+    }
+    if (!found_calo) return;
+
+    auto calo_dEdX  = calo[index].dEdx();
+    auto calo_range = calo[index].ResidualRange();
+    auto TpIndices  = calo[index].TpIndices();
+    auto theXYZPoints = calo[index].XYZ();
+
+    auto allHits = evt.getValidHandle<std::vector<recob::Hit>>(fHitLabel);
+
+    struct calo_point {
+      calo_point() = default;
+      calo_point(size_t w, double in_tick, double p, double dqdx, double dedx, double dq,
+                 double cali_dqdx, double cali_dedx, double r, size_t idx, double wire_z_in,
+                 int t, double efield, double input_x, double input_y, double input_z)
+          : wire(w), tick(in_tick), pitch(p), dQdX(dqdx), dEdX(dedx), dQ(dq),
+            calibrated_dQdX(cali_dqdx), calibrated_dEdX(cali_dedx),
+            res_range(r), hit_index(idx), wire_z(wire_z_in), tpc(t),
+            EField(efield), x(input_x), y(input_y), z(input_z) {}
+      size_t wire; double tick, pitch, dQdX, dEdX, dQ;
+      double calibrated_dQdX, calibrated_dEdX, res_range;
+      size_t hit_index; double wire_z; int tpc; double EField, x, y, z;
+    };
+
+    std::vector<calo_point> reco_beam_calo_points;
+    for (size_t i = 0; i < calo_dEdX.size(); ++i) {
+      const recob::Hit& theHit = (*allHits)[TpIndices[i]];
+      reco_beam_calo_points.push_back(calo_point(
+        theHit.WireID().Wire, theHit.PeakTime(),
+        calo[index].TrkPitchVec()[i],
+        calo[index].dQdx()[i], calo_dEdX[i],
+        theHit.Integral(),
+        calo[index].dQdx()[i], calo_dEdX[i],
+        calo_range[i], TpIndices[i],
+        0., 0., 0.,
+        theXYZPoints[i].X(), theXYZPoints[i].Y(), theXYZPoints[i].Z()
+      ));
+    }
+
+    std::sort(reco_beam_calo_points.begin(), reco_beam_calo_points.end(),
+              [](const calo_point& a, const calo_point& b){ return a.z < b.z; });
+
+    // Retrieve beam instrumentation momentum locally (same logic as reference, not stored in CAF)
+    double beam_inst_P = 0.;
+    {
+      std::vector<art::Ptr<beam::ProtoDUNEBeamEvent>> beamVec;
+      if (evt.isRealData()) {
+        auto beamHandle = evt.getValidHandle<std::vector<beam::ProtoDUNEBeamEvent>>(fBeamModuleLabel);
+        if (beamHandle.isValid()) art::fill_ptr_vector(beamVec, beamHandle);
+      } else {
+        try {
+          auto beamHandle = evt.getValidHandle<std::vector<beam::ProtoDUNEBeamEvent>>("generator");
+          if (beamHandle.isValid()) art::fill_ptr_vector(beamVec, beamHandle);
+        } catch (const cet::exception &) {
+          mf::LogWarning("CAFMaker") << "BeamEvent generator object not found, beam_inst_P will be 0.";
+        }
+      }
+      if (!beamVec.empty()) {
+        std::vector<double> momenta = beamVec.at(0)->GetRecoBeamMomenta();
+        if (!momenta.empty()) {
+          beam_inst_P = momenta[0];
+          if (!evt.isRealData()) beam_inst_P *= fBeamInstPFix;
+        }
+      }
+    }
+
+    double init_KE = 0.;
+    if (evt.isRealData() || fMCHasBI) {
+      double mass = 139.57;
+      init_KE = std::sqrt(1.e6 * beam_inst_P * beam_inst_P + mass * mass) - mass;
+    } else {
+      if (truthBranch.nu.empty()) {
+        mf::LogWarning("CAFMaker") << "ComputeRecoInteractingEnergy: truthBranch.nu is empty.";
+        return;
+      }
+      auto& nu = truthBranch.nu[0];
+      if (nu.prim.empty()) {
+        mf::LogWarning("CAFMaker") << "ComputeRecoInteractingEnergy: nu.prim is empty.";
+        return;
+      }
+      auto* pdef = genie::PDGLibrary::Instance()->Find(nu.pdg);
+      if (!pdef) {
+        mf::LogWarning("CAFMaker") << "ComputeRecoInteractingEnergy: PDGLibrary returned nullptr for PDG " << nu.pdg << ".";
+        return;
+      }
+      double true_beam_mass = pdef->Mass();
+      init_KE = nu.prim[0].p.E - true_beam_mass;
+      std::cout << "Not real data, the true mass is " << true_beam_mass << " MeV/c^2 and the true energy is " << nu.prim[0].p.E << " MeV" << std::endl;
+    }
+    
+    std::cout << "Initial KE for reco beam: " << init_KE << " MeV" << std::endl;
+    if (reco_beam_calo_points.size() > 0) {
+      std::vector<double> reco_beam_incidentEnergies;
+      reco_beam_incidentEnergies.push_back(init_KE);
+      for (size_t i = 0; i < reco_beam_calo_points.size() - 1; ++i) {
+        if (reco_beam_calo_points[i].dEdX < 0.) continue;
+        double this_energy = reco_beam_incidentEnergies.back() - (reco_beam_calo_points[i].dEdX * reco_beam_calo_points[i].pitch);
+        reco_beam_incidentEnergies.push_back(this_energy);
+      }
+      if (!reco_beam_incidentEnergies.empty())
+        interaction.reco_beam_interactingEnergy = reco_beam_incidentEnergies.back();
+    } else {
+      mf::LogWarning("CAFMaker") << "ComputeRecoInteractingEnergy: no calorimetry points found.";
+    }
+  }
+
+  //------------------------------------------------------------------------------
+
+
   void CAFMaker::beginSubRun(const art::SubRun& sr)
   {
     art::Handle<sumdata::POTSummary> pots = sr.getHandle<sumdata::POTSummary>(fPOTSummaryLabel);
@@ -1552,7 +1821,7 @@ namespace caf {
 
     FillTruthInfo(sr.mc, evt);
 
-    FillRecoInfoSliceLoop(sr.common, *fdBranch, evt);
+    FillRecoInfoSliceLoop(sr.common, *fdBranch, sr.mc, evt);
 
     if(fTree){
       fTree->Fill();

@@ -27,7 +27,7 @@ dunepdsp_cafmaker:
     GTruthLabel:                "generator"
     MCFluxLabel:                "generator"
     POTSummaryLabel:            "generator"
-    TrackLabel:                 "pandora2Track"
+    TrackLabel:                 "pandoraTrack"
     ShowerLabel:                "pandora2Shower"
     SpacePointLabel:            "pandora"
     HitLabel:                   "hitpdune"
@@ -38,7 +38,11 @@ dunepdsp_cafmaker:
 
     CalorimetryAlg:             @local::pdune_sp_calorimetryalgmc
     RecombFactor:               0.63 #Average recombination factor used the the hits not attached to a PFP
-    
+    CalorimetryLabelSCE:        "pandoracalinoxyzt"
+    VPlaneAsCollector:          false
+    PFParticleLabel:            "pandora"
+    MCHasBI:                    true
+
 }
 
 

@@ -38,7 +38,11 @@ dunefd_cafmaker:
 
     CalorimetryAlg:             @local::dune10kt_calorimetryalgmc
     RecombFactor:               0.63 #Average recombination factor used the the hits not attached to a PFP
-    
+    CalorimetryLabelSCE:        ""
+    VPlaneAsCollector:          false
+    PFParticleLabel:            "pandora"
+    MCHasBI:                    false
+
 }
 
 dunefdvd_cafmaker:
