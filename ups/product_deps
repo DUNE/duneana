@@ -304,10 +304,10 @@ end_product_list
 #
 
 qualifier      dunereco   duneopdet  duneanaobj    notes
-c14:debug      c14:debug  c14:debug  c14:debug  
-c14:prof       c14:prof   c14:prof   c14:prof 
-e26:debug      e26:debug  e26:debug  e26:debug 
-e26:prof       e26:prof   e26:prof   e26:prof 
+c14:debug      c14:debug  c14:debug  c14:debug      
+c14:prof       c14:prof   c14:prof   c14:prof        
+e26:debug      e26:debug  e26:debug  e26:debug    
+e26:prof       e26:prof   e26:prof   e26:prof     
 end_qualifier_list
 ####################################
 
