@@ -972,7 +972,7 @@ namespace caf {
 
       FillTruthMatchingAndOverlap(particle, evt, particle_record.truth, particle_record.truthOverlap);
       particle_record.walldist = GetWallDistance(particle, evt); //Getting the distance to the wall for this PFP
-      particle_record.contained = (particle_record.walldist < fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
+      particle_record.contained = (particle_record.walldist > fContainedDistThreshold); //Setting the contained flag based on the distance to the wall
 
       //Getting the track and shower objects associated to the PFP
       art::Ptr<recob::Track> track;
