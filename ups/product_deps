@@ -246,8 +246,8 @@ defaultqual	e26
 #
 product          version
 cetmodules	 v3_27_04	-	only_for_build
-dunereco         v10_21_01d00
-duneopdet        v10_21_01d00
+dunereco         v10_21_02d00
+duneopdet        v10_21_02d00
 duneanaobj       v03_16_00
 end_product_list
 ####################################
