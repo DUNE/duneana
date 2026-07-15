@@ -282,7 +282,7 @@ void EventDisplay3D::beginJob()
   auto const detProp =
     art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataForJob();
   for (int i = 0; i < 3; ++i) {
-    double driftVelocity = detProp.DriftVelocity(detProp.Efield(i),
+    double driftVelocity = detProp.DriftVelocity(detProp.PerPlaneEfield(i),
   			                         detProp.Temperature())
 			   *1.e-3; // cm/us -> cm/ns (standard LArSoft units)
     visutil_->fRecipDriftVel[i] = 1. / driftVelocity;

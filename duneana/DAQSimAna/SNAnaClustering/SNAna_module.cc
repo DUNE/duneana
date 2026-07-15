@@ -556,7 +556,7 @@ void SNAna::analyze(art::Event const & evt)
           }
 
           //CM/MICROSECOND.
-          double drift_velocity = detProp.DriftVelocity(detProp.Efield(),detProp.Temperature());
+          double drift_velocity = detProp.DriftVelocity(detProp.PerPlaneEfield(),detProp.Temperature());
           //CM/TICK
           drift_velocity = drift_velocity*0.5;
           True_VertexT.push_back(True_VertX.back()/drift_velocity);

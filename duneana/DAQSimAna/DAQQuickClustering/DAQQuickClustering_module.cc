@@ -475,7 +475,7 @@ void DAQQuickClustering::analyze(art::Event const & evt)
   //CM/MICROSECOND.
   auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(evt);
   auto const detProp = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->DataFor(evt, clockData);
-  double drift_velocity = detProp.DriftVelocity(detProp.Efield(),detProp.Temperature());
+  double drift_velocity = detProp.DriftVelocity(detProp.PerPlaneEfield(),detProp.Temperature());
   //CM/TICK
   drift_velocity = drift_velocity*0.5;
   VertexT = VertX/drift_velocity;
