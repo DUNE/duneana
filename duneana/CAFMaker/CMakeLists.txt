@@ -1,5 +1,6 @@
 if( DEFINED ENV{TENSORFLOW_DIR} )
 include_directories($ENV{SRPROXY_INC})
+add_compile_options("-Wno-error=array-bounds")
 cet_build_plugin(CAFMaker   art::module LIBRARIES
                         duneanaobj::StandardRecord
                         duneanaobj::StandardRecordFlat
