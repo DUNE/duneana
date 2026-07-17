@@ -19,10 +19,8 @@
 
 #include "TTree.h"
 #include "lardataobj/RawData/RawDigit.h"
-
-
-constexpr int kMaxNumberCh = 41471;
-constexpr int kMaxTicks= 8000;
+#include "larcore/Geometry/WireReadout.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 namespace rawdigit {
   class RawDigitAna;
@@ -32,10 +30,7 @@ namespace rawdigit {
 class rawdigit::RawDigitAna : public art::EDAnalyzer {
 public:
   explicit RawDigitAna(fhicl::ParameterSet const& p);
-  // The compiler-generated destructor is fine for non-base
-  // classes without bare pointers or other resource use.
 
-  // Plugins should not be copied or assigned.
   RawDigitAna(RawDigitAna const&) = delete;
   RawDigitAna(RawDigitAna&&) = delete;
   RawDigitAna& operator=(RawDigitAna const&) = delete;
@@ -50,13 +45,11 @@ public:
 private:
 
   art::InputTag fModuleLabel;
-  TTree *fTree;
-  int fRun;
-  int fSubrun;
-  int fEvent;
-  // int fW_plane[kMaxNumberCh];
-  int fW_ch[kMaxNumberCh];
-  float fW_signal[kMaxNumberCh][kMaxTicks];
+  TTree* fTree;
+  int fRun, fSubrun, fEvent;
+  int fView, fChannel;
+  std::vector<short> fADC;
+  std::vector<int> fTPCs;
 
 };
 
@@ -72,12 +65,13 @@ void rawdigit::RawDigitAna::beginJob(){
   reset();
   art::ServiceHandle<art::TFileService> tfs;
   fTree = tfs->make<TTree>("rawdigitTree","Tree with rawdigit info");
-  fTree->Branch("event", &fEvent);
-  fTree->Branch("subrun", &fSubrun);
-  fTree->Branch("run", &fRun);
-  // fTree->Branch("w_plane", &fW_plane, Form("w_plane[%d]/I", kMaxNumberCh));
-  fTree->Branch("w_ch", &fW_ch, Form("w_ch[%d]/I", kMaxNumberCh));
-  fTree->Branch("w_signal", &fW_signal, Form("w_signal[%d][%d]/F", kMaxNumberCh, kMaxTicks));
+  fTree->Branch("run",     &fRun);
+  fTree->Branch("subrun",  &fSubrun);
+  fTree->Branch("event",   &fEvent);
+  fTree->Branch("tpc",     &fTPCs);
+  fTree->Branch("channel", &fChannel);
+  fTree->Branch("view",    &fView);
+  fTree->Branch("adc",     &fADC);
 
 }  
 
@@ -86,44 +80,28 @@ void rawdigit::RawDigitAna::endJob(){
 }
 void rawdigit::RawDigitAna::analyze(art::Event const& e)
 {
-  // Implementation of required member function here.
-  auto const& rawdigits = *(e.getValidHandle<std::vector<raw::RawDigit>>(fModuleLabel));
   fRun = e.run();
   fSubrun = e.subRun();
   fEvent = e.id().event();
+  auto const& wireReadout = art::ServiceHandle<geo::WireReadout>()->Get();
+  auto const& rawdigits = *(e.getValidHandle<std::vector<raw::RawDigit>>(fModuleLabel));
+  for (raw::RawDigit const& rd : rawdigits) {
+    fChannel = rd.Channel();
+    fView = static_cast<int>(wireReadout.View(rd.Channel()));
+    fTPCs.clear();
+    for (auto const& wid : wireReadout.ChannelToWire(rd.Channel())) {
+      fTPCs.push_back(wid.TPC);
+    }
 
-  unsigned int idx = 0;
-  for (raw::RawDigit const& rawdigit: rawdigits) {
-    // std::cout << "Compression: " << rawdigit.Compression() << std::endl;
-    if (idx >= kMaxNumberCh) {
-      mf::LogWarning("RawDigitAna") << "Number of channels in rawdigit exceeds kMaxNumberCh. Only saving the first " << kMaxNumberCh << " channels.";
-      break;
-    }
-    unsigned int jdx = 0;
-    for ( int adc = 0; adc < int(rawdigit.NADC()); ++adc){
-      if (jdx >= kMaxTicks) {
-        mf::LogWarning("RawDigitAna") << "Number of ticks in rawdigit exceeds kMaxTicks. Only saving the first " << kMaxTicks << " ticks.";
-        break;
-      }
-      fW_signal[idx][jdx]= rawdigit.ADC(adc);
-      ++ jdx;
-    }
-    // fW_plane[idx] = rawdigit.View();
-    fW_ch[idx] = rawdigit.Channel();
-    ++ idx;
-  }
-  fTree->Fill();
+    fADC.assign(rd.ADCs().begin(), rd.ADCs().end());
+    fTree->Fill();
+  }  
 }
-
 void rawdigit::RawDigitAna::reset(){
-
-  for ( unsigned int i=0; i<kMaxNumberCh; ++i){
-    // fW_plane[i] = -999;   
-    fW_ch[i] = -1;   
-    for ( unsigned int j=0; j<kMaxTicks; ++j){
-      fW_signal[i][j] = 0;
-    }
-  }
+  fChannel = -999;
+  fView    = -999;
+  fTPCs.clear();
+  fADC.clear();
 }
 
 DEFINE_ART_MODULE(rawdigit::RawDigitAna)
