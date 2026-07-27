@@ -104,6 +104,7 @@ namespace caf {
       void FillGeneratorInfo(simb::MCGeneratorInfo const& genInfo, caf::SRTrueInteraction &inter) const;
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       void FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const;
+      void FillInteractionTruthMatchingAndOverlap(lar_pandora::PFParticleVector const& particles, const art::Event &evt, std::vector<std::size_t> &truth, std::vector<float> &truthOverlap) const;
       void FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::SpacePoint const& sp) const;
@@ -835,9 +836,7 @@ namespace caf {
         SRRecoParticlesBranch &part = reco.part;
         FillRecoParticlesInfo(part, fdBranch, evt, slicePtr, sliceToPFP);
 
-        //Assuming a single TrueInteraction for now. TODO: Change this if several interactions end up being simulated in the same event
-        reco.truth = {0}; 
-        reco.truthOverlap = {1.};
+        FillInteractionTruthMatchingAndOverlap(particleVector, evt, reco.truth, reco.truthOverlap);
         reco.isFromTrigger = is_test_beam;
 
         pandora.emplace_back(reco);
@@ -897,6 +896,59 @@ namespace caf {
     }
 
 
+  }
+
+  //------------------------------------------------------------------------------
+
+
+  void CAFMaker::FillInteractionTruthMatchingAndOverlap(lar_pandora::PFParticleVector const& particles, const art::Event &evt, std::vector<std::size_t> &truth, std::vector<float> &truthOverlap) const{
+    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService>()->DataFor(evt);
+
+    //Collecting the hits of every PFParticle in the slice, since a reco interaction can be matched to more than one true interaction
+    std::vector<art::Ptr<recob::Hit>> hits;
+    for (const art::Ptr<recob::PFParticle>& particle : particles) {
+      std::vector<art::Ptr<recob::Hit>> particleHits = dune_ana::DUNEAnaPFParticleUtils::GetHits(particle, evt, fPandoraLabel);
+      hits.insert(hits.end(), particleHits.begin(), particleHits.end());
+    }
+
+    TruthMatchUtils::IDToEDepositMap idToEDepositMap;
+    for (const art::Ptr<recob::Hit>& pHit : hits){
+      TruthMatchUtils::FillG4IDToEnergyDepositMap(idToEDepositMap, clockData, pHit, true);
+    }
+
+    float totalEDeposit = 0;
+    for (const auto& [id, eDeposit] : idToEDepositMap) {
+      totalEDeposit += eDeposit;
+    }
+
+    if (totalEDeposit <= 0) {
+      mf::LogWarning("CAFMaker") << "No energy deposit found for this reco interaction. Skipping interaction-level truth matching.";
+      return;
+    }
+
+    //Aggregating the energy deposit by true interaction, since several G4 tracks can belong to the same true interaction
+    std::map<std::size_t, float> ixnEDeposit;
+    for (const auto& [id, eDeposit] : idToEDepositMap) {
+      if (fMCParticlesMap.count(id) == 0) {
+        continue;
+      }
+
+      art::Ptr<simb::MCParticle> mcpart;
+      bool isPrimary;
+      int srID;
+      int ixnID = -1;
+      std::tie(mcpart, ixnID, isPrimary, srID) = fMCParticlesMap.at(id);
+      if (ixnID < 0) {
+        continue;
+      }
+
+      ixnEDeposit[static_cast<std::size_t>(ixnID)] += eDeposit;
+    }
+
+    for (const auto& [ixnID, eDeposit] : ixnEDeposit) {
+      truth.push_back(ixnID);
+      truthOverlap.push_back(eDeposit / totalEDeposit);
+    }
   }
 
   //------------------------------------------------------------------------------
