@@ -101,6 +101,7 @@ namespace caf {
       void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
       void FillDirectionInfo(caf::SRDirectionBranch &dirBranch, const art::Event &evt) const;
       int FillGENIERecord(simb::MCTruth const& mctruth, simb::GTruth const& gtruth);
+      void FillGeneratorInfo(simb::MCGeneratorInfo const& genInfo, caf::SRTrueInteraction &inter) const;
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       void FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const;
       void FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
@@ -144,7 +145,7 @@ namespace caf {
       TTree* fGENIETree = nullptr;
 
       std::unique_ptr<TFile> fFlatFile;
-      TTree* fFlatTree; //Ownership will be managed directly by ROOT
+      TTree* fFlatTree = nullptr; //Ownership will be managed directly by ROOT
       std::unique_ptr<flat::Flat<caf::StandardRecord>> fFlatRecord;
 
       genie::NtpMCEventRecord *fEventRecord = nullptr;
@@ -181,7 +182,6 @@ namespace caf {
       fCVNLabel(pset.get<std::string>("CVNLabel")),
       fIsAtmoCVN(pset.get<bool>("IsAtmoCVN")),
       fRegCNNLabel(pset.get<std::string>("RegCNNLabel")),
-      // fMCTruthLabel(pset.get<std::string>("MCTruthLabel")),
       fMCTruthLabel(pset.get<std::vector<std::string>>("MCTruthLabel")),
       fGTruthLabel(pset.get<std::string>("GTruthLabel")),
       fMCFluxLabel(pset.get<std::string>("MCFluxLabel")),
@@ -340,20 +340,7 @@ namespace caf {
 
           // Generator info is meaningful for both neutrino and non-neutrino MCTruth
           const simb::MCGeneratorInfo& genInfo = mct.GeneratorInfo();
-          auto it = fgenMap.find(genInfo.generator);
-          inter.generator = (it != fgenMap.end()) ? it->second : caf::Generator::kUnknownGenerator;
-
-          inter.genVersion.clear();
-          if (!genInfo.generatorVersion.empty()) {
-            size_t last = 0;
-            size_t next = 0;
-            std::string s(genInfo.generatorVersion);
-            while ((next = s.find('.', last)) != std::string::npos) {
-              inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));
-              last = next + 1;
-            }
-            inter.genVersion.push_back(std::stoi(s.substr(last)));
-          }
+          FillGeneratorInfo(genInfo, inter);
 
           // Neutrino-specific block
           const simb::MCNeutrino& neutrino = mct.GetNeutrino();
@@ -545,6 +532,7 @@ namespace caf {
 
             caf::SRTrueInteraction inter;
             inter.id = cumulativeInteractionIndex++;
+            // abs is needed because if you look at the genenerator truth instead of the G4 truth, the TrackId is negative for the primaries. It should be always positive, the abs is just a safety measure
             const int trackID = std::abs(mcpart.TrackId());
             auto mcPartIt = fMCParticlesMap.find(trackID);
             if (mcPartIt != fMCParticlesMap.end()) {
@@ -558,23 +546,11 @@ namespace caf {
             
             // Generator info can still be filled
             const simb::MCGeneratorInfo& genInfo = mct.GeneratorInfo();
-            auto it = fgenMap.find(genInfo.generator);
-            inter.generator = (it != fgenMap.end()) ? it->second : caf::Generator::kUnknownGenerator;
-
-            inter.genVersion.clear();
-            if (!genInfo.generatorVersion.empty()) {
-              size_t last = 0;
-              size_t next = 0;
-              std::string s(genInfo.generatorVersion);
-              while ((next = s.find('.', last)) != std::string::npos) {
-                inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));
-                last = next + 1;
-              }
-              inter.genVersion.push_back(std::stoi(s.substr(last)));
-            }
+            FillGeneratorInfo(genInfo, inter);
 
             caf::SRTrueParticle part;
             part.pdg = mcpart.PdgCode();
+            // abs is needed because if you look at the genenerator truth instead of the G4 truth, the TrackId is negative for the primaries. It should be always positive, the abs is just a safety measure
             part.G4ID = std::abs(mcpart.TrackId());
             part.interaction_id = inter.id;
             part.time = mcpart.T();
@@ -601,7 +577,7 @@ namespace caf {
             std::deque<int> secondaries_to_add;
 
             const simb::MCParticle* the_g4_part = nullptr;
-            
+            // abs is needed because if you look at the genenerator truth instead of the G4 truth, the TrackId is negative for the primaries. It should be always positive, the abs is just a safety measure            
             const int thisTrackId = std::abs(mcpart.TrackId());
             auto g4It = plist.find(thisTrackId);
             if (g4It != plist.end()) {
@@ -630,6 +606,7 @@ namespace caf {
 
               caf::SRTrueParticle sec;
               sec.pdg = sec_mcpart->PdgCode();
+              // abs is needed because if you look at the genenerator truth instead of the G4 truth, the TrackId is negative for the primaries. It should be always positive, the abs is just a safety measure
               sec.G4ID = std::abs(sec_mcpart->TrackId());
               sec.interaction_id = inter.id;
               sec.time = sec_mcpart->T();
@@ -796,34 +773,24 @@ namespace caf {
     auto pfParticles_beam = evt.getValidHandle<std::vector<recob::PFParticle>>(fPandoraLabel);
     const art::FindManyP<larpandoraobj::PFParticleMetadata> findMetaData_beam(pfParticles_beam, evt, fPandoraLabel);
 
+    std::vector<bool> isTestBeamVec(particleVector.size(), false);
     bool found_beam = false;
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
-      bool is_test_beam = false;
       if (findMetaData_beam.isValid()) {
         const auto& mdVec = findMetaData_beam.at(particle->Self());
         if (!mdVec.empty() && mdVec.at(0).isNonnull()) {
           const auto& mdMap = mdVec.at(0)->GetPropertiesMap();
-          is_test_beam = (mdMap.find("IsTestBeam") != mdMap.end());
+          isTestBeamVec[n] = (mdMap.find("IsTestBeam") != mdMap.end());
         }
       }
-      if (is_test_beam) {
-        found_beam = true;
-        break;
-      }
+      found_beam = found_beam || isTestBeamVec[n];
     }
 
     bool fill_info_condition = false;
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
-      bool is_test_beam = false;
-      if (findMetaData_beam.isValid()) {
-        const auto& mdVec = findMetaData_beam.at(particle->Self());
-        if (!mdVec.empty() && mdVec.at(0).isNonnull()) {
-          const auto& mdMap = mdVec.at(0)->GetPropertiesMap();
-          is_test_beam = (mdMap.find("IsTestBeam") != mdMap.end());
-        }
-      }
+      bool is_test_beam = isTestBeamVec[n];
 
       fill_info_condition = false;
       if (found_beam) {
@@ -922,7 +889,6 @@ namespace caf {
 
       TrueParticleID truePart;
       truePart.type = type;
-      // truePart.ixn = 0; //This assumes only 1 interaction
       truePart.ixn = ixnID;
       truePart.part = srID;
 
@@ -1484,6 +1450,26 @@ namespace caf {
     return (vtx.X() > fActiveBounds[0] + fVertexFiducialVolumeCut[0] && vtx.X() < fActiveBounds[1] - fVertexFiducialVolumeCut[1] &&
             vtx.Y() > fActiveBounds[2] + fVertexFiducialVolumeCut[2] && vtx.Y() < fActiveBounds[3] - fVertexFiducialVolumeCut[3] &&
             vtx.Z() > fActiveBounds[4] + fVertexFiducialVolumeCut[4] && vtx.Z() < fActiveBounds[5] - fVertexFiducialVolumeCut[5]);
+  }
+
+  //------------------------------------------------------------------------------
+
+  void CAFMaker::FillGeneratorInfo(simb::MCGeneratorInfo const& genInfo, caf::SRTrueInteraction &inter) const
+  {
+    auto it = fgenMap.find(genInfo.generator);
+    inter.generator = (it != fgenMap.end()) ? it->second : caf::Generator::kUnknownGenerator;
+
+    inter.genVersion.clear();
+    if (!genInfo.generatorVersion.empty()) {
+      size_t last = 0;
+      size_t next = 0;
+      std::string s(genInfo.generatorVersion);
+      while ((next = s.find('.', last)) != std::string::npos) {
+        inter.genVersion.push_back(std::stoi(s.substr(last, next - last)));
+        last = next + 1;
+      }
+      inter.genVersion.push_back(std::stoi(s.substr(last)));
+    }
   }
 
   //------------------------------------------------------------------------------
