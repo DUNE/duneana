@@ -24,7 +24,7 @@ cet_set_compiler_flags(DIAGS CAUTIOUS
 )
 
 cet_report_compiler_flags()
-
+ 
 find_package( nufinder REQUIRED )
 find_package( larfinder REQUIRED )
 find_package( art REQUIRED ) 
@@ -37,15 +37,16 @@ find_package( dunecore REQUIRED EXPORT )
 find_package( dunereco REQUIRED EXPORT ) 
 find_package( duneopdet REQUIRED EXPORT ) 
 find_package( duneanaobj REQUIRED EXPORT ) 
+
 find_package( larana REQUIRED EXPORT )
 find_package( larcoreobj REQUIRED EXPORT ) 
 find_package( larreco REQUIRED EXPORT ) 
 find_package( larsim REQUIRED EXPORT ) 
 find_package( larevt REQUIRED EXPORT ) 
 find_package( larpandora REQUIRED EXPORT ) 
-#find_package( srproxy REQUIRED ) 
-find_package(GENIE REQUIRED EXPORT)
-find_package( Geant4 REQUIRED EXPORT ) 
+find_package( GENIE REQUIRED EXPORT)
+find_package( Geant4 REQUIRED EXPORT )
+find_package( geant4reweight REQUIRED )
 
 # macros for artdaq_dictionary and simple_plugin
 include(ArtDictionary)

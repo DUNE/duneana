@@ -1,8 +1,8 @@
-#include "calorimetry_dune10kt.fcl"
+#include "calorimetry_pdune.fcl"
 
 BEGIN_PROLOG
 
-dunefd_cafmaker:
+dunepdsp_cafmaker:
 {
     module_type:                "CAFMaker"
     CreateFlatCAF:              true
@@ -21,30 +21,25 @@ dunefd_cafmaker:
     DirectionRecoLabelCalo:     "anglerecohits"
     PandoraLabel:               "pandora"
     ParticleIDLabel:            "pandorapid"
-    # MCTruthLabel:               "generator" 
-    MCTruthLabel:               [ "generator" ] 
+    # MCTruthLabel:               "generator"
     # MCTruthLabel:               [ "generator", "cosmicgenerator" ] 
+    MCTruthLabel:               [ "generator" ] 
     GTruthLabel:                "generator"
     MCFluxLabel:                "generator"
     POTSummaryLabel:            "generator"
-    TrackLabel:                 "pandoraTrack"
-    ShowerLabel:                "pandoraShower"
+    TrackLabel:                 "pandora2Track"
+    ShowerLabel:                "pandora2Shower"
     SpacePointLabel:            "pandora"
-    HitLabel:                   "hitfd"
+    HitLabel:                   "hitpdune"
     G4Label:                    "largeant"
 
     VertexFiducialVolumeCut:    [ 20, 20, 20, 20, 20, 20 ] #FV cut margins for all directions minX, maxX, minY, maxY, minZ, maxZ (in cm)
     ContainedDistThreshold:     20 #Distance from the edge of the AV to be considered contained (in cm)
 
-    CalorimetryAlg:             @local::dune10kt_calorimetryalgmc
+    CalorimetryAlg:             @local::pdune_sp_calorimetryalgmc
     RecombFactor:               0.63 #Average recombination factor used the the hits not attached to a PFP
     
 }
 
-dunefdvd_cafmaker:
-{
-    @table::dunefd_cafmaker
-    HitLabel: "gaushit"
-}
 
 END_PROLOG
