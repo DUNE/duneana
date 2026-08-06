@@ -27,7 +27,7 @@ art_make( BASENAME_ONLY MODULE_LIBRARIES
   EXCLUDE read_packed.cxx
   )
 
-cet_make_exec(read_packed SOURCE read_packed.cxx)
+cet_make_exec(NAME read_packed SOURCE read_packed.cxx)
 
 install_fhicl()
 install_headers()
