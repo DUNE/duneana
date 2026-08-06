@@ -10,7 +10,7 @@ cmake_minimum_required (VERSION 3.20 FATAL_ERROR)
 #project(duneana VERSION 09.48.00.d00 LANGUAGES CXX)
 find_package(cetmodules REQUIRED) 
 project(duneana LANGUAGES CXX)
-set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 10.22.00d00)
+set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 10.22.00d01)
 
 # cetbuildtools contains our cmake modules
 
@@ -24,7 +24,7 @@ cet_set_compiler_flags(DIAGS CAUTIOUS
 )
 
 cet_report_compiler_flags()
-
+ 
 find_package( nufinder REQUIRED )
 find_package( larfinder REQUIRED )
 find_package( art REQUIRED ) 
@@ -37,15 +37,16 @@ find_package( dunecore REQUIRED EXPORT )
 find_package( dunereco REQUIRED EXPORT ) 
 find_package( duneopdet REQUIRED EXPORT ) 
 find_package( duneanaobj REQUIRED EXPORT ) 
+
 find_package( larana REQUIRED EXPORT )
 find_package( larcoreobj REQUIRED EXPORT ) 
 find_package( larreco REQUIRED EXPORT ) 
 find_package( larsim REQUIRED EXPORT ) 
 find_package( larevt REQUIRED EXPORT ) 
 find_package( larpandora REQUIRED EXPORT ) 
-#find_package( srproxy REQUIRED ) 
-find_package(GENIE REQUIRED EXPORT)
-find_package( Geant4 REQUIRED EXPORT ) 
+find_package( GENIE REQUIRED EXPORT)
+find_package( Geant4 REQUIRED EXPORT )
+find_package( geant4reweight REQUIRED )
 
 # macros for artdaq_dictionary and simple_plugin
 include(ArtDictionary)
