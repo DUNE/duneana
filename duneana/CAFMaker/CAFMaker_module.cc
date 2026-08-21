@@ -51,10 +51,12 @@
 #include "dunereco/AnaUtils/DUNEAnaHitUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaEventUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaShowerUtils.h"
+#include "dunereco/AnaUtils/DUNEAnaSliceUtils.h"
 #include "larsim/Utils/TruthMatchUtils.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "lardataobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/GeneratedParticleInfo.h"
 #include "larcore/Geometry/WireReadout.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
@@ -112,7 +114,7 @@ namespace caf {
       double GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
-      double GetSingleHitsEnergy(art::Event const& evt, int plane) const;
+      double GetSingleHitsEnergy(art::Event const& evt, const art::Ptr<recob::Slice> &slicePtr, int plane) const;
       std::map<int, std::vector<const sim::IDE*>> slice_IDEs(
           std::vector<const sim::IDE*> ides,
           double the_z0, double the_pitch, double true_endZ) const;
@@ -161,7 +163,7 @@ namespace caf {
       TTree* fGENIETree = nullptr;
 
       std::unique_ptr<TFile> fFlatFile;
-      TTree* fFlatTree; //Ownership will be managed directly by ROOT
+      TTree* fFlatTree = nullptr; //Ownership will be managed directly by ROOT
       std::unique_ptr<flat::Flat<caf::StandardRecord>> fFlatRecord;
 
       genie::NtpMCEventRecord *fEventRecord = nullptr;
@@ -347,7 +349,7 @@ namespace caf {
 
       const auto& mctruthVec = *mctruthHandle;
 
-      art::FindManyP<simb::MCParticle> fmParticles(mctruthHandle, evt, fG4Label);
+      art::FindManyP<simb::MCParticle, sim::GeneratedParticleInfo> fmParticles(mctruthHandle, evt, fG4Label);
       if (!fmParticles.isValid()) {
         mf::LogWarning("CAFMaker") << "MCTruth->MCParticle associations for label '"
           << MCTruthLabel << "' not found. Prim/sec filling will be skipped for this label.";
@@ -571,8 +573,11 @@ namespace caf {
         else {
           // Non-neutrino MCTruth:
           // each visible source particle becomes its own truth interaction entry.
-          for (int p = 0; p < mct.NParticles(); ++p) {
-            const simb::MCParticle& mcpart = mct.GetParticle(p);
+          auto const& assoc_parts = fmParticles.at(i);
+          auto const& assoc_infos = fmParticles.data(i);
+          for (size_t j = assoc_parts.size(); j-- > 0; ) {
+            if (!assoc_infos[j]->hasGeneratedParticleIndex()) continue;
+            const simb::MCParticle& mcpart = *assoc_parts[j];
 
             caf::SRTrueInteraction inter;
             inter.id = cumulativeInteractionIndex++;
@@ -1054,12 +1059,12 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
-  double CAFMaker::GetSingleHitsEnergy(art::Event const& evt, int plane) const{
-    std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaEventUtils::GetHits(evt, fHitLabel);
+  double CAFMaker::GetSingleHitsEnergy(art::Event const& evt, const art::Ptr<recob::Slice> &slicePtr, int plane) const{
+    std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaSliceUtils::GetHits(slicePtr, evt, fPandoraLabel);
 
     std::vector<art::Ptr<recob::Hit>> collection_plane_hits = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, plane);
 
-    const art::FindManyP<recob::SpacePoint> sp_assoc(hits, evt, fSpacePointLabel);
+    const art::FindManyP<recob::SpacePoint> sp_assoc(collection_plane_hits, evt, fSpacePointLabel);
 
     if (!sp_assoc.isValid()) {
       mf::LogWarning("CAFMaker") << "No space points found with label '" << fSpacePointLabel << "'";
@@ -1072,7 +1077,7 @@ namespace caf {
     double charge = 0;
 
     for (uint i = 0; i < collection_plane_hits.size(); i++){
-      std::vector<art::Ptr<recob::SpacePoint>> matching_sps = sp_assoc.at(collection_plane_hits[i].key());
+      std::vector<art::Ptr<recob::SpacePoint>> matching_sps = sp_assoc.at(i);
       if(!matching_sps.empty()){ // If there are some matched spacepoints, this means that the hit is associated to some PFP and we don't want it here
         continue;
       }
@@ -1710,7 +1715,7 @@ namespace caf {
     single_hits.primary = false;
     single_hits.pdg = 0; //Not a real particle
     single_hits.tgtA = 40; //Interaction on Ar40.
-    single_hits.E = GetSingleHitsEnergy(evt, 2); //Using the collection plane for now
+    single_hits.E = GetSingleHitsEnergy(evt, slicePtr, 2); //Using the collection plane for now
     single_hits.origRecoObjType = caf::RecoObjType::kHitCollection;
 
     recoParticlesBranch.pandora.push_back(std::move(single_hits));
