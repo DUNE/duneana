@@ -47,6 +47,7 @@
 #include "nugen/EventGeneratorBase/GENIE/GENIE2ART.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/ArtDataHelper/MVAReader.h"
 #include "dunereco/AnaUtils/DUNEAnaPFParticleUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaHitUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaEventUtils.h"
@@ -111,6 +112,7 @@ namespace caf {
       double GetVisibleEnergy(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       void FillTruthMatchingAndOverlap(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, std::vector<TrueParticleID> &truth, std::vector<float> &truthOverlap) const;
       void FillPFPMetadata(caf::SRPFP &pfpBranch, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
+      void GetMVAResults(caf::SRPFP & output_pfp, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, anab::MVAReader<recob::Hit,4> * hitResults, int planeid, bool charge_weighted) const;
       double GetWallDistance(art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt) const;
       double GetWallDistance(recob::SpacePoint const& sp) const;
       void ComputeActiveBounds();
@@ -154,6 +156,7 @@ namespace caf {
       double fContainedDistThreshold;
       std::string fHitLabel;
       std::string fG4Label;
+      std::string fMVALabel;
 
 
       std::map<int, std::tuple<art::Ptr<simb::MCParticle>, int, bool, int>> fMCParticlesMap; //[tid] = (MCParticle, interaction, isPrimary, SRParticle ID)
@@ -229,6 +232,7 @@ namespace caf {
       fContainedDistThreshold(pset.get< double >("ContainedDistThreshold")),
       fHitLabel(pset.get< std::string >("HitLabel")),
       fG4Label(pset.get< std::string >("G4Label")),
+      fMVALabel(pset.get<std::string>("MVALabel")),
       fEventRecord(new genie::NtpMCEventRecord),
       fGeom(&*art::ServiceHandle<geo::Geometry>()),
       fVertexFiducialVolumeCut(pset.get<std::vector<double>>("VertexFiducialVolumeCut")),
@@ -793,6 +797,55 @@ namespace caf {
         } 
       }
 
+  }
+
+  //------------------------------------------------------------------------------
+
+  void CAFMaker::GetMVAResults(caf::SRPFP & output_pfp, art::Ptr<recob::PFParticle> const& pfp, const art::Event &evt, anab::MVAReader<recob::Hit,4> * hitResults, int planeid, bool charge_weighted) const
+  {
+    if (!hitResults) {
+      mf::LogWarning("CAFMaker") << "Null pointer provided for hitResults in GetMVAResults";
+      return;
+    }
+
+    if (planeid < -1 || planeid > 2) {
+      std::stringstream ss;
+      ss << "Unknown planeid (" << planeid << ") provided to GetMVAResults";
+      throw std::runtime_error(
+        ss.str()
+      );
+    }
+
+    //First getting all the hits belonging to that PFP
+    std::vector<art::Ptr<recob::Hit>> hits = dune_ana::DUNEAnaPFParticleUtils::GetHits(pfp, evt, fPandoraLabel);
+    if (planeid != -1) {
+      hits = dune_ana::DUNEAnaHitUtils::GetHitsOnPlane(hits, planeid);
+    }
+
+    float denom = 0.;
+    output_pfp.cnn_stem_scores.charge_weighted = charge_weighted;
+    output_pfp.cnn_stem_scores.plane_ID = planeid;
+    for (const auto & hit : hits){
+      auto output = hitResults->getOutput(hit);
+
+      float scale = (charge_weighted ? hit->Integral() : 1.);
+
+      output_pfp.cnn_stem_scores.track_score  += scale*output[hitResults->getIndex("track")];
+      output_pfp.cnn_stem_scores.shower_score += scale*output[hitResults->getIndex("em")];
+      output_pfp.cnn_stem_scores.empty_score  += scale*output[hitResults->getIndex("none")];
+      output_pfp.cnn_stem_scores.michel_score += scale*output[hitResults->getIndex("michel")];
+      denom += scale;
+    }
+
+    if (denom > 0.) {
+      output_pfp.cnn_stem_scores /= denom;
+    }
+    else {
+      output_pfp.cnn_stem_scores.track_score  = output_pfp.NaN;
+      output_pfp.cnn_stem_scores.shower_score = output_pfp.NaN;
+      output_pfp.cnn_stem_scores.empty_score  = output_pfp.NaN;
+      output_pfp.cnn_stem_scores.michel_score = output_pfp.NaN;
+    }
   }
 
   //------------------------------------------------------------------------------
@@ -1487,6 +1540,17 @@ namespace caf {
     //Getting all the PFParticles from this slice
     lar_pandora::PFParticleVector particleVector = sliceToPFP.at(slicePtr.key());
 
+    // if MVALabel is "", the hitResults pointer will be a null pointer and GetMVAResults
+    // will return NaN for all the scores without crashing
+    anab::MVAReader<recob::Hit,4> * hitResults;
+    if(fMVALabel == ""){
+      mf::LogWarning("CAFMaker") << "MVALabel is empty, the MVA scores will not be filled";
+      hitResults = nullptr;
+    }
+    else{
+      hitResults = new anab::MVAReader<recob::Hit, 4>(evt, fMVALabel);
+    }
+
     unsigned int nuID = std::numeric_limits<unsigned int>::max();
     for (unsigned int n = 0; n < particleVector.size(); ++n) {
       const art::Ptr<recob::PFParticle> particle = particleVector.at(n);
@@ -1666,6 +1730,7 @@ namespace caf {
 
       //Also saving PFP metadata
       caf::SRPFP pfp_metarecord;
+      GetMVAResults(pfp_metarecord, particle, evt, hitResults, 2, true ); //TODO -- make configurable
       FillPFPMetadata(pfp_metarecord, particle, evt);
       fdIxn.pfps.push_back(std::move(pfp_metarecord));
       fdIxn.npfps++;
@@ -1722,6 +1787,8 @@ namespace caf {
     recoParticlesBranch.npandora++;
 
     // particle_record.origRecoObjType
+
+    delete hitResults;
   }
 
 

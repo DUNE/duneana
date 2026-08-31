@@ -26,6 +26,7 @@ cet_build_plugin(CAFMaker   art::module LIBRARIES
                         dunereco::AnaUtils
                         larsim::Utils
                         dunecore::DuneObj
+                        lardata::ArtDataHelper
               BASENAME_ONLY
 )
 endif()
