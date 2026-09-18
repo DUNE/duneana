@@ -478,6 +478,7 @@ namespace caf {
             part.interaction_id = inter.id;
             part.time = mcpart.T();
             part.p = caf::SRLorentzVector(mcpart.Momentum());
+            part.end_p = caf::SRLorentzVector(mcpart.EndMomentum());
             part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
             part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
             part.parent = mcpart.Mother();
@@ -501,6 +502,7 @@ namespace caf {
               part.interaction_id = inter.id;
               part.time = mcpart->T();
               part.p = caf::SRLorentzVector(mcpart->Momentum());
+              part.end_p = caf::SRLorentzVector(mcpart->EndMomentum());
               part.start_pos = caf::SRVector3D(mcpart->Position().Vect());
               part.end_pos = caf::SRVector3D(mcpart->EndPosition().Vect());
               part.parent = mcpart->Mother();
@@ -619,6 +621,7 @@ namespace caf {
             part.interaction_id = inter.id;
             part.time = mcpart.T();
             part.p = caf::SRLorentzVector(mcpart.Momentum());
+            part.end_p = caf::SRLorentzVector(mcpart.EndMomentum());
             part.start_pos = caf::SRVector3D(mcpart.Position().Vect());
             part.end_pos = caf::SRVector3D(mcpart.EndPosition().Vect());
             part.parent = mcpart.Mother();
@@ -675,6 +678,7 @@ namespace caf {
               sec.interaction_id = inter.id;
               sec.time = sec_mcpart->T();
               sec.p = caf::SRLorentzVector(sec_mcpart->Momentum());
+              sec.end_p = caf::SRLorentzVector(sec_mcpart->EndMomentum());
               sec.start_pos = caf::SRVector3D(sec_mcpart->Position().Vect());
               sec.end_pos = caf::SRVector3D(sec_mcpart->EndPosition().Vect());
               sec.parent = sec_mcpart->Mother();
