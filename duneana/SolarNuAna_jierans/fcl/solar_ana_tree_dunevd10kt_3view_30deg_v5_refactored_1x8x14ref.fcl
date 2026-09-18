@@ -28,6 +28,7 @@ physics:
       dump_mcparticles:  true
       dump_recotracks:   true
       dump_recohits:     true
+      dump_recoophits:   true
     }
   }
   ana: [ SolarAnaTree ]

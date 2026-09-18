@@ -19,8 +19,10 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "larcore/Geometry/WireReadout.h"
+#include "larcorealg/Geometry/OpDetGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/readout_types.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/OpHit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
@@ -278,6 +280,75 @@ struct HitBuffer {
   }
 };
 
+// One row per recob::OpHit. OpHits index optical detector channels (not TPC
+// wires) and aren't associated to recob::Track, so there's no trackID join
+// key here, but we do look up the optical detector's position via
+// geo::WireReadout the same way HitBuffer looks up wire position.
+struct OpHitBuffer {
+  std::string producer;
+
+  int channel;
+  int opdet;
+  double opdet_x, opdet_y, opdet_z;
+  unsigned short frame;
+  double peak_time, peak_time_abs, start_time;
+  int has_start_time;
+  double rise_time;
+  double width;
+  double area, amplitude;
+  double pe;
+  double fast_to_total;
+
+  void branch_on(TTree *tree) {
+    tree->Branch("producer", &producer);
+    tree->Branch("channel", &channel);
+    tree->Branch("opdet", &opdet);
+    tree->Branch("opdet_x", &opdet_x);
+    tree->Branch("opdet_y", &opdet_y);
+    tree->Branch("opdet_z", &opdet_z);
+    tree->Branch("frame", &frame);
+    tree->Branch("peak_time", &peak_time);
+    tree->Branch("peak_time_abs", &peak_time_abs);
+    tree->Branch("start_time", &start_time);
+    tree->Branch("has_start_time", &has_start_time);
+    tree->Branch("rise_time", &rise_time);
+    tree->Branch("width", &width);
+    tree->Branch("area", &area);
+    tree->Branch("amplitude", &amplitude);
+    tree->Branch("pe", &pe);
+    tree->Branch("fast_to_total", &fast_to_total);
+  }
+
+  void from_ophit(const recob::OpHit &ophit, const std::string &prod,
+                   const geo::WireReadoutGeom &wireReadout) {
+    producer = prod;
+    channel = ophit.OpChannel();
+    if (wireReadout.IsValidOpChannel(channel)) {
+      opdet = wireReadout.OpDetFromOpChannel(channel);
+      geo::OpDetGeo const &opDetGeo =
+          wireReadout.OpDetGeoFromOpChannel(channel);
+      geo::Point_t const &center = opDetGeo.GetCenter();
+      opdet_x = center.X();
+      opdet_y = center.Y();
+      opdet_z = center.Z();
+    } else {
+      opdet = INVALID;
+      opdet_x = opdet_y = opdet_z = INVALID;
+    }
+    frame = ophit.Frame();
+    peak_time = ophit.PeakTime();
+    peak_time_abs = ophit.PeakTimeAbs();
+    start_time = ophit.StartTime();
+    has_start_time = ophit.HasStartTime();
+    rise_time = ophit.RiseTime();
+    width = ophit.Width();
+    area = ophit.Area();
+    amplitude = ophit.Amplitude();
+    pe = ophit.PE();
+    fast_to_total = ophit.FastToTotal();
+  }
+};
+
 } // namespace duneana
 
 class duneana::SolarAnaTree : public art::EDAnalyzer {
@@ -339,6 +410,10 @@ private:
   TTree *hit_tree;
   HitBuffer hit_buf;
 
+  bool dump_recoophits;
+  TTree *ophit_tree;
+  OpHitBuffer ophit_buf;
+
   const geo::WireReadoutGeom *fWireReadout;
   ChannelInfo get_channel_info_for_channel(raw::ChannelID_t channel,
                                             const geo::WireID &wireid);
@@ -348,7 +423,8 @@ duneana::SolarAnaTree::SolarAnaTree(fhicl::ParameterSet const &p)
     : EDAnalyzer{p}, dump_mctruths(p.get<bool>("dump_mctruths", true)),
       dump_mcparticles(p.get<bool>("dump_mcparticles", true)),
       dump_recotracks(p.get<bool>("dump_recotracks", true)),
-      dump_recohits(p.get<bool>("dump_recohits", true)) {}
+      dump_recohits(p.get<bool>("dump_recohits", true)),
+      dump_recoophits(p.get<bool>("dump_recoophits", true)) {}
 
 void duneana::SolarAnaTree::beginJob() {
   if (dump_mctruths) {
@@ -424,6 +500,11 @@ void duneana::SolarAnaTree::beginJob() {
     hit_tree = tfs->make<TTree>("hits", "hits");
     ev_buf.branch_on(hit_tree);
     hit_buf.branch_on(hit_tree);
+  }
+  if (dump_recoophits) {
+    ophit_tree = tfs->make<TTree>("ophits", "ophits");
+    ev_buf.branch_on(ophit_tree);
+    ophit_buf.branch_on(ophit_tree);
   }
 }
 
@@ -589,6 +670,20 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
                                                            hit_ptr->WireID());
         hit_buf.from_hit(*hit_ptr, track_key, producer, chinfo);
         hit_tree->Fill();
+      }
+    }
+  }
+
+  if (dump_recoophits) {
+    std::vector<art::Handle<std::vector<recob::OpHit>>> ophitHandles =
+        e.getMany<std::vector<recob::OpHit>>();
+
+    for (auto const &ophitHandle : ophitHandles) {
+      std::string producer = ophitHandle.provenance()->inputTag().encode();
+
+      for (const recob::OpHit &ophit : *ophitHandle) {
+        ophit_buf.from_ophit(ophit, producer, *fWireReadout);
+        ophit_tree->Fill();
       }
     }
   }
