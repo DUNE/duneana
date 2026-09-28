@@ -59,7 +59,7 @@ BEGIN_PROLOG
     OpFlashAlgoMinTime:         0.16         # Negative time window to look for adj. OpHits in [us] units.
     OpFlashAlgoMaxTime:         0.32         # Positive time window to look for adj. OpHits in [us] units.
     OpFlashAlgoWeightedTime:    true         # If true, use weighted time for OpFlash time calculation, otherwise use flash trigger time.
-    OpFlashAlgoRad:             600          # Distance to look for adj. OpHits in [cm] units.
+    OpFlashAlgoRad:             300          # Distance to look for adj. OpHits in [cm] units.
     OpFlashAlgoPE:              0.0          # PE threshold to look for adj. OpHits.
     OpFlashAlgoTriggerPE:       0.0          # PE threshold to trigger an OpFlash.
     OpFlashAlgoHotVertexThld:   0.3          # Relative threshold to consider a hit as hot for opflash vertex determination [0-1].
