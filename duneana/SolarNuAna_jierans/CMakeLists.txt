@@ -21,6 +21,7 @@ art_make(BASENAME_ONLY
       ${ART_ROOT_IO_ROOTINPUT_SOURCE}
     MODULE_LIBRARIES
       dunecore::DuneObj
+      lardataobj::Simulation
       lardata::RecoObjects
       lardata::Utilities
       larcorealg::Geometry

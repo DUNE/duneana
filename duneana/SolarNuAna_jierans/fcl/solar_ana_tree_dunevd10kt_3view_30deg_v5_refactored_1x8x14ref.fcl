@@ -29,6 +29,12 @@ physics:
       dump_recotracks:   true
       dump_recohits:     true
       dump_recoophits:   true
+      backtracking:      true
+      # OpHit backtracking: DivRecs feeding opdigi10ppm, and the window around
+      # OpHit PeakTime in which their photons are matched
+      ophit_divrec_labels:   [ "sipmAr10ppm", "sipmXe10ppm", "sipmAr10ppmExt", "sipmXe10ppmExt" ]
+      ophit_bt_window_lo_ns: -100.
+      ophit_bt_window_hi_ns: 50.
     }
   }
   ana: [ SolarAnaTree ]

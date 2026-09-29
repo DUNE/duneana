@@ -17,20 +17,30 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
+#include "dunecore/DuneObj/OpDetDivRec.h"
 
 #include "larcore/Geometry/WireReadout.h"
 #include "larcorealg/Geometry/OpDetGeo.h"
 #include "larcoreobj/SimpleTypesAndConstants/readout_types.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/OpHit.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/Simulation/SimChannel.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include <TDirectory.h>
 #include <TFile.h>
 #include <TTree.h>
 
+#include <algorithm>
+#include <cstdlib>
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 #define INVALID -99999
@@ -54,6 +64,185 @@ struct EventDataBuffer {
     run = -1;
     subrun = -1;
   }
+};
+
+// Backtracking information for a set of matched sim::IDEs, following the
+// same scheme as TriggerAnaTree's TP backtracking: the "primary" track is the
+// G4 track contributing the most electrons to the matched IDEs.
+struct BacktrackBuffer {
+  int bt_primary_track_id;
+  double bt_primary_track_numelectron_frac;
+  double bt_primary_track_energy_frac;
+  double bt_primary_track_ke;
+  int bt_primary_pdg;
+  double bt_edep;
+  double bt_numelectrons;
+  double bt_x, bt_y, bt_z;
+  double bt_primary_x, bt_primary_y, bt_primary_z;
+  int bt_mctruth_block_id;
+  std::string bt_mctruth_gen_name;
+
+  void branch_on(TTree *tree) {
+    tree->Branch("bt_primary_track_id", &bt_primary_track_id);
+    tree->Branch("bt_primary_track_numelectron_frac",
+                 &bt_primary_track_numelectron_frac);
+    tree->Branch("bt_primary_track_energy_frac",
+                 &bt_primary_track_energy_frac);
+    tree->Branch("bt_primary_track_ke", &bt_primary_track_ke);
+    tree->Branch("bt_primary_pdg", &bt_primary_pdg);
+    tree->Branch("bt_edep", &bt_edep);
+    tree->Branch("bt_numelectrons", &bt_numelectrons);
+    tree->Branch("bt_x", &bt_x);
+    tree->Branch("bt_y", &bt_y);
+    tree->Branch("bt_z", &bt_z);
+    tree->Branch("bt_primary_x", &bt_primary_x);
+    tree->Branch("bt_primary_y", &bt_primary_y);
+    tree->Branch("bt_primary_z", &bt_primary_z);
+    tree->Branch("bt_truth_block_id", &bt_mctruth_block_id);
+    tree->Branch("bt_generator_name", &bt_mctruth_gen_name);
+  }
+
+  void reset() {
+    bt_primary_track_id = INVALID;
+    bt_primary_track_numelectron_frac = INVALID;
+    bt_primary_track_energy_frac = INVALID;
+    bt_primary_track_ke = INVALID;
+    bt_primary_pdg = 0;
+    bt_edep = 0;
+    bt_numelectrons = 0;
+    bt_x = bt_y = bt_z = INVALID;
+    bt_primary_x = bt_primary_y = bt_primary_z = INVALID;
+    bt_mctruth_block_id = INVALID;
+    bt_mctruth_gen_name.clear();
+  }
+
+  // Resolves an IDE track ID to the MCParticle track ID. Negative IDs mark
+  // EM shower daughters not saved in the particle list; they are attributed
+  // to their saved ancestor abs(id). Returns INVALID if no particle is found.
+  static int resolve_track_id(int ide_track_id,
+                              const cheat::ParticleInventoryService &pi_serv) {
+    if (!ide_track_id)
+      return INVALID;
+    const simb::MCParticle *part =
+        pi_serv.TrackIdToParticle_P(std::abs(ide_track_id));
+    return part ? part->TrackId() : INVALID;
+  }
+
+  void populate(const std::vector<sim::IDE> &ides,
+                const std::unordered_map<int, int> &trkid_to_truth_block,
+                const std::unordered_map<int, std::string> &truth_id_to_gen) {
+    reset();
+    if (ides.empty())
+      return;
+
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+
+    std::map<int, double> track_numelectrons;
+    std::map<int, double> track_energies;
+    for (const sim::IDE &ide : ides) {
+      bt_numelectrons += ide.numElectrons;
+      bt_edep += ide.energy;
+      int mc_track_id = resolve_track_id(ide.trackID, *pi_serv);
+      if (mc_track_id == INVALID)
+        continue;
+      track_numelectrons[mc_track_id] += ide.numElectrons;
+      track_energies[mc_track_id] += ide.energy;
+    }
+
+    std::vector<double> bt_position = bt_serv->SimIDEsToXYZ(ides);
+    bt_x = bt_position[0];
+    bt_y = bt_position[1];
+    bt_z = bt_position[2];
+
+    if (track_numelectrons.empty())
+      return;
+    bt_primary_track_id =
+        std::max_element(
+            track_numelectrons.begin(), track_numelectrons.end(),
+            [](const auto &a, const auto &b) { return a.second < b.second; })
+            ->first;
+
+    std::vector<sim::IDE> primary_ides;
+    for (const sim::IDE &ide : ides) {
+      if (resolve_track_id(ide.trackID, *pi_serv) == bt_primary_track_id)
+        primary_ides.push_back(ide);
+    }
+
+    bt_primary_track_numelectron_frac =
+        track_numelectrons.at(bt_primary_track_id) / bt_numelectrons;
+    bt_primary_track_energy_frac =
+        track_energies.at(bt_primary_track_id) / bt_edep;
+
+    std::vector<double> primary_bt_position =
+        bt_serv->SimIDEsToXYZ(primary_ides);
+    bt_primary_x = primary_bt_position[0];
+    bt_primary_y = primary_bt_position[1];
+    bt_primary_z = primary_bt_position[2];
+
+    const simb::MCParticle *mc_part =
+        pi_serv->TrackIdToParticle_P(bt_primary_track_id);
+    bt_primary_track_ke = mc_part->E() - mc_part->Mass();
+    bt_primary_pdg = mc_part->PdgCode();
+
+    auto block_it = trkid_to_truth_block.find(bt_primary_track_id);
+    if (block_it != trkid_to_truth_block.end()) {
+      bt_mctruth_block_id = block_it->second;
+      auto gen_it = truth_id_to_gen.find(bt_mctruth_block_id);
+      if (gen_it != truth_id_to_gen.end())
+        bt_mctruth_gen_name = gen_it->second;
+    }
+  }
+};
+
+// One detected photoelectron (or group of PEs sharing a time and track) from a
+// sim::OpDetDivRec. trackID 0 marks dark noise.
+struct DivRecPhoton {
+  double time; // ns, same clock as OpHit::PeakTime() * 1000
+  int trackID;
+  double pe;
+};
+
+// Backtracking information for a recob::OpHit, from the DivRec photons on its
+// optical detector within a window around the hit peak. Same primary scheme as
+// BacktrackBuffer, with detected PE in place of drift electrons. DivRecs carry
+// no energy or position, so there are no edep/xyz branches here.
+struct OpHitBacktrackBuffer {
+  int bt_primary_track_id;
+  double bt_primary_track_pe_frac;
+  double bt_primary_track_ke;
+  int bt_primary_pdg;
+  double bt_pe;
+  double bt_dark_noise_pe;
+  int bt_mctruth_block_id;
+  std::string bt_mctruth_gen_name;
+
+  void branch_on(TTree *tree) {
+    tree->Branch("bt_primary_track_id", &bt_primary_track_id);
+    tree->Branch("bt_primary_track_pe_frac", &bt_primary_track_pe_frac);
+    tree->Branch("bt_primary_track_ke", &bt_primary_track_ke);
+    tree->Branch("bt_primary_pdg", &bt_primary_pdg);
+    tree->Branch("bt_pe", &bt_pe);
+    tree->Branch("bt_dark_noise_pe", &bt_dark_noise_pe);
+    tree->Branch("bt_truth_block_id", &bt_mctruth_block_id);
+    tree->Branch("bt_generator_name", &bt_mctruth_gen_name);
+  }
+
+  void reset() {
+    bt_primary_track_id = INVALID;
+    bt_primary_track_pe_frac = INVALID;
+    bt_primary_track_ke = INVALID;
+    bt_primary_pdg = 0;
+    bt_pe = 0;
+    bt_dark_noise_pe = 0;
+    bt_mctruth_block_id = INVALID;
+    bt_mctruth_gen_name.clear();
+  }
+
+  void populate(std::vector<DivRecPhoton>::const_iterator begin,
+                std::vector<DivRecPhoton>::const_iterator end,
+                const std::unordered_map<int, int> &trkid_to_truth_block,
+                const std::unordered_map<int, std::string> &truth_id_to_gen);
 };
 
 // One row per recob::Track. trackID is a synthetic key (unique within the
@@ -86,7 +275,10 @@ struct TrackBuffer {
   double sadc_U, sadc_V, sadc_Z;
   double integral_U, integral_V, integral_Z;
 
-  void branch_on(TTree *tree) {
+  // Backtracking over the IDEs matched to all hits associated to this track.
+  BacktrackBuffer bt;
+
+  void branch_on(TTree *tree, bool backtracking) {
     tree->Branch("trackID", &trackID);
     tree->Branch("track_id", &track_id);
     tree->Branch("producer", &producer);
@@ -117,6 +309,8 @@ struct TrackBuffer {
     tree->Branch("integral_U", &integral_U);
     tree->Branch("integral_V", &integral_V);
     tree->Branch("integral_Z", &integral_Z);
+    if (backtracking)
+      bt.branch_on(tree);
   }
 
   void from_track(const recob::Track &track, int key,
@@ -218,7 +412,9 @@ struct HitBuffer {
   double goodness_of_fit;
   int ndf;
 
-  void branch_on(TTree *tree) {
+  BacktrackBuffer bt;
+
+  void branch_on(TTree *tree, bool backtracking) {
     tree->Branch("trackID", &trackID);
     tree->Branch("producer", &producer);
     tree->Branch("channel", &channel);
@@ -246,6 +442,8 @@ struct HitBuffer {
     tree->Branch("local_index", &local_index);
     tree->Branch("goodness_of_fit", &goodness_of_fit);
     tree->Branch("ndf", &ndf);
+    if (backtracking)
+      bt.branch_on(tree);
   }
 
   void from_hit(const recob::Hit &hit, int track_key,
@@ -299,7 +497,9 @@ struct OpHitBuffer {
   double pe;
   double fast_to_total;
 
-  void branch_on(TTree *tree) {
+  OpHitBacktrackBuffer bt;
+
+  void branch_on(TTree *tree, bool backtracking) {
     tree->Branch("producer", &producer);
     tree->Branch("channel", &channel);
     tree->Branch("opdet", &opdet);
@@ -317,6 +517,8 @@ struct OpHitBuffer {
     tree->Branch("amplitude", &amplitude);
     tree->Branch("pe", &pe);
     tree->Branch("fast_to_total", &fast_to_total);
+    if (backtracking)
+      bt.branch_on(tree);
   }
 
   void from_ophit(const recob::OpHit &ophit, const std::string &prod,
@@ -372,6 +574,17 @@ private:
   EventDataBuffer ev_buf;
 
   std::unordered_map<int, int> trkId_to_truthBlockId;
+  std::unordered_map<int, std::string> truthBlockId_to_generator_name;
+
+  // Backtrack reco hits (and tracks, via their associated hits) to the
+  // sim::IDEs that produced them, and OpHits to the sim::OpDetDivRec photons.
+  bool backtracking;
+
+  // DivRecs feeding the digitizer that made the OpHits' waveforms, and the
+  // window around OpHit::PeakTime() in which DivRec photons are matched.
+  // Photons arrive ~20-60 ns before the reconstructed peak.
+  std::vector<art::InputTag> ophit_divrec_labels;
+  double ophit_bt_window_lo_ns, ophit_bt_window_hi_ns;
 
   bool dump_mctruths;
   TTree *mctruth_tree;
@@ -417,10 +630,25 @@ private:
   const geo::WireReadoutGeom *fWireReadout;
   ChannelInfo get_channel_info_for_channel(raw::ChannelID_t channel,
                                             const geo::WireID &wireid);
+
+  std::vector<sim::IDE>
+  match_simides_to_hit(detinfo::DetectorClocksData const &clockData,
+                       const recob::Hit &hit) const;
+
+  // DivRec photons from all ophit_divrec_labels, per optical detector, sorted
+  // by time.
+  std::map<int, std::vector<DivRecPhoton>>
+  collect_divrec_photons(art::Event const &e) const;
 };
 
 duneana::SolarAnaTree::SolarAnaTree(fhicl::ParameterSet const &p)
-    : EDAnalyzer{p}, dump_mctruths(p.get<bool>("dump_mctruths", true)),
+    : EDAnalyzer{p}, backtracking(p.get<bool>("backtracking", false)),
+      ophit_divrec_labels(p.get<std::vector<art::InputTag>>(
+          "ophit_divrec_labels", {"sipmAr10ppm", "sipmXe10ppm",
+                                  "sipmAr10ppmExt", "sipmXe10ppmExt"})),
+      ophit_bt_window_lo_ns(p.get<double>("ophit_bt_window_lo_ns", -100.)),
+      ophit_bt_window_hi_ns(p.get<double>("ophit_bt_window_hi_ns", 50.)),
+      dump_mctruths(p.get<bool>("dump_mctruths", true)),
       dump_mcparticles(p.get<bool>("dump_mcparticles", true)),
       dump_recotracks(p.get<bool>("dump_recotracks", true)),
       dump_recohits(p.get<bool>("dump_recohits", true)),
@@ -494,17 +722,17 @@ void duneana::SolarAnaTree::beginJob() {
   if (dump_recotracks) {
     track_tree = tfs->make<TTree>("tracks", "tracks");
     ev_buf.branch_on(track_tree);
-    track_buf.branch_on(track_tree);
+    track_buf.branch_on(track_tree, backtracking);
   }
   if (dump_recohits) {
     hit_tree = tfs->make<TTree>("hits", "hits");
     ev_buf.branch_on(hit_tree);
-    hit_buf.branch_on(hit_tree);
+    hit_buf.branch_on(hit_tree, backtracking);
   }
   if (dump_recoophits) {
     ophit_tree = tfs->make<TTree>("ophits", "ophits");
     ev_buf.branch_on(ophit_tree);
-    ophit_buf.branch_on(ophit_tree);
+    ophit_buf.branch_on(ophit_tree, backtracking);
   }
 }
 
@@ -521,19 +749,22 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
 
     int truth_block_counter = 0;
     trkId_to_truthBlockId.clear();
+    truthBlockId_to_generator_name.clear();
 
     for (auto const &mctruthHandle : mctruthHandles) {
       // Extract the generator name from the truth handle input label
       std::string generator_name =
           mctruthHandle.provenance()->inputTag().label();
 
-      mctruth_id = truth_block_counter;
       // NOTE: here we are making an assumption that the geant4 stage's process
       // name is largeant. This should be safe mostly.
       art::FindManyP<simb::MCParticle> assns(mctruthHandle, e, "largeant");
       for (size_t i = 0; i < mctruthHandle->size(); i++) {
         const simb::MCTruth &truthblock =
             *art::Ptr<simb::MCTruth>(mctruthHandle, i);
+        mctruth_id = truth_block_counter;
+        // Store generator name for hit/track backtracking
+        truthBlockId_to_generator_name[truth_block_counter] = generator_name;
 
         std::vector<art::Ptr<simb::MCParticle>> matched_mcparts = assns.at(i);
         for (art::Ptr<simb::MCParticle> mcpart : matched_mcparts) {
@@ -626,6 +857,9 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
   // track (or -1 if unassociated).
   std::map<art::Ptr<recob::Hit>, int> hit_to_trackID;
 
+  auto const clockData =
+      art::ServiceHandle<detinfo::DetectorClocksService const>()->DataFor(e);
+
   if (dump_recotracks) {
     std::vector<art::Handle<std::vector<recob::Track>>> trackHandles =
         e.getMany<std::vector<recob::Track>>();
@@ -648,6 +882,17 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
           }
         }
         track_buf.sum_hit_charges(matched_hits);
+        if (backtracking) {
+          std::vector<sim::IDE> track_ides;
+          for (art::Ptr<recob::Hit> const &hit_ptr : matched_hits) {
+            std::vector<sim::IDE> hit_ides =
+                match_simides_to_hit(clockData, *hit_ptr);
+            track_ides.insert(track_ides.end(), hit_ides.begin(),
+                              hit_ides.end());
+          }
+          track_buf.bt.populate(track_ides, trkId_to_truthBlockId,
+                                truthBlockId_to_generator_name);
+        }
         track_tree->Fill();
 
         track_key++;
@@ -669,6 +914,11 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
         ChannelInfo chinfo = get_channel_info_for_channel(hit_ptr->Channel(),
                                                            hit_ptr->WireID());
         hit_buf.from_hit(*hit_ptr, track_key, producer, chinfo);
+        if (backtracking) {
+          hit_buf.bt.populate(match_simides_to_hit(clockData, *hit_ptr),
+                              trkId_to_truthBlockId,
+                              truthBlockId_to_generator_name);
+        }
         hit_tree->Fill();
       }
     }
@@ -678,11 +928,31 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
     std::vector<art::Handle<std::vector<recob::OpHit>>> ophitHandles =
         e.getMany<std::vector<recob::OpHit>>();
 
+    std::map<int, std::vector<DivRecPhoton>> divrec_photons;
+    if (backtracking)
+      divrec_photons = collect_divrec_photons(e);
+
     for (auto const &ophitHandle : ophitHandles) {
       std::string producer = ophitHandle.provenance()->inputTag().encode();
 
       for (const recob::OpHit &ophit : *ophitHandle) {
         ophit_buf.from_ophit(ophit, producer, *fWireReadout);
+        if (backtracking) {
+          ophit_buf.bt.reset();
+          auto it = divrec_photons.find(ophit_buf.opdet);
+          if (it != divrec_photons.end()) {
+            std::vector<DivRecPhoton> const &photons = it->second;
+            double const t0 = ophit.PeakTime() * 1000.;
+            auto first = std::lower_bound(
+                photons.begin(), photons.end(), t0 + ophit_bt_window_lo_ns,
+                [](DivRecPhoton const &ph, double t) { return ph.time < t; });
+            auto last = std::upper_bound(
+                first, photons.end(), t0 + ophit_bt_window_hi_ns,
+                [](double t, DivRecPhoton const &ph) { return t < ph.time; });
+            ophit_buf.bt.populate(first, last, trkId_to_truthBlockId,
+                                  truthBlockId_to_generator_name);
+          }
+        }
         ophit_tree->Fill();
       }
     }
@@ -711,6 +981,110 @@ duneana::ChannelInfo duneana::SolarAnaTree::get_channel_info_for_channel(
     result.wire_z = INVALID;
   }
   return result;
+}
+
+// Unlike TPs, hits carry calibrated peak times, so instead of applying
+// per-view tick offsets we let the BackTracker pick the IDEs within
+// [peak - k*RMS, peak + k*RMS] (k = BackTrackerService HitTimeRMS). Hits on
+// channels with no sim::SimChannel (e.g. pure noise) match no IDEs.
+std::vector<sim::IDE> duneana::SolarAnaTree::match_simides_to_hit(
+    detinfo::DetectorClocksData const &clockData,
+    const recob::Hit &hit) const {
+  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  // BackTrackerService doesn't expose FindSimChannelPtr(), and
+  // HitToSimIDEs_Ps() throws on missing channels, so check first. SimChannels()
+  // is sorted by channel, same lookup as BackTracker::FindSimChannelPtr().
+  std::vector<art::Ptr<sim::SimChannel>> const &simchannels =
+      bt_serv->SimChannels();
+  auto sc_it = std::lower_bound(
+      simchannels.begin(), simchannels.end(), hit.Channel(),
+      [](art::Ptr<sim::SimChannel> const &sc, raw::ChannelID_t ch) {
+        return sc->Channel() < ch;
+      });
+  if (sc_it == simchannels.end() || (*sc_it)->Channel() != hit.Channel())
+    return {};
+  std::vector<sim::IDE> matched_ides;
+  for (const sim::IDE *ide : bt_serv->HitToSimIDEs_Ps(clockData, hit))
+    matched_ides.push_back(*ide);
+  return matched_ides;
+}
+
+// WaveformDigitizerSim builds each optical detector's waveforms from its
+// DivRecs, with DivRec time [ns] / 1000 on the same clock as OpHit::PeakTime()
+// [us]. PEs are spread randomly over the detector's readout channels, so the
+// truth is only resolvable per optical detector, not per OpChannel.
+std::map<int, std::vector<duneana::DivRecPhoton>>
+duneana::SolarAnaTree::collect_divrec_photons(art::Event const &e) const {
+  std::map<int, std::vector<DivRecPhoton>> result;
+  for (art::InputTag const &tag : ophit_divrec_labels) {
+    auto handle = e.getHandle<std::vector<sim::OpDetDivRec>>(tag);
+    if (!handle) {
+      mf::LogWarning("SolarAnaTree")
+          << "No sim::OpDetDivRec with tag " << tag.encode()
+          << "; OpHit backtracking will skip it.";
+      continue;
+    }
+    for (sim::OpDetDivRec const &divrec : *handle) {
+      std::vector<DivRecPhoton> &photons = result[divrec.OpDetNum()];
+      for (sim::OpDet_Time_Chans const &time_chans : divrec.GetTimeChans())
+        for (sim::Chan_Phot const &phot : time_chans.phots)
+          photons.push_back({time_chans.time, phot.trackID, phot.phot});
+    }
+  }
+  for (auto &[opdet, photons] : result)
+    std::sort(photons.begin(), photons.end(),
+              [](DivRecPhoton const &a, DivRecPhoton const &b) {
+                return a.time < b.time;
+              });
+  return result;
+}
+
+void duneana::OpHitBacktrackBuffer::populate(
+    std::vector<DivRecPhoton>::const_iterator begin,
+    std::vector<DivRecPhoton>::const_iterator end,
+    const std::unordered_map<int, int> &trkid_to_truth_block,
+    const std::unordered_map<int, std::string> &truth_id_to_gen) {
+  reset();
+  if (begin == end)
+    return;
+
+  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+
+  std::map<int, double> track_pe;
+  for (auto ph = begin; ph != end; ++ph) {
+    bt_pe += ph->pe;
+    if (ph->trackID == 0) {
+      bt_dark_noise_pe += ph->pe;
+      continue;
+    }
+    // Same negative-ID convention as sim::IDE: dropped EM shower daughters
+    // carry -(ID of their saved ancestor).
+    int mc_track_id = BacktrackBuffer::resolve_track_id(ph->trackID, *pi_serv);
+    if (mc_track_id == INVALID)
+      continue;
+    track_pe[mc_track_id] += ph->pe;
+  }
+  if (track_pe.empty())
+    return;
+
+  auto primary = std::max_element(
+      track_pe.begin(), track_pe.end(),
+      [](const auto &a, const auto &b) { return a.second < b.second; });
+  bt_primary_track_id = primary->first;
+  bt_primary_track_pe_frac = primary->second / bt_pe;
+
+  const simb::MCParticle *mc_part =
+      pi_serv->TrackIdToParticle_P(bt_primary_track_id);
+  bt_primary_track_ke = mc_part->E() - mc_part->Mass();
+  bt_primary_pdg = mc_part->PdgCode();
+
+  auto block_it = trkid_to_truth_block.find(bt_primary_track_id);
+  if (block_it != trkid_to_truth_block.end()) {
+    bt_mctruth_block_id = block_it->second;
+    auto gen_it = truth_id_to_gen.find(bt_mctruth_block_id);
+    if (gen_it != truth_id_to_gen.end())
+      bt_mctruth_gen_name = gen_it->second;
+  }
 }
 
 DEFINE_ART_MODULE(duneana::SolarAnaTree)
