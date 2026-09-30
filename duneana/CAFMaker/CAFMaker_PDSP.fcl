@@ -44,6 +44,14 @@ dunepdsp_cafmaker:
     PFParticleLabel:            "pandora"
     MCHasBI:                    true
 
+    # Hit-level truth composition per slice and event-wide (slicing quality / energy resolution).
+    # Hits are classified by which generator produced their true ionisation, so these labels must
+    # match the generator module labels in the input file. Anything not listed (ar39, ar42, kr85,
+    # rn222, ...) is counted as "other".
+    FillHitSummaries:           true
+    BeamTruthLabels:            [ "generator" ]
+    CosmicTruthLabels:          [ "cosmicgenerator" ]
+
 }
 
 
