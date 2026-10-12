@@ -814,7 +814,7 @@ namespace solar
               continue;
             } 
 
-            if (ProducerUtils::InMyMap((*SignalParticle)->TrackId(), SignalMaxEDepMap) == false) {
+            if (SignalMaxEDepMap.find((*SignalParticle)->TrackId()) == SignalMaxEDepMap.end()) { // = !ProducerUtils::InMyMap, without the map copy
               SignalMaxEDepMap[(*SignalParticle)->TrackId()] = ide->energy;
               SignalMaxEDepXMap[(*SignalParticle)->TrackId()] = ide->x;
               SignalMaxEDepYMap[(*SignalParticle)->TrackId()] = ide->y;
@@ -1447,7 +1447,12 @@ namespace solar
                 }
               }
 
-              long unsigned int GeneratorType = ProducerUtils::WhichGeneratorType(GeneratorParticles, MainTrID);
+              // Same result as ProducerUtils::WhichGeneratorType (1-based generator index, 0 if none), without its by-value copy of
+              // every MCParticle of every generator for each hit.
+              long unsigned int GeneratorType = 0;
+              for (long unsigned int gen = 0; gen < GeneratorParticles.size(); gen++) {
+                if (GeneratorParticles[gen].find(MainTrID) != GeneratorParticles[gen].end()) { GeneratorType = gen + 1; break; }
+              }
               VecGenPur[int(GeneratorType)] = VecGenPur[int(GeneratorType)] + TPCHit.Integral();
               if (SignalTrackIDs.find(MainTrID) != SignalTrackIDs.end()) {
                 hitCharge = TPCHit.Integral();
