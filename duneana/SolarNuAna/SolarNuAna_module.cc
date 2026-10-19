@@ -84,7 +84,7 @@ namespace solar
       // --- Input settings imported from the fcl
       std::vector<std::string> fLabels, fBackgroundLabels;
       std::string fSignalLabel, fClusterLabel, fSolarClusterLabel, fClusterChargeVariable, fOpHitTimeVariable, fAdjOpFlashMinPEAttenuate, fAdjOpFlashMaxPEAttenuate, fFlashMatchBy;
-      int fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut, fAdjOpFlashMinPEAttenuationStrength, fAdjOpFlashMaxPEAttenuationStrength;
+      int fClusterAlgoAdjChannel, fClusterInd0MatchTime, fClusterInd1MatchTime, fClusterPreselectionNHits, fAdjOpFlashMinNHitCut, fAdjOpFlashMinNHitCutMembrane, fAdjOpFlashMinPEAttenuationStrength, fAdjOpFlashMaxPEAttenuationStrength;
       float fMaxSignalK; 
       float fClusterMatchTime, fAdjClusterRad, fMinClusterCharge, fClusterMatchCharge, fClusterMatchNHit, fClusterAlgoTime;
       float fOpFlashTimeOffset, fOpFlashAlgoMinTime, fOpFlashAlgoMaxTime, fOpFlashAlgoRad, fOpFlashAlgoPE, fOpFlashAlgoTriggerPE, fOpFlashAlgoHotVertexThld;
@@ -217,6 +217,7 @@ namespace solar
     fAdjOpFlashMembraneProjection = p.get<bool>("AdjOpFlashMembraneProjection");
     fAdjOpFlashEndCapProjection = p.get<bool>("AdjOpFlashEndCapProjection");
     fAdjOpFlashMinNHitCut = p.get<int>("AdjOpFlashMinNHitCut");
+    fAdjOpFlashMinNHitCutMembrane = p.get<int>("AdjOpFlashMinNHitCutMembrane", fAdjOpFlashMinNHitCut); // Defaults to the cathode cut
     fAdjOpFlashX = p.get<float>("AdjOpFlashX", 140.0);
     fAdjOpFlashY = p.get<float>("AdjOpFlashY", 140.0);
     fAdjOpFlashZ = p.get<float>("AdjOpFlashZ", 140.0);
@@ -298,6 +299,7 @@ namespace solar
     fConfigTree->Branch("AdjOpFlashMembraneProjection", &fAdjOpFlashMembraneProjection);
     fConfigTree->Branch("AdjOpFlashEndCapProjection", &fAdjOpFlashEndCapProjection);
     fConfigTree->Branch("AdjOpFlashMinNHitCut", &fAdjOpFlashMinNHitCut);
+    fConfigTree->Branch("AdjOpFlashMinNHitCutMembrane", &fAdjOpFlashMinNHitCutMembrane);
     fConfigTree->Branch("AdjOpFlashX", &fAdjOpFlashX);
     fConfigTree->Branch("AdjOpFlashY", &fAdjOpFlashY);
     fConfigTree->Branch("AdjOpFlashZ", &fAdjOpFlashZ);
@@ -812,7 +814,7 @@ namespace solar
               continue;
             } 
 
-            if (ProducerUtils::InMyMap((*SignalParticle)->TrackId(), SignalMaxEDepMap) == false) {
+            if (SignalMaxEDepMap.find((*SignalParticle)->TrackId()) == SignalMaxEDepMap.end()) { // = !ProducerUtils::InMyMap, without the map copy
               SignalMaxEDepMap[(*SignalParticle)->TrackId()] = ide->energy;
               SignalMaxEDepXMap[(*SignalParticle)->TrackId()] = ide->x;
               SignalMaxEDepYMap[(*SignalParticle)->TrackId()] = ide->y;
@@ -1445,7 +1447,12 @@ namespace solar
                 }
               }
 
-              long unsigned int GeneratorType = ProducerUtils::WhichGeneratorType(GeneratorParticles, MainTrID);
+              // Same result as ProducerUtils::WhichGeneratorType (1-based generator index, 0 if none), without its by-value copy of
+              // every MCParticle of every generator for each hit.
+              long unsigned int GeneratorType = 0;
+              for (long unsigned int gen = 0; gen < GeneratorParticles.size(); gen++) {
+                if (GeneratorParticles[gen].find(MainTrID) != GeneratorParticles[gen].end()) { GeneratorType = gen + 1; break; }
+              }
               VecGenPur[int(GeneratorType)] = VecGenPur[int(GeneratorType)] + TPCHit.Integral();
               if (SignalTrackIDs.find(MainTrID) != SignalTrackIDs.end()) {
                 hitCharge = TPCHit.Integral();
@@ -1882,8 +1889,9 @@ namespace solar
               // Print the flash information for debugging
               sFlashMatching += "Matching flash " + ProducerUtils::str(j) + " with time " + ProducerUtils::str(OpFlashTime[j]) + " and PE " + ProducerUtils::str(OpFlashPE[j]) + " in plane " + ProducerUtils::str(OpFlashPlane[j]) + " at distance " + ProducerUtils::str(OpFlashR) + " with residual " + ProducerUtils::str(OpFlashResidual) + "\n";
 
-              // Make a cut on the flash MaxPE/PE ratio and the number of hits
-              if ( OpFlashNHits[j] < fAdjOpFlashMinNHitCut || OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut ) {
+              // Make a cut on the flash MaxPE/PE ratio and the number of hits (membrane flashes, plane > 0, have their own hit cut)
+              int MinNHitCut = OpFlashPlane[j] > 0 ? fAdjOpFlashMinNHitCutMembrane : fAdjOpFlashMinNHitCut;
+              if ( OpFlashNHits[j] < MinNHitCut || OpFlashMaxPE[j] / OpFlashPE[j] > fAdjOpFlashMaxPERatioCut ) {
                 continue;
               }
 
