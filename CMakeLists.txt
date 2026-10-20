@@ -46,7 +46,7 @@ find_package( larevt REQUIRED EXPORT )
 find_package( larpandora REQUIRED EXPORT ) 
 find_package( GENIE REQUIRED EXPORT)
 find_package( Geant4 REQUIRED EXPORT )
-find_package( geant4reweight REQUIRED )
+# find_package( geant4reweight REQUIRED )
 
 # macros for artdaq_dictionary and simple_plugin
 include(ArtDictionary)
