@@ -30,6 +30,10 @@ physics:
       dump_recohits:     true
       dump_recoophits:   true
       backtracking:      true
+      # sim::SimEnergyDeposits summed per MCParticle (mcparticles: edep,
+      # n_electrons, n_photons) and per generated particle with all its
+      # descendants (mctruths: edep_total, n_electrons_total, n_photons_total)
+      edep_labels:       [ "IonAndScint" ]
       # OpHit backtracking: DivRecs feeding opdigi10ppm, and the window around
       # OpHit PeakTime in which their photons are matched
       ophit_divrec_labels:   [ "sipmAr10ppm", "sipmXe10ppm", "sipmAr10ppmExt", "sipmXe10ppmExt" ]

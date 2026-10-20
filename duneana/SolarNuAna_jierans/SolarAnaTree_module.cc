@@ -28,7 +28,9 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/OpHit.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/Simulation/GeneratedParticleInfo.h"
 #include "lardataobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/SimEnergyDeposit.h"
 #include "larsim/MCCheater/BackTrackerService.h"
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -47,6 +49,21 @@
 
 namespace duneana {
 class SolarAnaTree;
+
+// Summed sim::SimEnergyDeposits: energy [MeV] and the ionization electrons and
+// scintillation photons that IonAndScint assigned to it.
+struct EdepSum {
+  double energy = 0.;
+  double n_electrons = 0.;
+  double n_photons = 0.;
+
+  EdepSum &operator+=(EdepSum const &o) {
+    energy += o.energy;
+    n_electrons += o.n_electrons;
+    n_photons += o.n_photons;
+    return *this;
+  }
+};
 
 struct EventDataBuffer {
   int event;
@@ -586,15 +603,20 @@ private:
   std::vector<art::InputTag> ophit_divrec_labels;
   double ophit_bt_window_lo_ns, ophit_bt_window_hi_ns;
 
+  // sim::SimEnergyDeposit collections summed per MCParticle (mcparticles) and
+  // per generated particle with all its descendants (mctruths).
+  std::vector<art::InputTag> edep_labels;
+
   bool dump_mctruths;
   TTree *mctruth_tree;
   int mctruth_pdg;
   std::string mctruth_process;
-  int mctruth_status, mctruth_id, mctruth_trackid;
+  int mctruth_status, mctruth_id, mctruth_trackid, mctruth_g4_trackid;
   std::string mctruth_gen_name;
   double mctruth_x, mctruth_y, mctruth_z, mctruth_t;
   double mctruth_Px, mctruth_Py, mctruth_Pz, mctruth_P;
   double mctruth_en, mctruth_ek;
+  EdepSum mctruth_edep;
 
   TTree *mcneutrino_tree;
   int mcneutrino_nupdg, mcneutrino_leptonpdg, mcneutrino_ccnc, mcneutrino_mode,
@@ -614,6 +636,7 @@ private:
   double mcparticle_end_x, mcparticle_end_y, mcparticle_end_z, mcparticle_end_t;
   double mcparticle_Px, mcparticle_Py, mcparticle_Pz;
   double mcparticle_en, mcparticle_ek;
+  EdepSum mcparticle_edep;
 
   bool dump_recotracks;
   TTree *track_tree;
@@ -648,6 +671,8 @@ duneana::SolarAnaTree::SolarAnaTree(fhicl::ParameterSet const &p)
                                   "sipmAr10ppmExt", "sipmXe10ppmExt"})),
       ophit_bt_window_lo_ns(p.get<double>("ophit_bt_window_lo_ns", -100.)),
       ophit_bt_window_hi_ns(p.get<double>("ophit_bt_window_hi_ns", 50.)),
+      edep_labels(p.get<std::vector<art::InputTag>>("edep_labels",
+                                                    {"IonAndScint"})),
       dump_mctruths(p.get<bool>("dump_mctruths", true)),
       dump_mcparticles(p.get<bool>("dump_mcparticles", true)),
       dump_recotracks(p.get<bool>("dump_recotracks", true)),
@@ -674,6 +699,10 @@ void duneana::SolarAnaTree::beginJob() {
     mctruth_tree->Branch("energy", &mctruth_en);
     mctruth_tree->Branch("kinetic_energy", &mctruth_ek);
     mctruth_tree->Branch("process", &mctruth_process);
+    mctruth_tree->Branch("g4_track_id", &mctruth_g4_trackid);
+    mctruth_tree->Branch("edep_total", &mctruth_edep.energy);
+    mctruth_tree->Branch("n_electrons_total", &mctruth_edep.n_electrons);
+    mctruth_tree->Branch("n_photons_total", &mctruth_edep.n_photons);
 
     mcneutrino_tree = tfs->make<TTree>("mcneutrinos", "mcneutrinos");
     ev_buf.branch_on(mcneutrino_tree);
@@ -718,6 +747,9 @@ void duneana::SolarAnaTree::beginJob() {
     mcparticle_tree->Branch("energy", &mcparticle_en);
     mcparticle_tree->Branch("kinetic_energy", &mcparticle_ek);
     mcparticle_tree->Branch("process", &mcparticle_process);
+    mcparticle_tree->Branch("edep", &mcparticle_edep.energy);
+    mcparticle_tree->Branch("n_electrons", &mcparticle_edep.n_electrons);
+    mcparticle_tree->Branch("n_photons", &mcparticle_edep.n_photons);
   }
   if (dump_recotracks) {
     track_tree = tfs->make<TTree>("tracks", "tracks");
@@ -743,6 +775,45 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
 
   fWireReadout = &art::ServiceHandle<geo::WireReadout>()->Get();
 
+  // Energy deposits per MCParticle. LArG4 relabels the deposits of tracks
+  // without an MCParticle (dropped EM shower daughters) with minus the ID of
+  // their nearest stored ancestor, so |TrackID| is always a stored MCParticle.
+  std::unordered_map<int, EdepSum> trkId_to_edep;
+  // Deposits of each primary (Mother() == 0) and all its descendants.
+  std::unordered_map<int, EdepSum> primaryTrkId_to_edep;
+  if (dump_mctruths || dump_mcparticles) {
+    for (auto const &tag : edep_labels) {
+      auto edepHandle = e.getHandle<std::vector<sim::SimEnergyDeposit>>(tag);
+      if (!edepHandle) {
+        mf::LogWarning("SolarAnaTree")
+            << "No sim::SimEnergyDeposit collection " << tag.encode();
+        continue;
+      }
+      for (sim::SimEnergyDeposit const &edep : *edepHandle) {
+        trkId_to_edep[std::abs(edep.TrackID())] +=
+            EdepSum{edep.Energy(), double(edep.NumElectrons()),
+                    double(edep.NumPhotons())};
+      }
+    }
+
+    std::unordered_map<int, int> trkId_to_mother;
+    for (auto const &mcparticleHandle :
+         e.getMany<std::vector<simb::MCParticle>>()) {
+      for (const simb::MCParticle &part : *mcparticleHandle) {
+        trkId_to_mother[part.TrackId()] = part.Mother();
+      }
+    }
+    for (auto const &[trkId, edep] : trkId_to_edep) {
+      int primary = trkId;
+      for (auto it = trkId_to_mother.find(primary);
+           it != trkId_to_mother.end() && it->second != 0;
+           it = trkId_to_mother.find(primary)) {
+        primary = it->second;
+      }
+      primaryTrkId_to_edep[primary] += edep;
+    }
+  }
+
   if (dump_mctruths) {
     std::vector<art::Handle<std::vector<simb::MCTruth>>> mctruthHandles =
         e.getMany<std::vector<simb::MCTruth>>();
@@ -758,7 +829,8 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
 
       // NOTE: here we are making an assumption that the geant4 stage's process
       // name is largeant. This should be safe mostly.
-      art::FindManyP<simb::MCParticle> assns(mctruthHandle, e, "largeant");
+      art::FindManyP<simb::MCParticle, sim::GeneratedParticleInfo> assns(
+          mctruthHandle, e, "largeant");
       for (size_t i = 0; i < mctruthHandle->size(); i++) {
         const simb::MCTruth &truthblock =
             *art::Ptr<simb::MCTruth>(mctruthHandle, i);
@@ -767,8 +839,17 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
         truthBlockId_to_generator_name[truth_block_counter] = generator_name;
 
         std::vector<art::Ptr<simb::MCParticle>> matched_mcparts = assns.at(i);
-        for (art::Ptr<simb::MCParticle> mcpart : matched_mcparts) {
-          trkId_to_truthBlockId[mcpart->TrackId()] = truth_block_counter;
+        std::vector<sim::GeneratedParticleInfo const *> const &matched_infos =
+            assns.data(i);
+        // Index of the particle in this MCTruth -> G4 track ID of the primary
+        std::unordered_map<size_t, int> genIndex_to_trkId;
+        for (size_t j = 0; j < matched_mcparts.size(); j++) {
+          trkId_to_truthBlockId[matched_mcparts[j]->TrackId()] =
+              truth_block_counter;
+          if (matched_infos[j]->hasGeneratedParticleIndex()) {
+            genIndex_to_trkId[matched_infos[j]->generatedParticleIndex()] =
+                matched_mcparts[j]->TrackId();
+          }
         }
 
         if (truthblock.NeutrinoSet()) {
@@ -809,6 +890,13 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
           mctruth_P = part.P();
           mctruth_en = part.E();
           mctruth_ek = part.E() - part.Mass();
+          // Particles not tracked by G4 (e.g. status != 1) have no MCParticle
+          auto trkIt = genIndex_to_trkId.find(ipart);
+          mctruth_g4_trackid =
+              trkIt != genIndex_to_trkId.end() ? trkIt->second : INVALID;
+          auto edepIt = primaryTrkId_to_edep.find(mctruth_g4_trackid);
+          mctruth_edep = edepIt != primaryTrkId_to_edep.end() ? edepIt->second
+                                                              : EdepSum{};
           mctruth_tree->Fill();
         }
         truth_block_counter++;
@@ -846,6 +934,9 @@ void duneana::SolarAnaTree::analyze(art::Event const &e) {
         mcparticle_Pz = part.Pz();
         mcparticle_en = part.E();
         mcparticle_ek = part.E() - part.Mass();
+        auto edepIt = trkId_to_edep.find(part.TrackId());
+        mcparticle_edep =
+            edepIt != trkId_to_edep.end() ? edepIt->second : EdepSum{};
         mcparticle_tree->Fill();
       }
     }
