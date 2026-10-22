@@ -2,6 +2,7 @@
 #include "services_protodune_singlephase.fcl"
 #include "mvamodule.fcl"
 #include "CAFMaker_PDSP.fcl"
+#include "calibration_dune.fcl"
 #include "tools_dune.fcl"
 
 process_name: CafMaker
@@ -15,6 +16,19 @@ services:
 
 services.PhotonBackTrackerService.PhotonBackTracker.G4ModuleLabel: "PDFastSim"
 
+# Services for the calibrated calorimetry producers below, as in protoduneana's
+# pduneana_Prod4a_MC_sce.fcl. Only those producers read them: the CAFMaker itself does not use
+# the space-charge service, so enabling the calibration corrections does not change other fields.
+services.XYZCalibService:                  @local::protodune_xyzcalib
+services.XYZCalibService.IsMC:             true
+services.XYZCalibService.UseCondbXYZCorr:  true
+services.XYZCalibService.YZCorrDBTag:      "prod4"
+services.XYZCalibService.XCorrDBTag:       "prod4"
+services.XYZCalibService.NormCorrDBTag:    "prod4"
+services.LifetimeCalibService:             @local::protodune_lifetimecalib
+services.SpaceCharge.EnableCalEfieldSCE:   true
+services.SpaceCharge.EnableCalSpatialSCE:  true
+
 source:
 {
   module_type: RootInput
@@ -27,8 +41,14 @@ source:
 physics:
 {
 
+ # Calibrated calorimetry the PDSP selection reads (stage-2 products, absent from stage-1 files).
+ # Configured exactly as in protoduneana's pduneana_Prod4a_MC_sce.fcl (MC constants).
  producers:{
+   pandoracali:  @local::protodunespmcsce_calibrationdedx
+   pandora2cali: @local::protodunespmcsce_calibrationdedx
  }
+
+ calib: [ pandoracali, pandora2cali ]
 
  analyzers:
 {
@@ -36,10 +56,37 @@ physics:
 }
 
  caf:  [ cafmaker]
- trigger_paths: [ ] 
+ trigger_paths: [ calib ]
 
  #end_paths is a keyword and contains the paths that do not modify the art::Event, 
  #ie analyzers and output streams.  these all run simultaneously
  end_paths:     [ caf ]  
 
 }
+physics.producers.pandoracali.CalorimetryModuleLabel:          "pandoracalinoxyzt"
+physics.producers.pandoracali.TrackModuleLabel:                "pandoraTrack"
+physics.producers.pandoracali.ShowerModuleLabel:               "pandoraShower"
+physics.producers.pandoracali.ShowerCalorimetryModuleLabel:    "pandoraShowercalo"
+physics.producers.pandoracali.ApplyLifetimeCorrection:         false
+physics.producers.pandoracali.ApplyYZCorrection:               true
+physics.producers.pandoracali.ApplyXCorrection:                true
+physics.producers.pandoracali.ApplyNormCorrection:             false
+physics.producers.pandoracali.ApplyLifetimeCorrectionShower:   true
+physics.producers.pandoracali.ApplyYZCorrectionShower:         true
+physics.producers.pandoracali.ApplyXCorrectionShower:          true
+physics.producers.pandoracali.ApplyNormCorrectionShower:       false
+physics.producers.pandoracali.CaloAlg.CalAreaConstants:        [1.04e-3, 1.04e-3, 1.0156e-3]
+
+physics.producers.pandora2cali.TrackModuleLabel:               "pandora2Track"
+physics.producers.pandora2cali.CalorimetryModuleLabel:         "pandora2calinoxyzt"
+physics.producers.pandora2cali.ShowerModuleLabel:              "pandora2Shower"
+physics.producers.pandora2cali.ShowerCalorimetryModuleLabel:   "pandora2Showercalo"
+physics.producers.pandora2cali.ApplyLifetimeCorrection:        false
+physics.producers.pandora2cali.ApplyYZCorrection:              true
+physics.producers.pandora2cali.ApplyXCorrection:               true
+physics.producers.pandora2cali.ApplyNormCorrection:            false
+physics.producers.pandora2cali.ApplyLifetimeCorrectionShower:  true
+physics.producers.pandora2cali.ApplyYZCorrectionShower:        true
+physics.producers.pandora2cali.ApplyXCorrectionShower:         true
+physics.producers.pandora2cali.ApplyNormCorrectionShower:      false
+physics.producers.pandora2cali.CaloAlg.CalAreaConstants:       [1.04e-3, 1.04e-3, 1.0156e-3]

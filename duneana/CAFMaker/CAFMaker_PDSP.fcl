@@ -52,6 +52,51 @@ dunepdsp_cafmaker:
     BeamTruthLabels:            [ "generator" ]
     CosmicTruthLabels:          [ "cosmicgenerator" ]
 
+    # pi+ absorption / charge-exchange selection, ported from protoduneana's runEventSelection
+    # (EventSelection.fcl values below). Filled twice into rec.beam.pdsp_sel: "legacy" is the old
+    # chain exactly; "improved" applies the switches in Improved. Needs the calibrated calorimetry
+    # producers pandoracali / pandora2cali to run in the same job (see standard_cafmaker_PDSP.fcl).
+    FillPDSPSelection:          true
+    PDSPSelection: {
+        BeamCaloLabel:          "pandoracali"     # beam track dE/dx, positions
+        DaughterCaloLabel:      "pandora2cali"    # daughter track dE/dx and shower energy
+        ForcedTrackLabel:       "pandora2Track"
+        ForcedShowerLabel:      "pandora2Shower"
+        BeamGeneratorLabel:     "generator"
+        dEdXTemplateFile:       "dEdxrestemplates.root"   # looked up in FW_SEARCH_PATH
+
+        CheckCalo:              true
+        EndZLow:                -0.49375     # truth only [cm]
+        EndZHigh:               222.10561    # reco (raw end z) and truth [cm]
+        Threshold:              0.150        # truth charged-pion momentum [GeV/c]
+        CexNPi0:                true
+        SignalPastFV:           true
+        TrackScoreCut:          0.3
+        Limit:                  0.16         # truncated mean drops this fraction at each end
+        Chi2Cut:                70.
+        dEdXLow:                0.5          # [MeV/cm]
+        dEdXMed:                2.8
+        dEdXHigh:               3.4
+        DoMichel:               true
+        MichelCut:              0.6
+        DoNTracks:              false
+        ExcludeRuns:            []
+        DoAngle:                true
+        XYZCut:                 3.           # [sigma]
+        CosCut:                 0.95
+        MCBeamSpot:   { MeanX: -30.81 MeanY: 422.41 MeanZ: 0.11 SigmaX: 5.02 SigmaY: 4.51 SigmaZ: 0.22 ThetaX: 101.58 ThetaY: 101.19 ThetaZ: 16.59 }
+        DataBeamSpot: { MeanX: -27.91 MeanY: 424.36 MeanZ: 3.78 SigmaX: 4.71 SigmaY: 5.16 SigmaZ: 1.10 ThetaX: 100.95 ThetaY: 104.17 ThetaZ: 18.05 }
+
+        # Differences of the "improved" implementation from the legacy one.
+        Improved: {
+            BeamPFPByScore:       true   # tagged primary PFP with the highest TestBeamScore
+            MichelAtEnd:          true   # Michel window at the downstream end of the beam track
+            RequireTwoCaloPoints: true   # a point-like beam track fails the angle cut
+            RequireShowerEnergy:  true   # a shower without calorimetry cannot tag Cex
+            BIQualityInMC:        true   # one beam momentum required in MC too
+        }
+    }
+
 }
 
 

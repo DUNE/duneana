@@ -67,6 +67,7 @@
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
 #include "dunecore/DuneObj/ProtoDUNEBeamEvent.h"
+#include "duneana/CAFMaker/PDSPSelection.h"
 
 
 // root
@@ -275,6 +276,9 @@ namespace caf {
       std::vector<std::string> fCosmicTruthLabels; ///< Generator module labels producing cosmic rays
       bool fFillHitSummaries;                      ///< Fill the per-slice / event-wide hit truth composition
 
+      /// ProtoDUNE-SP pi+ Abs/Cex selection (legacy + improved); null unless FillPDSPSelection.
+      std::unique_ptr<pdspsel::PDSPSelection> fPDSPSelection;
+
       const std::map<simb::Generator_t, caf::Generator> fgenMap = {
         {simb::Generator_t::kUnknown, caf::Generator::kUnknownGenerator},
         {simb::Generator_t::kGENIE,   caf::Generator::kGENIE},
@@ -351,6 +355,12 @@ namespace caf {
 
     if(fVertexFiducialVolumeCut.size() != 6){
       throw cet::exception("CAFMaker") << "VertexFiducialVolumeCut must be a vector of 6 elements";
+    }
+
+    if(pset.get<bool>("FillPDSPSelection", false)){
+      fPDSPSelection = std::make_unique<pdspsel::PDSPSelection>(
+        pset.get<fhicl::ParameterSet>("PDSPSelection", {}),
+        fPandoraLabel, fTrackLabel, fHitLabel, fMVALabel, CollectionPlane());
     }
   }
 
@@ -2557,6 +2567,10 @@ namespace caf {
     FillTruthInfo(sr.mc, evt);
 
     FillRecoInfoSliceLoop(sr.common, *fdBranch, sr.mc, evt, sr.beam.inst);
+
+    if(fPDSPSelection){
+      fPDSPSelection->Fill(evt, sr.beam.inst, sr.beam.pdsp_sel);
+    }
 
     if(fTree){
       fTree->Fill();
