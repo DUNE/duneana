@@ -26,6 +26,7 @@ cet_build_plugin(CAFMaker   art::module LIBRARIES
                         larreco::Calorimetry
                         dunereco::AnaUtils
                         larsim::Utils
+                        dunecore::DuneObj
               BASENAME_ONLY
 )
 endif()

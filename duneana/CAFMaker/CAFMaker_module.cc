@@ -13,6 +13,8 @@
 
 // Generic C++ includes
 #include <iostream>
+#include <array>
+#include <cmath>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
@@ -52,8 +54,13 @@
 #include "dunereco/AnaUtils/DUNEAnaEventUtils.h"
 #include "dunereco/AnaUtils/DUNEAnaShowerUtils.h"
 #include "larsim/Utils/TruthMatchUtils.h"
+#include "larsim/MCCheater/BackTrackerService.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larpandora/LArPandoraInterface/LArPandoraHelper.h"
+#include "larcore/Geometry/WireReadout.h"
+#include "lardataobj/Simulation/SimChannel.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "dunecore/DuneObj/ProtoDUNEBeamEvent.h"
 
 
 // root
@@ -96,8 +103,23 @@ namespace caf {
       void FillAncestorIDs(caf::SRTrueInteraction& inter) const;
       void FillMetaInfo(caf::SRDetectorMeta &meta, art::Event const& evt) const;
       void FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const;
-      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
-      void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const;
+
+      /// @name Ported from protoana::ProtoDUNEBeamlineUtils
+      ///
+      /// Reimplemented here so the module keeps no protoduneana dependency. They read only
+      /// `beam::ProtoDUNEBeamEvent`, which comes from dunecore::DuneObj. Kept faithful to
+      /// protoduneana v10_20_09d00; if the upstream cuts are retuned these must be revisited.
+      ///@{
+      /// Beamline trigger is the beam trigger, and is matched to the DAQ trigger.
+      static bool IsGoodBeamlineTrigger(const beam::ProtoDUNEBeamEvent &beamEvent);
+      /// Exactly one non-glitching fiber in each momentum monitor, so the momentum is unambiguous.
+      static bool HasPerfectBeamMomentum(const beam::ProtoDUNEBeamEvent &beamEvent);
+      /// CERN-calibration TOF + Cherenkov PID selection; returns PDG codes.
+      std::vector<int> GetBeamPDGCandidates(const beam::ProtoDUNEBeamEvent &beamEvent,
+                                            double nominal_momentum) const;
+      ///@}
+      void FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const caf::SRTruthBranch &truthBranch, const caf::SRBeamInstrumentation &beamInst, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
+      void FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const caf::SRTruthBranch &truthBranch, const caf::SRBeamInstrumentation &beamInst, const art::Event &evt) const;
       void FillCVNInfo(caf::SRCVNScoreBranch &cvnBranch, const art::Event &evt) const;
       void FillEnergyInfo(caf::SRNeutrinoEnergyBranch &ErecBranch, const art::Event &evt) const;
       void FillRecoParticlesInfo(caf::SRRecoParticlesBranch &recoParticlesBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const;
@@ -113,6 +135,18 @@ namespace caf {
       void ComputeActiveBounds();
       double GetSingleHitsEnergy(art::Event const& evt, int plane) const;
       bool IsVertexContained(caf::SRVector3D const& vtx) const;
+
+      /// @name ProtoDUNE thin-target interacting energies, ported from protoduneana's PDSPAnalyzer
+      ///@{
+      /// Collection-plane index (also the view index used for the true energy depositions).
+      int CollectionPlane() const { return fVPlaneAsCollector ? 1 : 2; }
+      /// Group IDEs into wire-pitch slices along z, starting from the first wire at z0.
+      std::map<int, std::vector<const sim::IDE*>> SliceIDEs(std::vector<const sim::IDE*> const& ides, double z0, double pitch) const;
+      /// True kinetic energy [MeV] of a G4 particle at its interaction point, from its collection-view IDEs.
+      double ComputeTrueInteractingEnergy(const simb::MCParticle &trueParticle) const;
+      /// Reco kinetic energy [MeV] of the beam track at its interaction point, from its SCE-corrected calorimetry.
+      double ComputeRecoInteractingEnergy(const art::Event &evt, const art::Ptr<recob::Track> &beamTrack, const caf::SRTruthBranch &truthBranch, const caf::SRBeamInstrumentation &beamInst) const;
+      ///@}
       std::string fCVNLabel;
       bool fIsAtmoCVN;
       std::string fRegCNNLabel;
@@ -162,7 +196,19 @@ namespace caf {
 
       calo::CalorimetryAlg fCalorimetryAlg;                    ///< the calorimetry algorithm
       double fRecombFactor; ///< recombination factor for the isolated hits
-      
+
+      std::string fBeamModuleLabel;       ///< Label of the beam::ProtoDUNEBeamEvent product in real data
+      std::string fMCBeamModuleLabel;     ///< Label of the beam::ProtoDUNEBeamEvent product in simulation
+      double fBeamInstPFix;               ///< Momentum correction factor for MC beam instrumentation
+      double fBeamPIDMomentum;            ///< Nominal beam momentum [GeV/c] the PID cuts are defined at
+      bool   fUseCERNCalibSelection;      ///< Use the CERN-calibrated TOF cuts (reco after ~v08_07_00) rather than the older values
+
+      std::string fBeamTrackLabel;        ///< Track label for the beam particle track (its calorimetry is fCalorimetryLabelSCE)
+      std::string fCalorimetryLabelSCE;   ///< SCE-corrected calorimetry label for the beam track
+      bool fVPlaneAsCollector;            ///< Use the V plane (1) instead of the W plane (2) as collection plane
+      bool fMCHasBI;                      ///< MC has beam instrumentation: start the reco interacting energy from inst.P instead of truth
+      geo::WireReadoutGeom const* fWireReadout; ///< Wire readout geometry, for the wire pitch
+
       const std::map<simb::Generator_t, caf::Generator> fgenMap = {
         {simb::Generator_t::kUnknown, caf::Generator::kUnknownGenerator},
         {simb::Generator_t::kGENIE,   caf::Generator::kGENIE},
@@ -210,7 +256,17 @@ namespace caf {
       fGeom(&*art::ServiceHandle<geo::Geometry>()),
       fVertexFiducialVolumeCut(pset.get<std::vector<double>>("VertexFiducialVolumeCut")),
       fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")),
-      fRecombFactor(pset.get<double>("RecombFactor"))
+      fRecombFactor(pset.get<double>("RecombFactor")),
+      fBeamModuleLabel(pset.get<std::string>("BeamModuleLabel")),
+      fMCBeamModuleLabel(pset.get<std::string>("MCBeamModuleLabel")),
+      fBeamInstPFix(pset.get<double>("BeamInstPFix")),
+      fBeamPIDMomentum(pset.get<double>("BeamPIDMomentum")),
+      fUseCERNCalibSelection(pset.get<bool>("UseCERNCalibSelection")),
+      fBeamTrackLabel(pset.get<std::string>("BeamTrackLabel")),
+      fCalorimetryLabelSCE(pset.get<std::string>("CalorimetryLabelSCE")),
+      fVPlaneAsCollector(pset.get<bool>("VPlaneAsCollector")),
+      fMCHasBI(pset.get<bool>("MCHasBI")),
+      fWireReadout(&art::ServiceHandle<geo::WireReadout>()->Get())
   {
 
     if(pset.get<bool>("CreateFlatCAF")){
@@ -603,6 +659,8 @@ namespace caf {
                 part.daughters.push_back(daughter);
                 secondaries_to_add.push_back(daughter);
               }
+              //Only for the primary: each call scans the SimChannels through the BackTracker
+              part.true_beam_interactingEnergy = ComputeTrueInteractingEnergy(*the_g4_part);
             }
 
             inter.prim.push_back(std::move(part));
@@ -710,7 +768,7 @@ namespace caf {
   }
 
   //------------------------------------------------------------------------------
-  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt) const 
+  void CAFMaker::FillRecoInfoSliceLoop(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const caf::SRTruthBranch &truthBranch, const caf::SRBeamInstrumentation &beamInst, const art::Event &evt) const
   {
     // get handle to slices
     auto sliceHandle = evt.getHandle<std::vector<recob::Slice>>(fPandoraLabel);
@@ -728,12 +786,12 @@ namespace caf {
     }
   
     for (const auto& slicePtr : slicePtrs) {
-      FillRecoInfo(recoBranch, fdBranch, evt, slicePtr, sliceToPFP);
+      FillRecoInfo(recoBranch, fdBranch, truthBranch, beamInst, evt, slicePtr, sliceToPFP);
     }
-      
+
   }
 
-  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const {
+  void CAFMaker::FillRecoInfo(caf::SRCommonRecoBranch &recoBranch, caf::SRFD &fdBranch, const caf::SRTruthBranch &truthBranch, const caf::SRBeamInstrumentation &beamInst, const art::Event &evt, const art::Ptr<recob::Slice> &slicePtr, const art::FindManyP<recob::PFParticle> &sliceToPFP) const {
     SRInteractionBranch &ixn = recoBranch.ixn;
 
     //Only filling with Pandora Reco for the moment
@@ -812,6 +870,16 @@ namespace caf {
 
         FillInteractionTruthMatchingAndOverlap(particleVector, evt, reco.truth, reco.truthOverlap);
         reco.isFromTrigger = is_test_beam;
+
+        if (is_test_beam) {
+          if (dune_ana::DUNEAnaPFParticleUtils::HasTrack(particle, evt, fPandoraLabel, fBeamTrackLabel)) {
+            art::Ptr<recob::Track> beamTrack = dune_ana::DUNEAnaPFParticleUtils::GetTrack(particle, evt, fPandoraLabel, fBeamTrackLabel);
+            ixn.reco_beam_interactingEnergy = ComputeRecoInteractingEnergy(evt, beamTrack, truthBranch, beamInst);
+          }
+          else {
+            mf::LogWarning("CAFMaker") << "No track associated to the beam particle; reco interacting energy left unfilled.";
+          }
+        }
 
         pandora.emplace_back(reco);
         break; //We do this work only the first primary particle in the slice to avoid repetitions
@@ -1031,6 +1099,121 @@ namespace caf {
   }
 
   //------------------------------------------------------------------------------
+
+  // The three functions below port the thin-target interacting energy of protoduneana's
+  // PDSPAnalyzer (true_beam_interactingEnergy and reco_beam_interactingEnergy), without the
+  // protoduneana dependency. All energies are kinetic energies in MeV.
+
+  std::map<int, std::vector<const sim::IDE*>> CAFMaker::SliceIDEs(std::vector<const sim::IDE*> const& ides, double z0, double pitch) const
+  {
+    std::map<int, std::vector<const sim::IDE*>> results;
+    for (const sim::IDE* ide : ides) {
+      int slice_num = std::floor((ide->z - (z0 - pitch/2.)) / pitch);
+      results[slice_num].push_back(ide);
+    }
+    return results;
+  }
+
+  //------------------------------------------------------------------------------
+
+  double CAFMaker::ComputeTrueInteractingEnergy(const simb::MCParticle &trueParticle) const
+  {
+    const simb::MCTrajectory &trajectory = trueParticle.Trajectory();
+    const double mass = trueParticle.Mass()*1.e3; //GeV -> MeV
+
+    //Wire positions of TPC 1, the beam-side TPC the beam enters through, as in PDSPAnalyzer
+    const geo::PlaneID planeID{0, 1, static_cast<unsigned int>(CollectionPlane())};
+    const double z0    = fWireReadout->Wire(geo::WireID(planeID, 0)).GetCenter().Z();
+    const double pitch = fWireReadout->Plane(planeID).WirePitch();
+
+    double init_KE = std::sqrt(1.e6*trueParticle.P()*trueParticle.P() + mass*mass) - mass;
+
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    auto ides = bt_serv->TrackIdToSimIDEs_Ps(trueParticle.TrackId(), geo::View_t(CollectionPlane()));
+    std::sort(ides.begin(), ides.end(), [](const sim::IDE* a, const sim::IDE* b){ return a->z < b->z; });
+
+    //Drop everything after the first gap of more than 5 cm made by an EM daughter (negative track ID)
+    for (size_t i = 1; i + 1 < ides.size(); ++i) {
+      if (ides[i]->trackID < 0 && (ides[i]->z - ides[i-1]->z) > 5) {
+        ides.erase(ides.begin() + i, ides.end());
+        break;
+      }
+    }
+
+    auto sliced_ides = SliceIDEs(ides, z0, pitch);
+    if (sliced_ides.empty()) return -999.;
+
+    //Start from the trajectory energy just before the first slice with depositions
+    const double first_z = sliced_ides.begin()->second.front()->z;
+    for (size_t i = 1; i < trajectory.size(); ++i) {
+      if (trajectory.Z(i-1) < first_z && trajectory.Z(i) > first_z) {
+        init_KE = 1.e3*trajectory.E(i-1) - mass;
+        break;
+      }
+    }
+
+    double interactingEnergy = init_KE;
+    for (auto const& [slice, sliceIDEs] : sliced_ides) {
+      for (const sim::IDE* ide : sliceIDEs) interactingEnergy -= ide->energy;
+    }
+    return interactingEnergy;
+  }
+
+  //------------------------------------------------------------------------------
+
+  double CAFMaker::ComputeRecoInteractingEnergy(const art::Event &evt, const art::Ptr<recob::Track> &beamTrack, const caf::SRTruthBranch &truthBranch, const caf::SRBeamInstrumentation &beamInst) const
+  {
+    const art::FindManyP<anab::Calorimetry> fmCalo(std::vector<art::Ptr<recob::Track>>{beamTrack}, evt, fCalorimetryLabelSCE);
+    if (!fmCalo.isValid()) {
+      mf::LogWarning("CAFMaker") << "No calorimetry found with label '" << fCalorimetryLabelSCE << "' for the beam track.";
+      return -999.;
+    }
+
+    art::Ptr<anab::Calorimetry> calo;
+    for (art::Ptr<anab::Calorimetry> const& c : fmCalo.at(0)) {
+      if (static_cast<int>(c->PlaneID().Plane) == CollectionPlane()) {
+        calo = c;
+        break;
+      }
+    }
+    if (calo.isNull() || calo->dEdx().empty()) return -999.;
+
+    //(z, dE/dx, pitch) of each calorimetry point, ordered along the beam direction
+    std::vector<std::tuple<double, double, double>> points;
+    for (size_t i = 0; i < calo->dEdx().size(); ++i) {
+      points.emplace_back(calo->XYZ()[i].Z(), calo->dEdx()[i], calo->TrkPitchVec()[i]);
+    }
+    std::sort(points.begin(), points.end(), [](auto const& a, auto const& b){ return std::get<0>(a) < std::get<0>(b); });
+
+    double init_KE = 0.;
+    if (evt.isRealData() || fMCHasBI) {
+      //Beam instrumentation momentum, assuming a pion as in PDSPAnalyzer. NaN if no beam event was found.
+      const double mass = 139.57;
+      const double p = std::isfinite(beamInst.P) ? 1.e3*beamInst.P : 0.;
+      init_KE = std::sqrt(p*p + mass*mass) - mass;
+    }
+    else {
+      //Assumes the first true interaction is the beam particle, as with MCTruthLabel: [ "generator" ]
+      if (truthBranch.nu.empty() || truthBranch.nu[0].prim.empty()) {
+        mf::LogWarning("CAFMaker") << "No true beam particle found; reco interacting energy left unfilled.";
+        return -999.;
+      }
+      const caf::SRLorentzVector &p = truthBranch.nu[0].prim[0].p;
+      const double p2 = p.px*p.px + p.py*p.py + p.pz*p.pz;
+      init_KE = (p.E - std::sqrt(std::max(0., p.E*p.E - p2)))*1.e3; //GeV -> MeV
+    }
+
+    //The last point is not subtracted, as in PDSPAnalyzer's reco_beam_incidentEnergies
+    double interactingEnergy = init_KE;
+    for (size_t i = 0; i + 1 < points.size(); ++i) {
+      const double dEdx = std::get<1>(points[i]);
+      if (dEdx < 0.) continue;
+      interactingEnergy -= dEdx*std::get<2>(points[i]);
+    }
+    return interactingEnergy;
+  }
+
+  //------------------------------------------------------------------------------
  
  
   void CAFMaker::beginSubRun(const art::SubRun& sr)
@@ -1058,10 +1241,195 @@ namespace caf {
 
   //------------------------------------------------------------------------------
 
+  // The three functions below are ports of protoana::ProtoDUNEBeamlineUtils
+  // (protoduneana v10_20_09d00). They are reproduced rather than called so that CAFMaker keeps no
+  // dependency on protoduneana; every input they touch lives on beam::ProtoDUNEBeamEvent, which
+  // dunecore::DuneObj already provides.
+
+  bool CAFMaker::IsGoodBeamlineTrigger(const beam::ProtoDUNEBeamEvent &beamEvent)
+  {
+    // Timing trigger 12 is the beam trigger; CheckIsMatched() says the beamline record was
+    // matched to this DAQ trigger.
+    return (beamEvent.GetTimingTrigger() == 12 && beamEvent.CheckIsMatched());
+  }
+
+  //------------------------------------------------------------------------------
+
+  bool CAFMaker::HasPerfectBeamMomentum(const beam::ProtoDUNEBeamEvent &beamEvent)
+  {
+    // One active fiber per momentum monitor means an unambiguous momentum. Fibers flagged in the
+    // monitor's glitch mask are dropped first, so this is stricter than the raw fiber counts.
+    auto countGood = [&beamEvent](const std::string &monitor) {
+      const std::vector<short> &fibers = beamEvent.GetActiveFibers(monitor);
+      const std::array<short, 192> &glitch_mask = beamEvent.GetFBM(monitor).glitch_mask;
+      int n = 0;
+      for (size_t i = 0; i < fibers.size(); ++i) {
+        if (!glitch_mask[fibers[i]]) ++n;
+      }
+      return n;
+    };
+
+    return (countGood("XBPF022697") == 1 &&
+            countGood("XBPF022701") == 1 &&
+            countGood("XBPF022702") == 1);
+  }
+
+  //------------------------------------------------------------------------------
+
+  std::vector<int> CAFMaker::GetBeamPDGCandidates(const beam::ProtoDUNEBeamEvent &beamEvent,
+                                                  double nominal_momentum) const
+  {
+    std::vector<int> pdgs;
+
+    // The cuts are only defined at the momenta the beam line was calibrated at.
+    const std::vector<double> valid_momenta = {1., 2., 3., 6., 7.};
+    if (std::find(valid_momenta.begin(), valid_momenta.end(), nominal_momentum) == valid_momenta.end()) {
+      mf::LogWarning("CAFMaker") << "Beam PID: reference momentum " << nominal_momentum
+                                 << " GeV/c is not one of 1, 2, 3, 6, 7; no PID assigned.";
+      return pdgs;
+    }
+
+    // Naming follows the reference: CKov0 is the high-pressure counter, CKov1 the low-pressure one.
+    const int high_pressure_status = beamEvent.GetCKov0Status();
+    const int low_pressure_status  = beamEvent.GetCKov1Status();
+
+    if (nominal_momentum == 1. || nominal_momentum == 2.) {
+      // At 1 and 2 GeV/c the separation is driven by time of flight, with the low-pressure
+      // Cherenkov only tagging electrons.
+      if (beamEvent.GetTOFChan() == -1) return pdgs;   // no valid TOF
+      if (low_pressure_status == -1)    return pdgs;   // no valid Cherenkov
+
+      const double tof = beamEvent.GetTOF();
+
+      // The CERN-calibrated cuts differ between the two momenta; the pre-calibration fallback
+      // uses a single boundary.
+      const double e_cut    = 105.;   // same at both momenta
+      const double mip_cut  = (nominal_momentum == 1. ? 110. : 103.);
+      const double p_cut_hi = 160.;
+      const double old_cut  = (nominal_momentum == 1. ? 170. : 160.);
+
+      if (((fUseCERNCalibSelection && tof < e_cut) || (!fUseCERNCalibSelection && tof < old_cut))
+          && low_pressure_status == 1) {
+        pdgs.push_back(11);
+      }
+      else if (((fUseCERNCalibSelection && tof < mip_cut) || (!fUseCERNCalibSelection && tof < old_cut))
+               && low_pressure_status == 0) {
+        pdgs.push_back(13);
+        pdgs.push_back(211);
+      }
+      else if (((fUseCERNCalibSelection && tof > mip_cut && tof < p_cut_hi)
+                || (!fUseCERNCalibSelection && tof > old_cut))
+               && low_pressure_status == 0) {
+        pdgs.push_back(2212);
+      }
+    }
+    else if (nominal_momentum == 3.) {
+      // At 3 GeV/c both Cherenkovs separate, and TOF is no longer used.
+      if (high_pressure_status == -1 || low_pressure_status == -1) return pdgs;
+
+      if (low_pressure_status == 1 && high_pressure_status == 1) {
+        pdgs.push_back(11);
+      }
+      else if (low_pressure_status == 0 && high_pressure_status == 1) {
+        pdgs.push_back(13);
+        pdgs.push_back(211);
+      }
+      else { // 0, 0
+        pdgs.push_back(321);
+        pdgs.push_back(2212);
+      }
+    }
+    else { // 6 or 7 GeV/c
+      if (high_pressure_status == -1 || low_pressure_status == -1) return pdgs;
+
+      if (low_pressure_status == 1 && high_pressure_status == 1) {
+        pdgs.push_back(11);
+        pdgs.push_back(13);
+        pdgs.push_back(211);
+      }
+      else if (low_pressure_status == 0 && high_pressure_status == 1) {
+        pdgs.push_back(321);
+      }
+      else { // 0, 0
+        pdgs.push_back(2212);
+      }
+    }
+
+    return pdgs;
+  }
+
+  //------------------------------------------------------------------------------
+
   void CAFMaker::FillBeamInfo(caf::SRBeamBranch &beam, const art::Event &evt) const
   {
-    //This part will only be relevant when working on real data with real beam.
-    beam.ismc = true; //Hardcoded to true at the moment.
+    beam.ismc = !evt.isRealData();
+
+    // The NuMI fields of SRBeamBranch (toroids, horn current, batch positions) have no
+    // test-beam analogue and stay unfilled. Everything below is the H4-VLE beam line, read
+    // straight out of beam::ProtoDUNEBeamEvent.
+    caf::SRBeamInstrumentation &inst = beam.inst;
+
+    const std::string &beamLabel = evt.isRealData() ? fBeamModuleLabel : fMCBeamModuleLabel;
+    auto beamHandle = evt.getHandle<std::vector<beam::ProtoDUNEBeamEvent>>(beamLabel);
+    if (!beamHandle || beamHandle->empty()) {
+      mf::LogWarning("CAFMaker") << "No beam::ProtoDUNEBeamEvent found with label '" << beamLabel
+                                 << "'; beam instrumentation left empty.";
+      return;
+    }
+
+    const beam::ProtoDUNEBeamEvent &beamEvent = beamHandle->front();
+
+    inst.trigger = beamEvent.GetTimingTrigger();
+    // Simulation has no DAQ trigger to match against, so the beamline-trigger requirement only
+    // makes sense on data.
+    inst.valid   = evt.isRealData() ? IsGoodBeamlineTrigger(beamEvent) : true;
+
+    const std::vector<double> momenta = beamEvent.GetRecoBeamMomenta();
+    inst.nmomenta = static_cast<int>(momenta.size());
+    inst.momenta.reserve(momenta.size());
+    for (double p : momenta) inst.momenta.push_back(static_cast<float>(p));
+    if (!momenta.empty()) {
+      inst.P_raw = static_cast<float>(momenta[0]);
+      // fBeamInstPFix puts simulated beam instrumentation on the data momentum scale; inst.P_raw
+      // is kept so the correction can be undone or varied offline.
+      inst.P = static_cast<float>(evt.isRealData() ? momenta[0] : momenta[0] * fBeamInstPFix);
+    }
+
+    // The singular TOF is the one the PID cuts act on; the vectors are all the candidates.
+    inst.TOF      = static_cast<float>(beamEvent.GetTOF());
+    inst.TOF_chan = beamEvent.GetTOFChan();
+
+    const std::vector<double> tofs  = beamEvent.GetTOFs();
+    const std::vector<int>    chans = beamEvent.GetTOFChans();
+    inst.TOFs.reserve(tofs.size());
+    inst.TOF_chans.reserve(tofs.size());
+    for (size_t i = 0; i < tofs.size(); ++i) {
+      inst.TOFs.push_back(static_cast<float>(tofs[i]));
+      if (i < chans.size()) inst.TOF_chans.push_back(chans[i]);
+    }
+
+    inst.C0          = beamEvent.GetCKov0Status();
+    inst.C1          = beamEvent.GetCKov1Status();
+    inst.C0_pressure = beamEvent.GetCKov0Pressure();
+    inst.C1_pressure = beamEvent.GetCKov1Pressure();
+
+    // Position/direction of the beamline track projected towards the TPC face, leading track only.
+    const auto &beamTracks = beamEvent.GetBeamTracks();
+    inst.ntracks = static_cast<int>(beamTracks.size());
+    if (!beamTracks.empty()) {
+      const auto &traj = beamTracks[0].Trajectory();
+      inst.pos = caf::SRVector3D(traj.End().X(), traj.End().Y(), traj.End().Z());
+      inst.dir = caf::SRVector3D(traj.EndDirection().X(),
+                                 traj.EndDirection().Y(),
+                                 traj.EndDirection().Z());
+    }
+
+    inst.nfibers_p1 = static_cast<int>(beamEvent.GetActiveFibers("XBPF022697").size());
+    inst.nfibers_p2 = static_cast<int>(beamEvent.GetActiveFibers("XBPF022701").size());
+    inst.nfibers_p3 = static_cast<int>(beamEvent.GetActiveFibers("XBPF022702").size());
+    inst.perfect_momentum = HasPerfectBeamMomentum(beamEvent);
+
+    inst.PDG_candidates = GetBeamPDGCandidates(beamEvent, fBeamPIDMomentum);
   }
 
   //------------------------------------------------------------------------------
@@ -1564,7 +1932,7 @@ namespace caf {
 
     FillTruthInfo(sr.mc, evt);
 
-    FillRecoInfoSliceLoop(sr.common, *fdBranch, evt);
+    FillRecoInfoSliceLoop(sr.common, *fdBranch, sr.mc, sr.beam.inst, evt);
 
     if(fTree){
       fTree->Fill();

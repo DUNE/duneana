@@ -38,7 +38,21 @@ dunepdsp_cafmaker:
 
     CalorimetryAlg:             @local::pdune_sp_calorimetryalgmc
     RecombFactor:               0.63 #Average recombination factor used the the hits not attached to a PFP
-    
+
+    # H4-VLE beam instrumentation (beam::ProtoDUNEBeamEvent) -> rec.beam.inst
+    BeamModuleLabel:            "beamevent" #Beam event label in real data
+    MCBeamModuleLabel:          "generator" #Beam event label in simulation
+    BeamInstPFix:               1.          #MC beam momentum correction factor (inst.P = inst.P_raw * BeamInstPFix)
+    BeamPIDMomentum:            1.          #Nominal beam momentum [GeV/c] for the beamline PID cuts (1, 2, 3, 6 or 7)
+    UseCERNCalibSelection:      true        #CERN-calibrated TOF cuts for the beamline PID
+
+    # Thin-target interacting energies of the beam particle (true: rec.mc.nu[].prim[].true_beam_interactingEnergy,
+    # reco: rec.common.ixn.reco_beam_interactingEnergy), as in protoduneana's PDSPAnalyzer
+    BeamTrackLabel:             "pandoraTrack"      #Beam track; its SCE-corrected calorimetry is CalorimetryLabelSCE
+    CalorimetryLabelSCE:        "pandoracalinoxyzt"
+    VPlaneAsCollector:          false
+    MCHasBI:                    true                #MC has beam instrumentation: reco energy starts from inst.P, not from truth
+
 }
 
 

@@ -38,7 +38,20 @@ dunefd_cafmaker:
 
     CalorimetryAlg:             @local::dune10kt_calorimetryalgmc
     RecombFactor:               0.63 #Average recombination factor used the the hits not attached to a PFP
-    
+
+    # Test-beam instrumentation (ProtoDUNE only); with no beam event in the file rec.beam.inst stays empty
+    BeamModuleLabel:            "beamevent"
+    MCBeamModuleLabel:          "generator"
+    BeamInstPFix:               1.
+    BeamPIDMomentum:            1.
+    UseCERNCalibSelection:      true
+
+    # Thin-target interacting energies of the beam particle (ProtoDUNE only)
+    BeamTrackLabel:             ""
+    CalorimetryLabelSCE:        ""
+    VPlaneAsCollector:          false
+    MCHasBI:                    false
+
 }
 
 dunefdvd_cafmaker:
