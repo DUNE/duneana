@@ -80,7 +80,7 @@ std::vector<short> TriggerPrimitiveFinderPass1::filter(const std::vector<short>&
     if(!m_doFiltering){
         std::transform(filtered.begin(), filtered.end(),
                        filtered.begin(), 
-                       [=](short a) { return a*m_multiplier; });
+                       [=, this](short a) { return a*m_multiplier; });
     }
     return filtered;
 }
