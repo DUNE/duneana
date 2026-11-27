@@ -87,7 +87,7 @@
 #>  define_pythonpath
 ####################################
 parent		duneana
-defaultqual	e26
+defaultqual	e28
 ####################################
 
 ####################################
@@ -246,9 +246,9 @@ defaultqual	e26
 #
 product          version
 cetmodules	 v3_27_04	-	only_for_build
-dunereco         v10_32_00d01
-duneopdet        v10_32_00d01
-duneanaobj       v03_16_00
+dunereco         v11_00_00d00
+duneopdet        v11_00_00d00
+duneanaobj       v04_02_02
 end_product_list
 ####################################
 
@@ -304,10 +304,8 @@ end_product_list
 #
 
 qualifier      dunereco   duneopdet  duneanaobj    notes
-c14:debug      c14:debug  c14:debug  c14:debug      
-c14:prof       c14:prof   c14:prof   c14:prof        
-e26:debug      e26:debug  e26:debug  e26:debug    
-e26:prof       e26:prof   e26:prof   e26:prof     
+e28:debug      e28:debug  e28:debug  e28:debug    
+e28:prof       e28:prof   e28:prof   e28:prof     
 end_qualifier_list
 ####################################
 

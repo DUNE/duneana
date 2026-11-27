@@ -2,6 +2,8 @@
 #include <iostream>
 #include <vector>
 #include <cstdio>
+#include <stdint.h>  // for uint32_t
+
 
 int main(int argc, char** argv)
 {
