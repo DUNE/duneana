@@ -3,6 +3,7 @@
 
 #include <climits>
 #include <limits> // for std::numeric_limits
+#include <stdint.h>  // for uint16_t
 
 #include <vector>
 

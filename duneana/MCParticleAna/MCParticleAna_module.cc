@@ -20,6 +20,7 @@
 #include <fcntl.h>
 
 // Larsoft includes (not all might be necessary)
+#include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
